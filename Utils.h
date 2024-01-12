@@ -8,7 +8,6 @@
 namespace Utilities {
 
     const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
-    constexpr auto path = L"Data/SKSE/Plugins/ContainableFramework.ini";
     constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
 
     const auto no_src_msgbox = std::format(
@@ -40,6 +39,8 @@ namespace Utilities {
 
         return oss.str();
     }
+
+    bool EqStr(const char* str1, const char* str2) { return std::strcmp(str1, str2) == 0; }
 
     std::string DecodeTypeCode(std::uint32_t typeCode) {
         char buf[4];
@@ -78,6 +79,41 @@ namespace Utilities {
     bool IsPo3Installed() { return std::filesystem::exists(po3path); };
 
     namespace MsgBoxesNotifs {
+
+        // https://github.com/SkyrimScripting/MessageBox/blob/ac0ea32af02766582209e784689eb0dd7d731d57/include/SkyrimScripting/MessageBox.h#L9
+        class SkyrimMessageBox {
+            class MessageBoxResultCallback : public RE::IMessageBoxCallback {
+                std::function<void(unsigned int)> _callback;
+
+            public:
+                ~MessageBoxResultCallback() override {}
+                MessageBoxResultCallback(std::function<void(unsigned int)> callback) : _callback(callback) {}
+                void Run(RE::IMessageBoxCallback::Message message) override {
+                    _callback(static_cast<unsigned int>(message));
+                }
+            };
+
+        public:
+            static void Show(const std::string& bodyText, std::vector<std::string> buttonTextValues,
+                             std::function<void(unsigned int)> callback) {
+                auto* factoryManager = RE::MessageDataFactoryManager::GetSingleton();
+                auto* uiStringHolder = RE::InterfaceStrings::GetSingleton();
+                auto* factory = factoryManager->GetCreator<RE::MessageBoxData>(
+                    uiStringHolder->messageBoxData);  // "MessageBoxData" <--- can we just use this string?
+                auto* messagebox = factory->Create();
+                RE::BSTSmartPointer<RE::IMessageBoxCallback> messageCallback =
+                    RE::make_smart<MessageBoxResultCallback>(callback);
+                messagebox->callback = messageCallback;
+                messagebox->bodyText = bodyText;
+                for (auto text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
+                messagebox->QueueMessage();
+            }
+        };
+
+        void ShowMessageBox(const std::string& bodyText, std::vector<std::string> buttonTextValues,
+                            std::function<void(unsigned int)> callback) {
+            SkyrimMessageBox::Show(bodyText, buttonTextValues, callback);
+        }
 
         namespace Windows {
 
