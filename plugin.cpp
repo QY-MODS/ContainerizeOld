@@ -1,11 +1,13 @@
 #include "Manager.h"
 
+// FFI04Sack 000DAB04
 
 RE::TESObjectCONT* unownedChest = nullptr;
 RE::TESObjectREFR* unownedChestObjRefr = nullptr;
 RE::TESObjectCELL* unownedCell = nullptr;
 RE::NiPoint3 unownedChestPos = { 1989.0740f, 1793.2015f, 6784.0000f };
 uint32_t total_chests = 1;
+RE::TESForm* container_item = nullptr;
 
 bool EqStr(const char* str1, const char* str2) { return std::strcmp(str1, str2) == 0; }
 
@@ -37,23 +39,26 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
                                           RE::BSTEventSource<RE::TESActivateEvent>*) {
         if (!event) return RE::BSEventNotifyControl::kContinue;
+        if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
         if (!event->objectActivated) return RE::BSEventNotifyControl::kContinue;
         auto activatedName = event->objectActivated->GetBaseObject()->GetName();
+        auto activatorName = event->actionRef->GetBaseObject()->GetName();
         if (EqStr(activatedName,"Unowned Chest")) {
-            logger::info("Unowned Chest is not activatable: {}", event->objectActivated->IsActivationBlocked());
             auto item = event->objectActivated->GetBaseObject();
             /*unownedChest->AddObjectToContainer(item,10,RE::PlayerCharacter::GetSingleton()->As<RE::TESForm>());
             unownedChest->fullName = "lol";
             unownedChest->Activate(event->objectActivated.get(), RE::PlayerCharacter::GetSingleton(), 0, item, 10);*/
             total_chests += 1;
-            logger::info("asd");
-            logger::info("total_chests {}", total_chests);
-            int total_chests_x = ((((int)total_chests - 1) + 2) % 5) - 2;
-            logger::info("total_chests_x: {}", total_chests_x);
-            //unownedChestPos.y += 50.0f * ((total_chests - 1));
+            /*int total_chests_x = (((total_chests - 1) + 2) % 5) - 2;
+            int total_chests_y = ((total_chests - 1) / 5) % 9;
+            int total_chests_z = (total_chests - 1) / 45;*/
+            int total_chests_x = (1 - (total_chests % 3)) * (- 2);
+            int total_chests_y = ((total_chests - 1) / 3) % 9;
+            int total_chests_z = (total_chests - 1) / 27;
             float Pos3_x = unownedChestPos.x + 100.0f * total_chests_x;
-            RE::NiPoint3 Pos3 = { Pos3_x, unownedChestPos.y, unownedChestPos.z };
-            logger::info("Pos3: {}, {}, {}", Pos3.x, Pos3.y, Pos3.z);
+            float Pos3_y = unownedChestPos.y + 50.0f * total_chests_y;
+            float Pos3_z = unownedChestPos.z + 50.0f * total_chests_z;
+            RE::NiPoint3 Pos3 = {Pos3_x, Pos3_y, Pos3_z};
             auto newPropRef = RE::TESDataHandler::GetSingleton()->CreateReferenceAtLocation(item, Pos3,
                                                                                   {0.0f, 0.0f, 0.0f},
                                                               unownedCell, nullptr, nullptr, nullptr,
@@ -61,8 +66,12 @@ public:
             logger::info("Created Object! Type: {}, Base ID: {:x}, Ref ID: {:x},",
                          RE::FormTypeToString(item->GetFormType()), item->GetFormID(), newPropRef->GetFormID());
 		}
-        auto activatorName = event->actionRef->GetBaseObject()->GetName();
         logger::info("{} activated {}", activatorName, activatedName);
+        if (event->objectActivated->GetBaseObject()->GetFormID() == container_item->GetFormID()) {
+            logger::info("asd3");
+            unownedChestObjRefr->SetDisplayName(container_item->GetName(),0);
+            unownedChest->Activate(unownedChestObjRefr, RE::PlayerCharacter::GetSingleton(), 0, unownedChest,1);
+		}
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -70,9 +79,12 @@ public:
                                           RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
         if (!event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
         logger::info("Crosshair is over {}", event->crosshairRef->GetBaseObject()->GetName());
-        if (EqStr(event->crosshairRef->GetBaseObject()->GetName(), "Unowned Chest")) {
+        if (event->crosshairRef->GetBaseObject()->GetFormID() == container_item->GetFormID()) {
             event->crosshairRef->SetActivationBlocked(1);
         }
+        else if (event->crosshairRef->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
+			event->crosshairRef->SetActivationBlocked(1);
+		}
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -106,12 +118,11 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     /*if (message->type == SKSE::MessagingInterface::kInputLoaded)
         RE::BSInputDeviceManager::GetSingleton()->AddEventSink(OurEventSink::GetSingleton());*/
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
+        container_item = RE::TESForm::LookupByID(0x000DAB04);
         unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000EA299);
         if (!unownedChest) logger::info("Unowned Chest not found");
         else {
             logger::info("Unowned Chest found {}", unownedChest->GetName());
-            unownedChestObjRefr = unownedChest->As<RE::TESObjectREFR>();
-            //auto unownedChest3D = unownedChestObjRefr->Get3D();
         }
 
         unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
@@ -123,6 +134,12 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
                 logger::info("Girdik");
                 if (!ref) logger::info("Null object in cell");
                 else {
+                    if (EqStr(ref->GetBaseObject()->GetName(), "Unowned Chest")) {
+                        logger::info("Unowned Chest found in cell");
+                        auto unownedChest_ref_count = unownedChest->GetRefCount();
+                        logger::info("Unowned Chest ref count {}", unownedChest_ref_count);
+						unownedChestObjRefr = ref.get();
+                    }
                     logger::info("Object in cell: {}", ref->GetBaseObject()->GetName());
                     logger::info("Object in cell: {}", ref->GetBaseObject()->GetFormEditorID());
                 }
