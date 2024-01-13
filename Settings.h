@@ -2,12 +2,14 @@
 #include "SimpleIni.h"
 #include "Utils.h"
 
-
+using ItemListData = std::map<Utilities::Types::EditorID, unsigned int>; // consider unordered_map or InventoryCountMap
+using SourceData = std::map<Utilities::Types::EditorRefID, ItemListData>;
 struct Source {
+
     const float capacity;
     std::uint32_t formid;
     const std::string editorid;
-    std::map<Utilities::FormID2,uint32_t> paired_refid;  // {formid, refidContainer} : refidChest
+    SourceData data;
 
     Source(std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {
@@ -64,18 +66,19 @@ namespace Settings {
         {";Make sure to use unique keys, e.g. src1=... NOTsrc1=...",
          std::format(";Make sure to use matching keys with the ones provided in section {}.",
                      static_cast<std::string>(InISections[0])),
-        ";Set boolean values in this section, i.e. true or false."
+        //";Set boolean values in this section, i.e. true or false."
         };
 
-    bool force_editor_id = false;
+    //bool force_editor_id = false;
+    bool force_editor_id = true;
 
     // DO NOT CHANGE THE ORDER OF THESE
-    constexpr std::array<const char*, 1> OtherStuffDefKeys = {"ForceEditorID"};
+    /*constexpr std::array<const char*, 1> OtherStuffDefKeys = {"ForceEditorID"};
     const std::map<const char*, std::map<bool, const char*>> other_stuff_defaults = {
         {OtherStuffDefKeys[0],
          {{force_editor_id,
            ";Set to true if you ONLY use EditorIDs and NO FormIDs AND you have powerofthree's Tweaks installed, "
-           "otherwise false."}}}};
+           "otherwise false."}}}};*/
 
 
     constexpr std::uint32_t kSerializationVersion = 123;
@@ -85,6 +88,23 @@ namespace Settings {
     std::vector<Source> LoadINISettings() {
         
         logger::info("Loading ini settings");
+
+        std::vector<Source> sources;
+
+        // Check if powerofthree's Tweaks is installed
+        if (Utilities::IsPo3Installed()) {
+            logger::info("powerofthree's Tweaks is installed. Enabling EditorID support.");
+            po3installed = true;
+        } else {
+            logger::info("powerofthree's Tweaks is not installed. Disabling EditorID support.");
+            po3installed = false;
+        }
+
+        if (!po3installed) {
+            Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
+			return sources;
+        }
+
 
         // Open the file in output mode, creating it if it doesn't exist
         if (!std::filesystem::exists(path)) {
@@ -100,17 +120,9 @@ namespace Settings {
             outputFile.close();
         }
 
-        if (Utilities::IsPo3Installed()) {
-            logger::info("powerofthree's Tweaks is installed. Enabling EditorID support.");
-            po3installed = true;
-        } else {
-            logger::info("powerofthree's Tweaks is not installed. Disabling EditorID support.");
-            po3installed = false;
-        }
 
         CSimpleIniA ini;
         CSimpleIniA::TNamesDepend source_names;
-        std::vector<Source> sources;
 
         ini.SetUnicode();
         ini.LoadFile(path);
@@ -125,19 +137,19 @@ namespace Settings {
                 if (i < InISections.size() - 1) {
                     ini.SetValue(InISections[i], InIDefaultKeys[i], nullptr, section_comments[i].c_str());
                     logger::info("Default values set for section {}", InISections[i]);
-                } else {
+                } /*else {
                     logger::info("Creating Other Stuff section");
                     for (auto it = other_stuff_defaults.begin(); it != other_stuff_defaults.end(); ++it) {
                         auto it2 = it->second.begin();
                         ini.SetBoolValue(InISections[i], it->first, it2->first, it2->second);
                     }
-                }
+                }*/
             }
         }
 
         // Sections: Other stuff
         // get from user
-        CSimpleIniA::TNamesDepend other_stuff_userkeys;
+        /*CSimpleIniA::TNamesDepend other_stuff_userkeys;
         ini.GetAllKeys(InISections[InISections.size()-1], other_stuff_userkeys);
         for (CSimpleIniA::TNamesDepend::const_iterator it = other_stuff_userkeys.begin();
              it != other_stuff_userkeys.end(); ++it) {
@@ -150,17 +162,17 @@ namespace Settings {
                     break;
                 }
             }
-        }
+        }*/
 
-        // set stuff which is not found
-        for (auto it = other_stuff_defaults.begin(); it != other_stuff_defaults.end(); ++it) {
-            if (ini.KeyExists(InISections[InISections.size() - 1], it->first)) continue;
-            auto it2 = it->second.begin();
-            ini.SetBoolValue(InISections[InISections.size() - 1], it->first, it2->first, it2->second);
-        }
+        //// set stuff which is not found
+        //for (auto it = other_stuff_defaults.begin(); it != other_stuff_defaults.end(); ++it) {
+        //    if (ini.KeyExists(InISections[InISections.size() - 1], it->first)) continue;
+        //    auto it2 = it->second.begin();
+        //    ini.SetBoolValue(InISections[InISections.size() - 1], it->first, it2->first, it2->second);
+        //}
 
-        force_editor_id = ini.GetBoolValue(InISections[InISections.size() - 1],
-                             OtherStuffDefKeys[0]);  // logger::info("force_editor_id: {}", force_editor_id);
+        //force_editor_id = ini.GetBoolValue(InISections[InISections.size() - 1],
+        //                     OtherStuffDefKeys[0]);  // logger::info("force_editor_id: {}", force_editor_id);
 
         // Sections: Containers, Capacities
         ini.GetAllKeys(InISections[0], source_names);

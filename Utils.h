@@ -13,8 +13,12 @@ namespace Utilities {
     const auto no_src_msgbox = std::format(
         "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
         mod_name);
-    const auto po3_err_msgbox = std::format(
+    /*const auto po3_err_msgbox = std::format(
         "{}: You have given an invalid FormID. If you are using Editor IDs, you must have powerofthree's Tweaks "
+        "installed. See mod page for further instructions.",
+        mod_name);*/
+    const auto po3_err_msgbox = std::format(
+        "{}: You must have powerofthree's Tweaks "
         "installed. See mod page for further instructions.",
         mod_name);
     const auto general_err_msgbox = std::format("{}: Something went wrong. Please contact the mod author.", mod_name);
@@ -150,146 +154,175 @@ namespace Utilities {
                         .c_str());
             }
 
+            void ProblemWithItem(std::string id) {
+                RE::DebugMessageBox(
+					std::format("{}: Problem with one of the items with the editor id ({}).",
+                        								Utilities::mod_name, id)
+						.c_str());
+            };
+
             /*void LoadOrderError() {
                 RE::DebugMessageBox((std::format("{}: ", Utilities::mod_name) + load_order_msgbox).c_str());
             }*/
         };
     };
 
-    // Custom struct to represent the combined data
-    // butun RE::FormID'ler bununla takas edildi
-    struct FormID2 {
-        uint32_t outerKey;
-        uint32_t innerKey;
+    namespace Types {
 
-        // Comparison operator for using Key as std::map key
-        bool operator<(const FormID2& other) const {
-            return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-        }
-    };
+        using EditorID = const std::string;
+        using FormID = const std::uint32_t;
+        using RefID = const std::uint32_t;
 
-    // https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp
-    template <typename T>
-    // BaseData is based off how powerof3's did it in Afterlife
-    class BaseData {
-    public:
-        float GetData(FormID2 formId, T missing) {
-            Locker locker(m_Lock);
-            if (auto idx = m_Data.find(formId) != m_Data.end()) {
-                return m_Data[formId];
+        struct FormRefID {
+            FormID outerKey;
+            RefID innerKey;
+
+            bool operator<(const FormRefID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
             }
-            return missing;
-        }
+        };
 
-        void SetData(FormID2 formId, T value) {
-            Locker locker(m_Lock);
-            m_Data[formId] = value;
-        }
+        struct EditorRefID {
+            EditorID outerKey;
+            RefID innerKey;
 
-        virtual const char* GetType() = 0;
-
-        virtual bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
-                          std::uint32_t version);
-        virtual bool Save(SKSE::SerializationInterface* serializationInterface);
-        virtual bool Load(SKSE::SerializationInterface* serializationInterface);
-
-        void Clear();
-
-        virtual void DumpToLog() = 0;
-
-    protected:
-        std::map<FormID2, T> m_Data;
-
-        using Lock = std::recursive_mutex;
-        using Locker = std::lock_guard<Lock>;
-        mutable Lock m_Lock;
-    };
-
-    class BaseFormFloat : public BaseData<float> {
-    public:
-        virtual void DumpToLog() override {
-            Locker locker(m_Lock);
-            for (const auto& [formId, value] : m_Data) {
-                logger::info("Dump Row From {} - FormID1st: {} - FormID2nd: {} - value: {}", GetType(), formId.outerKey,
-                             formId.innerKey, value);
+            bool operator<(const EditorRefID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
             }
-            // sakat olabilir
-            logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
-        }
-    };
+        };
 
-    // BaseData is based off how powerof3's did it in Afterlife
-    template <typename T>
-    bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
-                           std::uint32_t version) {
-        if (!serializationInterface->OpenRecord(type, version)) {
-            logger::error("Failed to open record for Data Serialization!");
-            return false;
-        }
+        struct FormEditorID {
+            FormID outerKey;
+            EditorID innerKey;
 
-        return Save(serializationInterface);
+            bool operator<(const FormEditorID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+            }
+        };
     }
 
-    template <typename T>
-    bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface) {
-        assert(serializationInterface);
-        Locker locker(m_Lock);
+    //// https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp
+    //template <typename T>
+    //// BaseData is based off how powerof3's did it in Afterlife
+    //class BaseData {
+    //public:
+    //    float GetData(FormRefID formId, T missing) {
+    //        Locker locker(m_Lock);
+    //        if (auto idx = m_Data.find(formId) != m_Data.end()) {
+    //            return m_Data[formId];
+    //        }
+    //        return missing;
+    //    }
 
-        const auto numRecords = m_Data.size();
-        if (!serializationInterface->WriteRecordData(numRecords)) {
-            logger::error("Failed to save {} data records", numRecords);
-            return false;
-        }
+    //    void SetData(FormRefID formId, T value) {
+    //        Locker locker(m_Lock);
+    //        m_Data[formId] = value;
+    //    }
 
-        for (const auto& [formId, value] : m_Data) {
-            if (!serializationInterface->WriteRecordData(formId)) {
-                logger::error("Failed to save data for FormID2: ({},{})", formId.outerKey, formId.innerKey);
-                return false;
-            }
+    //    virtual const char* GetType() = 0;
 
-            if (!serializationInterface->WriteRecordData(value)) {
-                logger::error("Failed to save value data for form2: ({},{})", formId.outerKey, formId.innerKey);
-                return false;
-            }
-        }
-        return true;
-    }
+    //    virtual bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
+    //                      std::uint32_t version);
+    //    virtual bool Save(SKSE::SerializationInterface* serializationInterface);
+    //    virtual bool Load(SKSE::SerializationInterface* serializationInterface);
 
-    template <typename T>
-    bool BaseData<T>::Load(SKSE::SerializationInterface* serializationInterface) {
-        assert(serializationInterface);
+    //    void Clear();
 
-        std::size_t recordDataSize;
-        serializationInterface->ReadRecordData(recordDataSize);
+    //    virtual void DumpToLog() = 0;
 
-        Locker locker(m_Lock);
-        m_Data.clear();
+    //protected:
+    //    std::map<FormRefID, T> m_Data;
 
-        FormID2 formId;
-        T value;
+    //    using Lock = std::recursive_mutex;
+    //    using Locker = std::lock_guard<Lock>;
+    //    mutable Lock m_Lock;
+    //};
 
-        for (auto i = 0; i < recordDataSize; i++) {
-            serializationInterface->ReadRecordData(formId);
-            // Ensure form still exists
-            // bunu nasil yapacagiz?
-            FormID2 fixedId;
-            if (!serializationInterface->ResolveFormID(formId.outerKey, fixedId.outerKey) ||
-                !serializationInterface->ResolveFormID(formId.innerKey, fixedId.innerKey)) {
-                logger::error("Failed to resolve formID1st {} {} and Failed to resolve formID2nd {} {}"sv,
-                              formId.outerKey, fixedId.outerKey, formId.innerKey, fixedId.innerKey);
-                continue;
-            }
+    //class BaseFormFloat : public BaseData<float> {
+    //public:
+    //    virtual void DumpToLog() override {
+    //        Locker locker(m_Lock);
+    //        for (const auto& [formId, value] : m_Data) {
+    //            logger::info("Dump Row From {} - FormID1st: {} - FormID2nd: {} - value: {}", GetType(), formId.outerKey,
+    //                         formId.innerKey, value);
+    //        }
+    //        // sakat olabilir
+    //        logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
+    //    }
+    //};
 
-            serializationInterface->ReadRecordData(value);
-            m_Data[formId] = value;
-        }
-        return true;
-    }
+    //// BaseData is based off how powerof3's did it in Afterlife
+    //template <typename T>
+    //bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
+    //                       std::uint32_t version) {
+    //    if (!serializationInterface->OpenRecord(type, version)) {
+    //        logger::error("Failed to open record for Data Serialization!");
+    //        return false;
+    //    }
 
-    template <typename T>
-    void BaseData<T>::Clear() {
-        Locker locker(m_Lock);
-        m_Data.clear();
-    }
+    //    return Save(serializationInterface);
+    //}
+
+    //template <typename T>
+    //bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface) {
+    //    assert(serializationInterface);
+    //    Locker locker(m_Lock);
+
+    //    const auto numRecords = m_Data.size();
+    //    if (!serializationInterface->WriteRecordData(numRecords)) {
+    //        logger::error("Failed to save {} data records", numRecords);
+    //        return false;
+    //    }
+
+    //    for (const auto& [formId, value] : m_Data) {
+    //        if (!serializationInterface->WriteRecordData(formId)) {
+    //            logger::error("Failed to save data for FormID2: ({},{})", formId.outerKey, formId.innerKey);
+    //            return false;
+    //        }
+
+    //        if (!serializationInterface->WriteRecordData(value)) {
+    //            logger::error("Failed to save value data for form2: ({},{})", formId.outerKey, formId.innerKey);
+    //            return false;
+    //        }
+    //    }
+    //    return true;
+    //}
+
+    //template <typename T>
+    //bool BaseData<T>::Load(SKSE::SerializationInterface* serializationInterface) {
+    //    assert(serializationInterface);
+
+    //    std::size_t recordDataSize;
+    //    serializationInterface->ReadRecordData(recordDataSize);
+
+    //    Locker locker(m_Lock);
+    //    m_Data.clear();
+
+    //    FormRefID formId;
+    //    T value;
+
+    //    for (auto i = 0; i < recordDataSize; i++) {
+    //        serializationInterface->ReadRecordData(formId);
+    //        // Ensure form still exists
+    //        // bunu nasil yapacagiz?
+    //        FormRefID fixedId;
+    //        if (!serializationInterface->ResolveFormID(formId.outerKey, fixedId.outerKey) ||
+    //            !serializationInterface->ResolveFormID(formId.innerKey, fixedId.innerKey)) {
+    //            logger::error("Failed to resolve formID1st {} {} and Failed to resolve formID2nd {} {}"sv,
+    //                          formId.outerKey, fixedId.outerKey, formId.innerKey, fixedId.innerKey);
+    //            continue;
+    //        }
+
+    //        serializationInterface->ReadRecordData(value);
+    //        m_Data[formId] = value;
+    //    }
+    //    return true;
+    //}
+
+    //template <typename T>
+    //void BaseData<T>::Clear() {
+    //    Locker locker(m_Lock);
+    //    m_Data.clear();
+    //}
 
 };

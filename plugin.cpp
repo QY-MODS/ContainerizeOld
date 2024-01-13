@@ -20,47 +20,43 @@ public:
         static OurEventSink singleton;
         return &singleton;
     }
-
+    // (WIP)
     RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
                                           RE::BSTEventSource<RE::TESActivateEvent>*) {
-        if (!event) return RE::BSEventNotifyControl::kContinue;
-        if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
-        if (!event->objectActivated) return RE::BSEventNotifyControl::kContinue;
-        auto activatedName = event->objectActivated->GetBaseObject()->GetName();
-        auto activatorName = event->actionRef->GetBaseObject()->GetName();
-        logger::info("{} activated {}", activatorName, activatedName);
-        
-        if (M->IsChest(event->objectActivated->GetBaseObject()->GetFormID())) M->AddChest();
-        /*if (M->RefIsContainer(event->objectActivated.get())) {
-            logger::info("asd3");
 
-            unownedChestObjRefr->SetDisplayName(container_item->GetName(),0);
-            std::vector<std::string> buttons = {"asd1", "asd2"};
-            unsigned int messageBoxId = 1;
-            auto callback = [messageBoxId](unsigned int result) {
-                logger::info("Result: {}", result);
-            };
-            Utilities::MsgBoxesNotifs::ShowMessageBox("asd", buttons, callback);
-		}*/
+        if (!event) return RE::BSEventNotifyControl::kContinue;
+        if (!event->objectActivated) return RE::BSEventNotifyControl::kContinue;
+        if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+        if (!M->RefIsContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
+        
+        
+        M->ActivateContainer(event->objectActivated.get());
+
+
         return RE::BSEventNotifyControl::kContinue;
     }
 
+    // to disable ref activation (DONE)
     RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* event,
                                           RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
+
         if (!event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
-        logger::info("Crosshair is over {}", event->crosshairRef->GetBaseObject()->GetName());
+        if (event->crosshairRef->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
+
+        //logger::info("Crosshair is over {}", event->crosshairRef->GetBaseObject()->GetName());
+        
         if (M->RefIsContainer(event->crosshairRef.get())) {
 			event->crosshairRef->SetActivationBlocked(1);
             logger::info("Ref activation disabled");
 		}
         return RE::BSEventNotifyControl::kContinue;
     }
-
+    // (MAYBE)
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
         return RE::BSEventNotifyControl::kContinue;
     }
-
+    // (MAYBE)
     RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* eventPtr, RE::BSTEventSource<RE::InputEvent*>*) {
         if (!eventPtr) return RE::BSEventNotifyControl::kContinue;
 
