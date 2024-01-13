@@ -81,7 +81,10 @@ class Manager {
 
     void Activate(RE::TESObjectREFR* a_objref) {
         auto player = RE::PlayerCharacter::GetSingleton();
-        a_objref->Activate(a_objref, player, 0, a_objref->GetBaseObject(), 1);
+        auto a_obj = a_objref->GetBaseObject()->As<RE::TESObjectCONT>();
+        if (!a_obj) return;
+        a_obj->Activate(a_objref, player, 0, a_obj, 1);
+        //a_objref->Activate(a_objref, player, 0, a_objref->GetBaseObject(), 1);
     }
 
     void ActivateChest(const char* container_name) {
