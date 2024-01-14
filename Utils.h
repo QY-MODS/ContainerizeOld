@@ -4,6 +4,7 @@
 #include "logger.h"
 #include <windows.h>
 #include <functional>
+#include <unordered_set>
 
 using _GetFormEditorID = const char* (*)(std::uint32_t);
 
@@ -29,6 +30,7 @@ namespace Utilities {
         "The equipped light source from your save game could not be registered. Please unequip and reequip it. If you "
         "had fuel in it, it will be lost. This issue will be solved in the next version.");*/
 
+    // string stuff
     template <typename T>
     std::string join(const T& container, const std::string_view& delimiter) {
         std::ostringstream oss;
@@ -57,6 +59,30 @@ namespace Utilities {
         return std::string(buf, buf + 4);
     }
 
+    std::string generateUniqueName(const std::string& baseName, std::unordered_set<std::string>& nameSet) {
+        // Generate a unique name by appending a number
+        std::string uniqueName = baseName;
+        int counter = 1;
+
+        while (nameSet.find(uniqueName) != nameSet.end()) {
+            // If the name is already in the set, append a number and try again
+            std::ostringstream oss;
+            oss << baseName << counter++;
+            uniqueName = oss.str();
+        }
+
+        return uniqueName;
+    }
+
+    std::string stripPostfix(const std::string& original, const std::string& postfix) {
+        if (original.size() >= postfix.size() &&
+            original.compare(original.size() - postfix.size(), postfix.size(), postfix) == 0) {
+            return original.substr(0, original.size() - postfix.size());
+        }
+        return original;  // No matching postfix found
+    }
+
+    // number stuff
     std::string dec2hex(int dec) {
         std::stringstream stream;
         stream << std::hex << dec;
@@ -85,60 +111,7 @@ namespace Utilities {
     bool IsPo3Installed() { return std::filesystem::exists(po3path); };
 
 
-    // Get ID stuff
-    template <class T = RE::TESForm>
-    static T* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
-        T* form = RE::TESForm::LookupByID<T>(id);
-        if (form)
-            return form;
-        else if (!editor_id.empty()) {
-            form = RE::TESForm::LookupByEditorID<T>(editor_id);
-            if (form) return form;
-        }
-        return nullptr;
-    };
-
-    // https:// github.com/powerof3/AnimObjectSwapper/blob/9b4ec05b87ec35031bfd337e3d9786bc36139a83/src/Manager.cpp#L57
-    std::string GetEditorID(const RE::TESForm* a_form) {
-        switch (a_form->GetFormType()) {
-            case RE::FormType::Keyword:
-            case RE::FormType::LocationRefType:
-            case RE::FormType::Action:
-            case RE::FormType::MenuIcon:
-            case RE::FormType::Global:
-            case RE::FormType::HeadPart:
-            case RE::FormType::Race:
-            case RE::FormType::Sound:
-            case RE::FormType::Script:
-            case RE::FormType::Navigation:
-            case RE::FormType::Cell:
-            case RE::FormType::WorldSpace:
-            case RE::FormType::Land:
-            case RE::FormType::NavMesh:
-            case RE::FormType::Dialogue:
-            case RE::FormType::Quest:
-            case RE::FormType::Idle:
-            case RE::FormType::AnimatedObject:
-            case RE::FormType::ImageAdapter:
-            case RE::FormType::VoiceType:
-            case RE::FormType::Ragdoll:
-            case RE::FormType::DefaultObject:
-            case RE::FormType::MusicType:
-            case RE::FormType::StoryManagerBranchNode:
-            case RE::FormType::StoryManagerQuestNode:
-            case RE::FormType::StoryManagerEventNode:
-            case RE::FormType::SoundRecord:
-                return a_form->GetFormEditorID();
-            default: {
-                static auto tweaks = GetModuleHandle(L"po3_Tweaks");
-                static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
-                if (func) {
-                    return func(a_form->formID);
-                }
-                return std::string();
-            }
-        }
-    }
+    
 
     namespace MsgBoxesNotifs {
 
@@ -228,7 +201,8 @@ namespace Utilities {
     namespace Types {
 
         using EditorID = const std::string;
-        using FormID = const std::uint32_t;
+        using NameID = std::string;
+        /*using FormID = const std::uint32_t;
         using RefID = const std::uint32_t;
 
         struct FormRefID {
@@ -256,21 +230,95 @@ namespace Utilities {
             bool operator<(const FormEditorID& other) const {
                 return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
             }
+        };*/
+
+        struct EditorNameID {
+            EditorID outerKey;
+            NameID innerKey;
+
+            bool operator<(const EditorNameID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+            }
         };
+
 
         using ItemListData = std::map<EditorID, unsigned int>; // consider unordered_map or InventoryCountMap
-        using SourceData = std::map<EditorRefID, ItemListData>;
+        using SourceData = std::map<EditorNameID, ItemListData>;
     }
     
+    // Get ID stuff
+    template <class T = RE::TESForm>
+    static T* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
+        T* form = RE::TESForm::LookupByID<T>(id);
+        if (form)
+            return form;
+        else if (!editor_id.empty()) {
+            form = RE::TESForm::LookupByEditorID<T>(editor_id);
+            if (form) return form;
+        }
+        return nullptr;
+    };
+
+    // https:// github.com/powerof3/AnimObjectSwapper/blob/9b4ec05b87ec35031bfd337e3d9786bc36139a83/src/Manager.cpp#L57
+    std::string GetEditorID(const RE::TESForm* a_form) {
+        switch (a_form->GetFormType()) {
+            case RE::FormType::Keyword:
+            case RE::FormType::LocationRefType:
+            case RE::FormType::Action:
+            case RE::FormType::MenuIcon:
+            case RE::FormType::Global:
+            case RE::FormType::HeadPart:
+            case RE::FormType::Race:
+            case RE::FormType::Sound:
+            case RE::FormType::Script:
+            case RE::FormType::Navigation:
+            case RE::FormType::Cell:
+            case RE::FormType::WorldSpace:
+            case RE::FormType::Land:
+            case RE::FormType::NavMesh:
+            case RE::FormType::Dialogue:
+            case RE::FormType::Quest:
+            case RE::FormType::Idle:
+            case RE::FormType::AnimatedObject:
+            case RE::FormType::ImageAdapter:
+            case RE::FormType::VoiceType:
+            case RE::FormType::Ragdoll:
+            case RE::FormType::DefaultObject:
+            case RE::FormType::MusicType:
+            case RE::FormType::StoryManagerBranchNode:
+            case RE::FormType::StoryManagerQuestNode:
+            case RE::FormType::StoryManagerEventNode:
+            case RE::FormType::SoundRecord:
+                return a_form->GetFormEditorID();
+            default: {
+                static auto tweaks = GetModuleHandle(L"po3_Tweaks");
+                static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
+                if (func) {
+                    return func(a_form->formID);
+                }
+                return std::string();
+            }
+        }
+    }
+
+    Types::EditorNameID GetEditorNameID(RE::TESObjectREFR* a_ref) {
+        logger::info("Getting editorid and nameid");
+        Types::EditorID editorid =
+            GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
+        Types::NameID nameid = a_ref->GetDisplayFullName();
+        logger::info("Editorid: {} - nameid: {}", editorid, nameid);
+        return {editorid, nameid};
+    };
+
     namespace TESConversions {
 
-        Types::EditorRefID GetEditorRefID(RE::TESObjectREFR* a_ref) {
-            logger::info("Getting editorid and refid");
-            Types::EditorID editorid = GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
-            Types::RefID refid = a_ref->GetFormID();
-            logger::info("Editorid: {} - Refid: {}", editorid, refid);
-            return {editorid, refid};
-        };
+        //Types::EditorRefID GetEditorRefID(RE::TESObjectREFR* a_ref) {
+        //    logger::info("Getting editorid and refid");
+        //    Types::EditorID editorid = GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
+        //    Types::RefID refid = a_ref->GetFormID();
+        //    logger::info("Editorid: {} - Refid: {}", editorid, refid);
+        //    return {editorid, refid};
+        //};
         
 
         const Types::ItemListData InventoryCountMap2ItemListData(const RE::TESObjectREFR::InventoryCountMap& inventoryCountMap) {
@@ -286,6 +334,8 @@ namespace Utilities {
 		    return itemListData;
 	    }
     }
+
+    
 
 
     //// https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp

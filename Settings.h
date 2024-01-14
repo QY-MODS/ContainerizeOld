@@ -2,6 +2,8 @@
 #include "SimpleIni.h"
 #include "Utils.h"
 
+
+
 using namespace Utilities::Types;
 using namespace Utilities::TESConversions;
 
@@ -11,6 +13,7 @@ struct Source {
     std::uint32_t formid;
     const std::string editorid;
     SourceData data;
+    std::unordered_set<std::string> nameIDs; // without suffix!!!
 
     Source(std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {
@@ -45,6 +48,8 @@ struct Source {
 namespace Settings {
 
     constexpr auto path = L"Data/SKSE/Plugins/ContainableFramework.ini";
+
+    const std::string suffix = " | EC";
 
 
     bool po3installed = false;

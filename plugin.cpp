@@ -26,8 +26,25 @@ public:
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!event->objectActivated) return RE::BSEventNotifyControl::kContinue;
         if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+        if (!event->objectActivated->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
         if (!M->RefIsContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
+        
+        //logger::info("container has {} extra data", extradatalist.size());
+  //      for (auto it = extradatalist.begin(); it != extradatalist.end(); ++it) {
+		//	it->GetType();
+  // //         if (extra->GetType() == RE::ExtraDataType::kContainerChanges) {
+		//	//	auto containerchanges = static_cast<RE::ExtraContainerChanges*>(extra);
+		//	//	auto changes = containerchanges->changes;
+  // //             for (auto it2 = changes.begin(); it2 != changes.end(); ++it2) {
+		//	//		auto change = *it2;
+		//	//		auto item = change->item;
+		//	//		auto count = change->countDelta;
+		//	//		logger::info("Item {} count {}", item->GetName(), count);
+		//	//		M->AddItemToContainer(item, count);
+		//	//	}
+		//	//}
+		//}
         
         
         M->ActivateContainer(event->objectActivated.get());
@@ -42,6 +59,7 @@ public:
 
         if (!event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
+        if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
 
         //logger::info("Crosshair is over {}", event->crosshairRef->GetBaseObject()->GetName());
         
