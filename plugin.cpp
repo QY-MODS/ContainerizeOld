@@ -20,7 +20,7 @@ public:
         static OurEventSink singleton;
         return &singleton;
     }
-    // (WIP)
+    // to put saved items to chest and to open chest (DONE)
     RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
                                           RE::BSTEventSource<RE::TESActivateEvent>*) {
 
@@ -51,11 +51,24 @@ public:
 		}
         return RE::BSEventNotifyControl::kContinue;
     }
-    // (MAYBE)
+    
+    // to close close chest and save the contents and remove items (MAYBE)
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
+        if (!event) return RE::BSEventNotifyControl::kContinue;
+        if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
+        logger::info("Menu {} {}", event->menuName, event->opening);
+
+        if (event->menuName == "ContainerMenu" && !event->opening) {
+			logger::info("Container menu closed");
+			M->listen_menuclose = false;
+            M->DeactivateContainer();
+
+		}
         return RE::BSEventNotifyControl::kContinue;
     }
+
+
     // (MAYBE)
     RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* eventPtr, RE::BSTEventSource<RE::InputEvent*>*) {
         if (!eventPtr) return RE::BSEventNotifyControl::kContinue;
@@ -81,6 +94,14 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         // Start
         auto sources = Settings::LoadINISettings();
         M = Manager::GetSingleton(sources);
+        
+        // EventSink
+        auto* eventSink = OurEventSink::GetSingleton();
+        auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
+
+        eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
+        RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(OurEventSink::GetSingleton());
+        SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
     }
 }
 
@@ -88,20 +109,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 
     SetupLog();
-
     SKSE::Init(skse);
-    auto* eventSink = OurEventSink::GetSingleton();
-
-    // ScriptSource
-    auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-    eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
-
-    // SKSE
-    SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
-
-    // UI
-    //RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
-
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 
     return true;

@@ -13,14 +13,15 @@ class Manager {
     unsigned int n_bags = 0;
     unsigned int n_chests = 0;
     std::vector<std::string> buttons = {"Open", "Carry", "Cancel"};
-    RE::NiPoint3 unownedChestPos = {1989.0740f, 1793.2015f, 6784.0000f};
+    RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
+    RE::TESObjectREFR* current_container = nullptr;
 
     // unowned stuff
     RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
     RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000EA299);
     RE::TESObjectREFR* unownedChestObjRef;
+    RE::NiPoint3 unownedChestPos = {1989.0740f, 1793.2015f, 6784.0000f};
 
-    RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
 
     // private functions
     RE::TESObjectREFR* MakeChest(RE::NiPoint3 Pos3 = {0.0f, 0.0f, 0.0f}) {
@@ -36,29 +37,49 @@ class Manager {
     };
 
     
-    const ItemListData GetSavedItems(RE::TESObjectREFR* a_container) {
+    Source* GetContainerSource(const RE::TESObjectREFR* a_container) {
+        logger::info("Getting container source");
         auto container_formid = a_container->GetBaseObject()->GetFormID();
-        for (const auto& src : sources) {
-            if (src.formid != container_formid) continue;
-            // ayni formid'li source bulundu
-            Utilities::Types::EditorID a_container_editorid = a_container->GetBaseObject()->GetFormEditorID();
-            Utilities::Types::RefID a_container_refid = a_container->GetFormID();
-            Utilities::Types::EditorRefID container_EditorRefid = {a_container_editorid, a_container_refid};
-            auto it = src.data.find(container_EditorRefid);
-            if (it == src.data.end()) continue;
-            return it->second;
-        }
-        return ItemListData();
+        for (auto& src : sources) {
+            if (src.formid == container_formid) return &src;
+		}
+		return nullptr;
     };
 
 
-    void RemoveAllItemsFromChest() { 
+    const ItemListData GetSavedItems(RE::TESObjectREFR* a_container) {
+        logger::info("Getting saved items");
+        const auto src = GetContainerSource(a_container);
+        auto it = src->data.find(GetEditorRefID(a_container));
+        if (it != src->data.end()) return it->second;
+        return ItemListData();
+    };
+
+    void UpdateItemListData(RE::TESObjectREFR* container, const RE::TESObjectREFR::InventoryCountMap inventory_map) {
+        if (!container) return;
+        logger::info("Updating item list data");
+        auto src = GetContainerSource(container);
+        src->data[GetEditorRefID(container)] = InventoryCountMap2ItemListData(inventory_map);
+        logger::info("Item list data updated");
+        src->PrintSourceEditorRefIDs();
+    };
+
+
+    void RemoveAllItemsFromChest(bool _updateItemListData = false ) { 
         auto items = unownedChestObjRef->GetInventoryCounts();
         logger::info("Removing {} items from chest", items.size());
+
+        // Save the content of the chest
+        if (_updateItemListData) {
+            if (!current_container) logger::info("Current container is null!!!! How???");
+			else UpdateItemListData(current_container, items);
+        }
+
         for (const auto& item : items) {
             unownedChestObjRef->RemoveItem(item.first, item.second, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 		}
 	};
+
 
     bool AddItemToChest(const Utilities::Types::EditorID& editorID, const unsigned int n_item) {
         auto item = RE::TESForm::LookupByEditorID<RE::TESBoundObject>(editorID);
@@ -84,7 +105,6 @@ class Manager {
         auto a_obj = a_objref->GetBaseObject()->As<RE::TESObjectCONT>();
         if (!a_obj) return;
         a_obj->Activate(a_objref, player, 0, a_obj, 1);
-        //a_objref->Activate(a_objref, player, 0, a_objref->GetBaseObject(), 1);
     }
 
     void ActivateChest(const char* container_name) {
@@ -108,9 +128,16 @@ class Manager {
         ItemListData items = GetSavedItems(a_container);
         AddItems2Chest(items);
 
-        // 3. Activate the unowned chest
+        // 3. Listen for menu close
+        listen_menuclose = true;
+
+        // 4. Save last container
+        current_container = a_container;
+
+        // 4. Activate the unowned chest
         logger::info("Activating chest");
         ActivateChest(a_container->GetName());
+
     };
 
     void InitFailed() {
@@ -131,7 +158,7 @@ class Manager {
 
 
         for (auto& src : sources) {
-            if (!src.GetFormByID(src.formid, src.editorid) 
+            if (!Utilities::GetFormByID(src.formid, src.editorid) 
                 || !src.GetBoundObject()) {
                 init_failed = true;
                 logger::error("Failed to initialize Manager due to missing source");
@@ -193,6 +220,7 @@ public:
     }
 
     std::vector<Source> sources;
+    bool listen_menuclose = false;
 
     bool RefIsContainer(RE::TESObjectREFR* ref) {
 		if (!ref) return false;
@@ -213,5 +241,9 @@ public:
             [this, a_container](unsigned int result) { this->MsgBoxCallback(result, a_container); });
     };
 
+    void DeactivateContainer() {
+		if (!current_container) return;
+        RemoveAllItemsFromChest(true);
+    }
 
 };

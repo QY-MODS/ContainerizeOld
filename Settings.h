@@ -2,8 +2,9 @@
 #include "SimpleIni.h"
 #include "Utils.h"
 
-using ItemListData = std::map<Utilities::Types::EditorID, unsigned int>; // consider unordered_map or InventoryCountMap
-using SourceData = std::map<Utilities::Types::EditorRefID, ItemListData>;
+using namespace Utilities::Types;
+using namespace Utilities::TESConversions;
+
 struct Source {
 
     const float capacity;
@@ -22,31 +23,22 @@ struct Source {
                 logger::info("Could not find formid for editorid {}", editorid);
         }
     };
-
-    template <class T = RE::TESForm>
-    static T* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
-        T* form = RE::TESForm::LookupByID<T>(id);
-        if (form)
-            return form;
-        else {
-            if (editor_id.empty())
-                Utilities::MsgBoxesNotifs::InGame::FormIDError(id);
-            else
-                Utilities::MsgBoxesNotifs::InGame::EditorIDError(editor_id);
-        }
-        return nullptr;
-    };
-
+    
     std::string_view GetName() {
-        auto form = GetFormByID(formid, editorid);
+        auto form = Utilities::GetFormByID(formid, editorid);
         if (form)
             return form->GetName();
         else
             return "";
     };
 
-    RE::TESBoundObject* GetBoundObject() { return GetFormByID<RE::TESBoundObject>(formid, editorid); };
+    RE::TESBoundObject* GetBoundObject() { return Utilities::GetFormByID<RE::TESBoundObject>(formid, editorid); };
 
+    void PrintSourceEditorRefIDs() {
+        for (auto& d : data) {
+            logger::info("Source with editorid {} has reference: {}", d.first.outerKey, d.first.innerKey);
+		}
+	};
 };
 
 
