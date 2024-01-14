@@ -12,7 +12,7 @@ class Manager {
     // private variables
     unsigned int n_bags = 0;
     unsigned int n_chests = 0;
-    std::vector<std::string> buttons = {"Open", "Carry", "Cancel"};
+    std::vector<std::string> buttons = {"Open", "Activate", "Cancel"};
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     RE::TESObjectREFR* current_container = nullptr;
 
@@ -119,7 +119,17 @@ class Manager {
 
         if (result == 2) return;
 
-        if (result == 1) Activate(a_container);
+        if (result == 1) {
+            listen_activate = false; 
+            a_container->SetActivationBlocked(0);
+            logger::info("ref id: {}", a_container->GetFormID());
+            a_container->GetBaseObject()->Activate(a_container, player_ref, 0, a_container->GetBaseObject(), 1);
+            logger::info("ref id: {}", a_container->GetFormID());
+
+            a_container->SetActivationBlocked(1);
+            listen_activate = true;
+            return;
+        }
 
         // Opening container
 
@@ -221,6 +231,7 @@ public:
 
     std::vector<Source> sources;
     bool listen_menuclose = false;
+    bool listen_activate = true;
 
     bool RefIsContainer(RE::TESObjectREFR* ref) {
 		if (!ref) return false;

@@ -23,10 +23,10 @@ public:
     // to put saved items to chest and to open chest (DONE)
     RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
                                           RE::BSTEventSource<RE::TESActivateEvent>*) {
-
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!event->objectActivated) return RE::BSEventNotifyControl::kContinue;
         if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+        if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
         if (!M->RefIsContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
         
