@@ -4,15 +4,15 @@
 
 
 
-using namespace Utilities::Types;
-using namespace Utilities::TESConversions;
-
+//using namespace Utilities::Types;
+//using namespace Utilities::TESConversions;
+//
 struct Source {
 
     const float capacity;
     std::uint32_t formid;
     const std::string editorid;
-    SourceData data;
+    Utilities::SourceData data;
     std::unordered_set<std::string> nameIDs; // without suffix!!!
 
     Source(std::uint32_t id, const std::string id_str, float capacity)
