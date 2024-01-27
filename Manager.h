@@ -17,7 +17,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     // unowned stuff
     RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
     RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000EA299);
-    // RE::TESObjectREFR* unownedChestObjRef;
     RE::NiPoint3 unownedChestPos = {1989.0740f, 1793.2015f, 6784.0000f};
 
     // private functions
@@ -133,78 +132,24 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             return;
         }
 
-        //// Lambda function to remove each item from the chest
-        // auto removeItemLambda = [&chest_container, &move2ref, &chest](RE::ContainerObject& obj) {
-        //     // Assuming that RemoveObjectFromContainer returns true on success
-        //     auto item_count = chest_container->numContainerObjects;
-        //     logger::info("Item count: {}", item_count);
-        //     chest->RemoveItem(obj.obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, {obj.itemExtra},
-        //                                                  move2ref);
-        //     //    // Optionally, you can transfer the removed item to the player
-        //     //    chest_container
-        //     //    if (move2ref) {
-        //     //        move2ref->GetContainer()->AddObjectToContainer(obj.obj, obj.count, nullptr);
-        //     //    }
-        //     //    logger::info("Removed {} {} from chest", obj.count, obj.obj->GetName());
-        //     //    return RE::BSContainer::ForEachResult::kContinue;  // Continue the iteration
-        //     //} else {
-        //     //    // Handle removal failure
-        //     //    logger::error("Failed to remove {} {} from chest", obj.count, obj.obj->GetName());
-        //     //    return RE::BSContainer::ForEachResult::kStop;  // Stop the iteration
-        //     //}
-        // };
-
-        // chest_container->ForEachContainerObject(removeItemLambda);
 
         auto inventory = chest->GetInventory();
-        logger::info("Removing {} items from chest", inventory.size());
         for (const auto& item : inventory) {
             auto item_obj = item.first;
             auto item_count = item.second.first;
-            logger::info("Item count: {}", item_count);
-            logger::info("Item extradatalists");
-            //         uint32_t item_extradatalists_size = 0;
-            //         for (auto it_ = item.second.second->extraLists->begin(); it_ !=
-            //         item.second.second->extraLists->end();
-            //              ++it_) {
-            //	item_extradatalists_size++;
-            //}
-            //         if (item_extradatalists_size != 1) {
-            //         	logger::info("Item has more than one extra data list");
-            //             Utilities::MsgBoxesNotifs::InGame::GeneralErr();
-            //         }
-
-            logger::info("Removing item2");
-            // RE::InventoryEntryData* derivedPtr = static_cast<RE::InventoryEntryData*>(item.second.second.get());
-            // std::unique_ptr<int> newUniquePtr = std::move(item.second.second);
             auto inv_data = item.second.second.get();
             auto asd = inv_data->extraLists;
             if (!asd || asd->empty()) {
-                logger::info("Extra list is null");
                 chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, move2ref);
             } else {
-                logger::info("Removing item2.5");
                 chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, asd->front(), move2ref);
             }
-            logger::info("Removing item3");
-            /*for (auto it = asd->begin(); it != asd->end(); ++it) {
-                if (!*it) continue;
-                logger::info("1");
-                auto extra = *it;
-            }*/
-            /*auto inv_data = item.second.second.get();
-            logger::info("item display name: {}", inv_data->GetDisplayName());
-            logger::info("item weight: {}", inv_data->GetWeight());*/
-            // weight += inv_data->GetWeight();
-            /*auto asd = inv_data->extraLists;
-            if (!asd) continue;
-            logger::info("Extra listttt");*/
         }
     };
 
     void Activate(RE::TESObjectREFR* a_objref) {
         if (!a_objref) {
-            logger::info("Object reference is null");
+            logger::error("Object reference is null");
             Utilities::MsgBoxesNotifs::InGame::GeneralErr();
             return;
         }
@@ -247,9 +192,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
                 if (refIt != src->data.end()) {
                     // Remove the entry
                     src->data.erase(refIt);
-                    logger::info("RefID {} removed from sources.", container_refid);
                 } else {
-                    logger::info("RefID {} not found in sources.", container_refid);
                     Utilities::MsgBoxesNotifs::InGame::GeneralErr();
                 }
 
@@ -266,7 +209,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         listen_menuclose = true;
 
         // Activate the unowned chest
-        logger::info("Activating chest");
         ActivateChest(GetContainerChest(current_container), current_container->GetName());
     };
 
@@ -338,7 +280,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             logger::info("Uninstall successful.");
             Utilities::MsgBoxesNotifs::InGame::UninstallSuccessful();
         } else {
-            logger::info("Uninstall failed.");
+            logger::critical("Uninstall failed.");
             Utilities::MsgBoxesNotifs::InGame::UninstallFailed();
         }
 
@@ -346,7 +288,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     }
 
     void InitFailed() {
-        logger::error("Failed to initialize Manager.");
+        logger::critical("Failed to initialize Manager.");
         Utilities::MsgBoxesNotifs::InGame::InitErr();
         sources.clear();
         isUninstalled = true;
@@ -388,26 +330,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             init_failed = true;
         }
 
-        // for (const auto& ref : runtimeData.references) {
-        //     logger::info("Girdik");
-        //     if (!ref) logger::info("Null object in cell");
-        //     else if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
-        //         logger::info("Chest ref found in cell");
-        //         auto chest_ref_count = unownedChest->GetRefCount();
-        //         logger::info("Chest ref count {}", chest_ref_count);
-        //         unownedChestObjRef = ref.get();
-        //         RemoveAllItemsFromChest(false);
-        //         break;
-        //     }
-        // }
-
-        //      if (!unownedChestObjRef) {
-        //          init_failed = true;
-        //	/*logger::info("Chest ref not found in cell. Adding...");
-        //	auto newPropRef = MakeChest();
-        //	unownedChestObjRef = newPropRef;*/
-        //}
-
         if (init_failed) InitFailed();
 
         logger::info("Manager initialized.");
@@ -424,7 +346,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
                 auto result = mergedData.insert(entry);
                 if (!result.second) {
                     // Insertion failed, key already exists
-                    logger::info("Duplicate key detected: {}", result.first->first);
+                    logger::error("Duplicate key detected: {}", result.first->first);
                     Utilities::MsgBoxesNotifs::InGame::GeneralErr();
                 }
             }
@@ -479,10 +401,7 @@ public:
 
         // is it an already registered container?
         const auto container_refid = a_container->GetFormID();
-        if (src->data.find(container_refid) != src->data.end()) {
-            // Already registered
-            logger::info("Already registered");
-        } else {
+        if (src->data.find(container_refid) == src->data.end()) {
             // Not registered
             logger::info("Not registered");
             auto ChestObjRef = FindNotMatchedChest();
@@ -513,15 +432,12 @@ public:
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
             auto item_obj = item->first;
-            logger::info("afjksafd naaamee: {}", item_obj->GetName());
             auto item_count = item->second.first;
             auto inv_data = item->second.second.get();
             auto asd = inv_data->extraLists;
             if (!asd || asd->empty()) {
-                logger::info("Extra list is null__");
                 chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, player_ref);
             } else {
-                logger::info("Removing item.5__");
                 chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, asd->front(), player_ref);
             }
             RE::DebugNotification(std::format("{} is fully packed!", current_container->GetDisplayFullName()).c_str());
@@ -532,7 +448,6 @@ public:
         ENABLE_IF_NOT_UNINSTALLED
         for (auto& src : sources) {
             for (const auto& [cont_ref, chest_ref] : src.data) {
-				logger::info("Sending data: cont_form: {} cont_ref: {} chest_ref: {}", src.formid, cont_ref, chest_ref);
                 SetData({src.formid, cont_ref}, chest_ref);
 			}
         }
@@ -542,18 +457,16 @@ public:
         ENABLE_IF_NOT_UNINSTALLED
         bool no_match = true;
         for (const auto& [cont_formref, chest_ref] : m_Data) {
-            logger::info("Receiving data: cont_form: {} cont_ref: {} chest_ref: {}", cont_formref.outerKey, cont_formref.innerKey, chest_ref);
             no_match = true;
             for (auto& src : sources) {
                 if (cont_formref.outerKey == src.formid) {
                     auto it = src.data.find(cont_formref.innerKey);
                     if (it != src.data.end()) {
-                        logger::info("RefID {} with formid {} already exists in sources.", cont_formref.innerKey,
+                        logger::error("RefID {} with formid {} already exists in sources.", cont_formref.innerKey,
                                      cont_formref.outerKey);
                         Utilities::MsgBoxesNotifs::InGame::GeneralErr();
                     }
                     src.data[cont_formref.innerKey] = chest_ref;
-                    logger::info("Container {} matched with chest {}.", cont_formref.innerKey, chest_ref);
                     no_match = false;
                     break;
                 }

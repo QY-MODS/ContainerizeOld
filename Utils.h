@@ -10,7 +10,6 @@
 #include <string>
 #include <codecvt>
 
-//using _GetFormEditorID = const char* (*)(std::uint32_t);
 
 namespace Utilities {
 
@@ -21,19 +20,13 @@ namespace Utilities {
     const auto no_src_msgbox = std::format(
         "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
         mod_name);
-    /*const auto po3_err_msgbox = std::format(
-        "{}: You have given an invalid FormID. If you are using Editor IDs, you must have powerofthree's Tweaks "
-        "installed. See mod page for further instructions.",
-        mod_name);*/
+
     const auto po3_err_msgbox = std::format(
         "{}: You have given an invalid FormID. If you are using Editor IDs, you must have powerofthree's Tweaks "
         "installed. See mod page for further instructions.",
         mod_name);
     const auto general_err_msgbox = std::format("{}: Something went wrong. Please contact the mod author.", mod_name);
     const auto init_err_msgbox = std::format("{}: The mod failed to initialize and will be terminated.", mod_name);
-    /*const auto load_order_msgbox = std::format(
-        "The equipped light source from your save game could not be registered. Please unequip and reequip it. If you "
-        "had fuel in it, it will be lost. This issue will be solved in the next version.");*/
 
     // string stuff
     template <typename T>
@@ -213,10 +206,6 @@ namespace Utilities {
                 RE::DebugMessageBox(
                     std::format("{}: Uninstall failed. Please contact the mod author.", Utilities::mod_name).c_str());
             };
-
-            /*void LoadOrderError() {
-                RE::DebugMessageBox((std::format("{}: ", Utilities::mod_name) + load_order_msgbox).c_str());
-            }*/
         };
     };
 
@@ -236,33 +225,7 @@ namespace Utilities {
             }
         };
 
-        /*struct EditorRefID {
-            EditorID outerKey;
-            RefID innerKey;
-
-            bool operator<(const EditorRefID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };
-
-        struct FormEditorID {
-            FormID outerKey;
-            EditorID innerKey;
-
-            bool operator<(const FormEditorID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };*/
-
-        //struct EditorNameID {
-        //    EditorID outerKey;
-        //    NameID innerKey;
-
-        //    bool operator<(const EditorNameID& other) const {
-        //        return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-        //    }
-        //};
-
+        
         using SourceDataKey = RefID;
         using SourceDataVal = RefID;
         using SourceData = std::map<SourceDataKey, SourceDataVal>; // Container-Chest Reference ID Pairs
@@ -281,48 +244,6 @@ namespace Utilities {
         }
         return nullptr;
     };
-
-    // https:// github.com/powerof3/AnimObjectSwapper/blob/9b4ec05b87ec35031bfd337e3d9786bc36139a83/src/Manager.cpp#L57
-    //Types::EditorID GetEditorID(const RE::TESForm* a_form) {
-    //    switch (a_form->GetFormType()) {
-    //        case RE::FormType::Keyword:
-    //        case RE::FormType::LocationRefType:
-    //        case RE::FormType::Action:
-    //        case RE::FormType::MenuIcon:
-    //        case RE::FormType::Global:
-    //        case RE::FormType::HeadPart:
-    //        case RE::FormType::Race:
-    //        case RE::FormType::Sound:
-    //        case RE::FormType::Script:
-    //        case RE::FormType::Navigation:
-    //        case RE::FormType::Cell:
-    //        case RE::FormType::WorldSpace:
-    //        case RE::FormType::Land:
-    //        case RE::FormType::NavMesh:
-    //        case RE::FormType::Dialogue:
-    //        case RE::FormType::Quest:
-    //        case RE::FormType::Idle:
-    //        case RE::FormType::AnimatedObject:
-    //        case RE::FormType::ImageAdapter:
-    //        case RE::FormType::VoiceType:
-    //        case RE::FormType::Ragdoll:
-    //        case RE::FormType::DefaultObject:
-    //        case RE::FormType::MusicType:
-    //        case RE::FormType::StoryManagerBranchNode:
-    //        case RE::FormType::StoryManagerQuestNode:
-    //        case RE::FormType::StoryManagerEventNode:
-    //        case RE::FormType::SoundRecord:
-    //            return a_form->GetFormEditorID();
-    //        default: {
-    //            static auto tweaks = GetModuleHandle(L"po3_Tweaks");
-    //            static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
-    //            if (func) {
-    //                return func(a_form->formID);
-    //            }
-    //            return std::string();
-    //        }
-    //    }
-    //}
 
     template <class T>
     uint32_t GetLength(T list) {
@@ -456,8 +377,6 @@ namespace Utilities {
 
         for (auto i = 0; i < recordDataSize; i++) {
             serializationInterface->ReadRecordData(formId);
-            // Ensure form still exists
-            // bunu nasil yapacagiz?
 
             if (!serializationInterface->ResolveFormID(formId.outerKey, formId.outerKey)) {
                 logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);

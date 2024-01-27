@@ -31,23 +31,7 @@ public:
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
         if (!M->RefIsContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
-        
-        //logger::info("container has {} extra data", extradatalist.size());
-  //      for (auto it = extradatalist.begin(); it != extradatalist.end(); ++it) {
-		//	it->GetType();
-  // //         if (extra->GetType() == RE::ExtraDataType::kContainerChanges) {
-		//	//	auto containerchanges = static_cast<RE::ExtraContainerChanges*>(extra);
-		//	//	auto changes = containerchanges->changes;
-  // //             for (auto it2 = changes.begin(); it2 != changes.end(); ++it2) {
-		//	//		auto change = *it2;
-		//	//		auto item = change->item;
-		//	//		auto count = change->countDelta;
-		//	//		logger::info("Item {} count {}", item->GetName(), count);
-		//	//		M->AddItemToContainer(item, count);
-		//	//	}
-		//	//}
-		//}
-        
+
         
         M->ActivateContainer(event->objectActivated.get());
 
@@ -63,11 +47,9 @@ public:
         if (event->crosshairRef->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
 
-        //logger::info("Crosshair is over {}", event->crosshairRef->GetBaseObject()->GetName());
         
         if (M->RefIsContainer(event->crosshairRef.get())) {
 			event->crosshairRef->SetActivationBlocked(1);
-            //logger::info("Ref activation disabled");
 		}
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -78,15 +60,12 @@ public:
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (event->menuName != "ContainerMenu") return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
-        //logger::info("Menu {} {}", event->menuName, event->opening);
 
         if (event->opening) {
             listen_container_changed = true;
         } else {
-			//logger::info("Container menu closed");
             listen_container_changed = false;
 			M->listen_menuclose = false;
-            //M->DeactivateContainer();
         }
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -106,8 +85,6 @@ public:
 
 
 void OnMessage(SKSE::MessagingInterface::Message* message) {
-    /*if (message->type == SKSE::MessagingInterface::kInputLoaded)
-        RE::BSInputDeviceManager::GetSingleton()->AddEventSink(OurEventSink::GetSingleton());*/
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
         auto sources = Settings::LoadINISettings();
@@ -162,7 +139,6 @@ void InitializeSerialization() {
     auto* serialization = SKSE::GetSerializationInterface();
     serialization->SetUniqueID(Settings::kDataKey);
     serialization->SetSaveCallback(SaveCallback);
-    // serialization->SetRevertCallback(LightSourceManager::RevertCallback);
     serialization->SetLoadCallback(LoadCallback);
     SKSE::log::trace("Cosave serialization initialized.");
 }
