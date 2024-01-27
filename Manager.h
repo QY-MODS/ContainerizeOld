@@ -509,7 +509,7 @@ public:
         auto chest = GetContainerChest(current_container);
         auto weight_limit = GetContainerSource(current_container->GetBaseObject()->GetFormID())->capacity;
         while (chest->GetWeightInContainer() > weight_limit) {
-            auto chest = GetContainerChest(current_container);
+            chest = GetContainerChest(current_container);
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
             auto item_obj = item->first;

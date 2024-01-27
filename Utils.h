@@ -323,18 +323,6 @@ namespace Utilities {
     //    }
     //}
 
-    namespace TESConversions {
-
-        //Types::EditorRefID GetEditorRefID(RE::TESObjectREFR* a_ref) {
-        //    logger::info("Getting editorid and refid");
-        //    Types::EditorID editorid = GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
-        //    Types::RefID refid = a_ref->GetFormID();
-        //    logger::info("Editorid: {} - Refid: {}", editorid, refid);
-        //    return {editorid, refid};
-        //};
-        
-    }
-
     template <class T>
     uint32_t GetLength(T list) {
         logger::info("Getting length of list");

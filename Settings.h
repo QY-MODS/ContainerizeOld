@@ -5,7 +5,6 @@
 
 
 using namespace Utilities::Types;
-using namespace Utilities::TESConversions;
 
 struct Source {
 

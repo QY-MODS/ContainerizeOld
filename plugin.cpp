@@ -8,8 +8,7 @@ bool listen_container_changed = false;
 class OurEventSink : public RE::BSTEventSink<RE::TESActivateEvent>,
                      public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
                      public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
-                     public RE::BSTEventSink<RE::TESContainerChangedEvent>,
-                     public RE::BSTEventSink<RE::InputEvent*> {
+                     public RE::BSTEventSink<RE::TESContainerChangedEvent>{
 
     OurEventSink() = default;
     OurEventSink(const OurEventSink&) = delete;
@@ -103,21 +102,6 @@ public:
     }
 
 
-    // (MAYBE)
-    RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* eventPtr, RE::BSTEventSource<RE::InputEvent*>*) {
-        if (!eventPtr) return RE::BSEventNotifyControl::kContinue;
-
-        auto* event = *eventPtr;
-        if (!event) return RE::BSEventNotifyControl::kContinue;
-
-        if (event->GetEventType() == RE::INPUT_EVENT_TYPE::kButton) {
-            auto* buttonEvent = event->AsButtonEvent();
-            auto dxScanCode = buttonEvent->GetIDCode();
-            //logger::info("Pressed key {}", dxScanCode);
-        }
-
-        return RE::BSEventNotifyControl::kContinue;
-    }
 };
 
 
