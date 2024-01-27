@@ -197,6 +197,18 @@ namespace Utilities {
 						.c_str());
             };
 
+            void UninstallSuccessful() {
+				RE::DebugMessageBox(
+					std::format("{}: Uninstall successful. You can now safely remove the mod.",
+								Utilities::mod_name)
+						.c_str());
+			};
+
+            void UninstallFailed() {
+                RE::DebugMessageBox(
+                    std::format("{}: Uninstall failed. Please contact the mod author.", Utilities::mod_name).c_str());
+            };
+
             /*void LoadOrderError() {
                 RE::DebugMessageBox((std::format("{}: ", Utilities::mod_name) + load_order_msgbox).c_str());
             }*/
