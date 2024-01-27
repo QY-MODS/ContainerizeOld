@@ -188,11 +188,15 @@ namespace Settings {
         logger::info("source_names size {}", numSources);
 
         sources.reserve(numSources);
+        const char* val1;
+        const char* val2;
+        uint32_t id;
+        std::string id_str;
 
         for (CSimpleIniA::TNamesDepend::const_iterator it = source_names.begin(); it != source_names.end(); ++it) {
             logger::info("source name {}", it->pItem);
-            const char* val1 = ini.GetValue(InISections[0], it->pItem);
-            const char* val2 = ini.GetValue(InISections[1], it->pItem);
+            val1 = ini.GetValue(InISections[0], it->pItem);
+            val2 = ini.GetValue(InISections[1], it->pItem);
             if (!val1 || !val2 || !std::strlen(val1) || !std::strlen(val2)) {
                 logger::warn("Source {} is missing a value. Skipping.", it->pItem);
                 continue;
@@ -201,8 +205,8 @@ namespace Settings {
                 logger::info("Source {} has a value of {}", it->pItem, val1);
                 logger::info("We have valid entries for container: {} and capacity: {}", val1, val2);
                 // back to container_id and capacity
-                auto id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
-                auto id_str = static_cast<std::string>(val1);
+                id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
+                id_str = static_cast<std::string>(val1);
                 // Our job is easy if the user wants to force editor ids
                 //if (force_editor_id && po3installed) sources.emplace_back(0, id_str, std::stof(val2));
                 // if both formids are valid hex, use them
