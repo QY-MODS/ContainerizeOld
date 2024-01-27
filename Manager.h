@@ -416,9 +416,14 @@ public:
 
         name = a_container->GetDisplayFullName();
         current_container = a_container;
-        Utilities::MsgBoxesNotifs::ShowMessageBox(
-            name + " RefID: " + std::to_string(a_container->GetFormID()) + " FormID: " +
-                std::to_string(a_container->GetBaseObject()->GetFormID()),
+
+        // Round the float to 2 decimal places
+        std::ostringstream stream1;
+        stream1 << std::fixed << std::setprecision(2) << GetContainerChest(current_container)->GetWeightInContainer();
+        std::ostringstream stream2;
+        stream2 << std::fixed << std::setprecision(2) << src->capacity;
+
+        Utilities::MsgBoxesNotifs::ShowMessageBox(name + ": " + stream1.str() + "/" + stream2.str(),
             buttons,
             [this](unsigned int result) { this->MsgBoxCallback(result); });
     };
