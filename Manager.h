@@ -3,7 +3,7 @@
 #include "Settings.h"
 
 
-class Manager : public Utilities::BaseRefRefID {
+class Manager : public Utilities::BaseFormRefIDRefID {
     // private variables
 
     bool isUninstalled = false;
@@ -365,7 +365,7 @@ class Manager : public Utilities::BaseRefRefID {
         for (auto& src : sources) {
             if (!Utilities::GetFormByID(src.formid, src.editorid) || !src.GetBoundObject()) {
                 init_failed = true;
-                logger::error("Failed to initialize Manager due to missing source");
+                logger::error("Failed to initialize Manager due to missing source: {}",src.formid);
                 break;
             }
         }
@@ -530,27 +530,38 @@ public:
 
     void SendData() {
         ENABLE_IF_NOT_UNINSTALLED
-        for (auto& [cont_ref, chest_ref] : GetAllData()) {
-            logger::info("Sending data: {} {}", cont_ref, chest_ref);
-            SetData(cont_ref, chest_ref);
+        for (auto& src : sources) {
+            for (const auto& [cont_ref, chest_ref] : src.data) {
+				logger::info("Sending data: cont_form: {} cont_ref: {} chest_ref: {}", src.formid, cont_ref, chest_ref);
+                SetData({src.formid, cont_ref}, chest_ref);
+			}
         }
     };
 
     void ReceiveData() {
         ENABLE_IF_NOT_UNINSTALLED
-        for (const auto& [cont_ref, chest_ref] : m_Data) {
-            logger::info("Receiving data: {} {}", cont_ref, chest_ref);
+        bool no_match = true;
+        for (const auto& [cont_formref, chest_ref] : m_Data) {
+            logger::info("Receiving data: cont_form: {} cont_ref: {} chest_ref: {}", cont_formref.outerKey, cont_formref.innerKey, chest_ref);
+            no_match = true;
             for (auto& src : sources) {
-                if (RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref)->GetBaseObject()->GetFormID() == src.formid) {
-                    auto it = src.data.find(cont_ref);
+                if (cont_formref.outerKey == src.formid) {
+                    auto it = src.data.find(cont_formref.innerKey);
                     if (it != src.data.end()) {
-                        logger::info("RefID {} already exists in sources.", cont_ref);
+                        logger::info("RefID {} with formid {} already exists in sources.", cont_formref.innerKey,
+                                     cont_formref.outerKey);
                         Utilities::MsgBoxesNotifs::InGame::GeneralErr();
                     }
-                    src.data[cont_ref] = chest_ref;
-                    logger::info("Container {} matched with chest {}.", cont_ref, chest_ref);
+                    src.data[cont_formref.innerKey] = chest_ref;
+                    logger::info("Container {} matched with chest {}.", cont_formref.innerKey, chest_ref);
+                    no_match = false;
                     break;
                 }
+            }
+            if (no_match) {
+                logger::critical("FormID {} not found in sources.", cont_formref.outerKey);
+                Utilities::MsgBoxesNotifs::InGame::ProblemWithContainer(std::to_string(cont_formref.outerKey));
+                return InitFailed();
             }
         }
     };

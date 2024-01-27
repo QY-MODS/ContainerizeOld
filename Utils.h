@@ -194,9 +194,10 @@ namespace Utilities {
                         .c_str());
             }
 
-            void ProblemWithItem(std::string id) {
+            void ProblemWithContainer(std::string id) {
                 RE::DebugMessageBox(
-					std::format("{}: Problem with one of the items with the editor id ({}).",
+					std::format("{}: Problem with one of the items with the form id ({}). \
+                        If you have changed the list of containers in the INI file between saves, please first get your items from your old containers.",
                         								Utilities::mod_name, id)
 						.c_str());
             };
@@ -226,7 +227,7 @@ namespace Utilities {
         using RefID = std::uint32_t;
         using FormID = std::uint32_t;
 
-        /*struct FormRefID {
+        struct FormRefID {
             FormID outerKey;
             RefID innerKey;
 
@@ -235,7 +236,7 @@ namespace Utilities {
             }
         };
 
-        struct EditorRefID {
+        /*struct EditorRefID {
             EditorID outerKey;
             RefID innerKey;
 
@@ -358,7 +359,7 @@ namespace Utilities {
     // BaseData is based off how powerof3's did it in Afterlife
     class BaseData {
     public:
-        float GetData(Types::RefID formId, T missing) {
+        float GetData(Types::FormRefID formId, T missing) {
             Locker locker(m_Lock);
             if (auto idx = m_Data.find(formId) != m_Data.end()) {
                 return m_Data[formId];
@@ -366,7 +367,7 @@ namespace Utilities {
             return missing;
         }
 
-        void SetData(Types::RefID formId, T value) {
+        void SetData(Types::FormRefID formId, T value) {
             Locker locker(m_Lock);
             m_Data[formId] = value;
         }
@@ -383,19 +384,20 @@ namespace Utilities {
         virtual void DumpToLog() = 0;
 
     protected:
-        std::map<Types::RefID, T> m_Data;
+        std::map<Types::FormRefID, T> m_Data;
 
         using Lock = std::recursive_mutex;
         using Locker = std::lock_guard<Lock>;
         mutable Lock m_Lock;
     };
 
-    class BaseRefRefID : public BaseData<Types::RefID> {
+    class BaseFormRefIDRefID : public BaseData<Types::RefID> {
     public:
         virtual void DumpToLog() override {
             Locker locker(m_Lock);
             for (const auto& [formId, value] : m_Data) {
-                logger::info("Dump Row From {} - ContainerRefID: {} - ChestRefID: {}", GetType(),formId, value);
+                logger::info("Dump Row From {} - ContainerFormID: {} - ContainerRefID: {} - ChestRefID: {}", GetType(),
+                             formId.outerKey, formId.innerKey, value);
             }
             // sakat olabilir
             logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
@@ -427,12 +429,12 @@ namespace Utilities {
 
         for (const auto& [formId, value] : m_Data) {
             if (!serializationInterface->WriteRecordData(formId)) {
-                logger::error("Failed to save data for RefID: ({})", formId);
+                logger::error("Failed to save data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
                 return false;
             }
 
             if (!serializationInterface->WriteRecordData(value)) {
-                logger::error("Failed to save value data for RefID: ({})", formId);
+                logger::error("Failed to save value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
                 return false;
             }
         }
@@ -449,16 +451,16 @@ namespace Utilities {
         Locker locker(m_Lock);
         m_Data.clear();
 
-        Types::RefID formId;
+        Types::FormRefID formId;
         T value;
 
         for (auto i = 0; i < recordDataSize; i++) {
             serializationInterface->ReadRecordData(formId);
             // Ensure form still exists
             // bunu nasil yapacagiz?
-            Types::RefID fixedId;
-            if (!serializationInterface->ResolveFormID(formId, fixedId)) {
-                logger::error("Failed to resolve RefID {} {}"sv, formId, fixedId);
+
+            if (!serializationInterface->ResolveFormID(formId.outerKey, formId.outerKey)) {
+                logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
                 continue;
             }
 
