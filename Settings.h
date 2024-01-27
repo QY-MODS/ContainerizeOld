@@ -13,7 +13,6 @@ struct Source {
     std::uint32_t formid;
     const std::string editorid;
     SourceData data;
-    std::unordered_set<std::string> nameIDs; // without suffix!!!
 
     Source(std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {
@@ -37,19 +36,25 @@ struct Source {
 
     RE::TESBoundObject* GetBoundObject() { return Utilities::GetFormByID<RE::TESBoundObject>(formid, editorid); };
 
-    void PrintSourceEditorRefIDs() {
-        for (auto& d : data) {
-            logger::info("Source with editorid {} has reference: {}", d.first.outerKey, d.first.innerKey);
-		}
+    void RemoveDataEntry(RefID refid) {
+		auto it = data.find(refid);
+		if (it != data.end()) {
+			data.erase(it);
+			logger::info("Removed data entry for refid {}", refid);
+        } else {
+			logger::info("Could not find data entry for refid {}", refid);
+            Utilities::MsgBoxesNotifs::InGame::GeneralErr();
+        }
 	};
 };
 
 
 namespace Settings {
 
-    constexpr auto path = L"Data/SKSE/Plugins/ContainableFramework.ini";
+    constexpr auto path = L"Data/SKSE/Plugins/EverythingContainer.ini";
 
-    const std::string suffix = " | EC";
+    //const std::string suffix = " | EC";
+    const std::string suffix = "";
 
 
     bool po3installed = false;
@@ -103,19 +108,23 @@ namespace Settings {
         }
 
 
-        // Open the file in output mode, creating it if it doesn't exist
-        if (!std::filesystem::exists(path)) {
-            logger::info("File does not exist. Creating it.");
-            std::wofstream outputFile(path);
+        //// Open the file in output mode, creating it if it doesn't exist
+        //if (!std::filesystem::exists(path)) {
+        //    logger::info("File does not exist. Creating it.");
+        //    std::wofstream outputFile(path);
 
-            // Check if the file is open
-            if (!outputFile.is_open()) {
-                logger::info("Error: Could not open the file for writing.");
-            };
+        //    // Check if the file is open
+        //    if (!outputFile.is_open()) {
+        //        logger::info("Error: Could not open the file for writing.");
+        //        return sources;
+        //    };
 
-            // Close the file
-            outputFile.close();
-        }
+        //    // Close the file
+        //    outputFile.close();
+
+        //    Utilities::MsgBoxesNotifs::InGame::IniCreated();
+
+        //}
 
 
         CSimpleIniA ini;
