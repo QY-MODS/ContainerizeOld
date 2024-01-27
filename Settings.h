@@ -1,6 +1,6 @@
 #pragma once
-#include "SimpleIni.h"
 #include "Utils.h"
+
 
 
 
@@ -51,10 +51,12 @@ struct Source {
 
 namespace Settings {
 
+    // Assuming Utilities::mod_name is of type std::string
+
     constexpr auto path = L"Data/SKSE/Plugins/EverythingContainer.ini";
 
     //const std::string suffix = " | EC";
-    const std::string suffix = "";
+    //const std::string suffix = "";
 
 
     bool po3installed = false;
@@ -72,7 +74,7 @@ namespace Settings {
         };
 
     //bool force_editor_id = false;
-    bool force_editor_id = true;
+    //bool force_editor_id = true;
 
     // DO NOT CHANGE THE ORDER OF THESE
     /*constexpr std::array<const char*, 1> OtherStuffDefKeys = {"ForceEditorID"};
@@ -102,10 +104,11 @@ namespace Settings {
             po3installed = false;
         }
 
-        if (!po3installed) {
-            Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
-			return sources;
-        }
+        // if po3 is mandatory but not installed, return
+   //     if (!po3installed) {
+   //         Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
+			//return sources;
+   //     }
 
 
         //// Open the file in output mode, creating it if it doesn't exist
@@ -202,9 +205,9 @@ namespace Settings {
                 auto id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
                 auto id_str = static_cast<std::string>(val1);
                 // Our job is easy if the user wants to force editor ids
-                if (force_editor_id && po3installed) sources.emplace_back(0, id_str, std::stof(val2));
+                //if (force_editor_id && po3installed) sources.emplace_back(0, id_str, std::stof(val2));
                 // if both formids are valid hex, use them
-                else if (Utilities::isValidHexWithLength7or8(val1))
+                if (Utilities::isValidHexWithLength7or8(val1))
                     sources.emplace_back(id, "", std::stof(val2));
                 else if (!po3installed) {
                     Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();

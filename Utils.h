@@ -5,8 +5,12 @@
 #include <windows.h>
 #include <functional>
 #include <unordered_set>
+#include "SimpleIni.h"
+#include <iostream>
+#include <string>
+#include <codecvt>
 
-using _GetFormEditorID = const char* (*)(std::uint32_t);
+//using _GetFormEditorID = const char* (*)(std::uint32_t);
 
 namespace Utilities {
 
@@ -22,7 +26,7 @@ namespace Utilities {
         "installed. See mod page for further instructions.",
         mod_name);*/
     const auto po3_err_msgbox = std::format(
-        "{}: You must have powerofthree's Tweaks "
+        "{}: You have given an invalid FormID. If you are using Editor IDs, you must have powerofthree's Tweaks "
         "installed. See mod page for further instructions.",
         mod_name);
     const auto general_err_msgbox = std::format("{}: Something went wrong. Please contact the mod author.", mod_name);
@@ -217,7 +221,7 @@ namespace Utilities {
 
     namespace Types {
 
-        using EditorID = std::string;
+        //using EditorID = std::string;
         using NameID = std::string;
         using RefID = std::uint32_t;
         using FormID = std::uint32_t;
@@ -249,14 +253,14 @@ namespace Utilities {
             }
         };*/
 
-        struct EditorNameID {
-            EditorID outerKey;
-            NameID innerKey;
+        //struct EditorNameID {
+        //    EditorID outerKey;
+        //    NameID innerKey;
 
-            bool operator<(const EditorNameID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };
+        //    bool operator<(const EditorNameID& other) const {
+        //        return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+        //    }
+        //};
 
         using SourceDataKey = RefID;
         using SourceDataVal = RefID;
@@ -278,55 +282,46 @@ namespace Utilities {
     };
 
     // https:// github.com/powerof3/AnimObjectSwapper/blob/9b4ec05b87ec35031bfd337e3d9786bc36139a83/src/Manager.cpp#L57
-    Types::EditorID GetEditorID(const RE::TESForm* a_form) {
-        switch (a_form->GetFormType()) {
-            case RE::FormType::Keyword:
-            case RE::FormType::LocationRefType:
-            case RE::FormType::Action:
-            case RE::FormType::MenuIcon:
-            case RE::FormType::Global:
-            case RE::FormType::HeadPart:
-            case RE::FormType::Race:
-            case RE::FormType::Sound:
-            case RE::FormType::Script:
-            case RE::FormType::Navigation:
-            case RE::FormType::Cell:
-            case RE::FormType::WorldSpace:
-            case RE::FormType::Land:
-            case RE::FormType::NavMesh:
-            case RE::FormType::Dialogue:
-            case RE::FormType::Quest:
-            case RE::FormType::Idle:
-            case RE::FormType::AnimatedObject:
-            case RE::FormType::ImageAdapter:
-            case RE::FormType::VoiceType:
-            case RE::FormType::Ragdoll:
-            case RE::FormType::DefaultObject:
-            case RE::FormType::MusicType:
-            case RE::FormType::StoryManagerBranchNode:
-            case RE::FormType::StoryManagerQuestNode:
-            case RE::FormType::StoryManagerEventNode:
-            case RE::FormType::SoundRecord:
-                return a_form->GetFormEditorID();
-            default: {
-                static auto tweaks = GetModuleHandle(L"po3_Tweaks");
-                static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
-                if (func) {
-                    return func(a_form->formID);
-                }
-                return std::string();
-            }
-        }
-    }
-
-    Types::EditorNameID GetEditorNameID(RE::TESObjectREFR* a_ref) {
-        logger::info("Getting editorid and nameid");
-        Types::EditorID editorid =
-            GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
-        Types::NameID nameid = a_ref->GetDisplayFullName();
-        logger::info("Editorid: {} - nameid: {}", editorid, nameid);
-        return {editorid, nameid};
-    };
+    //Types::EditorID GetEditorID(const RE::TESForm* a_form) {
+    //    switch (a_form->GetFormType()) {
+    //        case RE::FormType::Keyword:
+    //        case RE::FormType::LocationRefType:
+    //        case RE::FormType::Action:
+    //        case RE::FormType::MenuIcon:
+    //        case RE::FormType::Global:
+    //        case RE::FormType::HeadPart:
+    //        case RE::FormType::Race:
+    //        case RE::FormType::Sound:
+    //        case RE::FormType::Script:
+    //        case RE::FormType::Navigation:
+    //        case RE::FormType::Cell:
+    //        case RE::FormType::WorldSpace:
+    //        case RE::FormType::Land:
+    //        case RE::FormType::NavMesh:
+    //        case RE::FormType::Dialogue:
+    //        case RE::FormType::Quest:
+    //        case RE::FormType::Idle:
+    //        case RE::FormType::AnimatedObject:
+    //        case RE::FormType::ImageAdapter:
+    //        case RE::FormType::VoiceType:
+    //        case RE::FormType::Ragdoll:
+    //        case RE::FormType::DefaultObject:
+    //        case RE::FormType::MusicType:
+    //        case RE::FormType::StoryManagerBranchNode:
+    //        case RE::FormType::StoryManagerQuestNode:
+    //        case RE::FormType::StoryManagerEventNode:
+    //        case RE::FormType::SoundRecord:
+    //            return a_form->GetFormEditorID();
+    //        default: {
+    //            static auto tweaks = GetModuleHandle(L"po3_Tweaks");
+    //            static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
+    //            if (func) {
+    //                return func(a_form->formID);
+    //            }
+    //            return std::string();
+    //        }
+    //    }
+    //}
 
     namespace TESConversions {
 

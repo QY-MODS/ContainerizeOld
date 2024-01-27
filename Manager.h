@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Settings.h"
-#include <iostream>
-#include <unordered_set>
 
 
 class Manager : public Utilities::BaseRefRefID {
@@ -351,6 +349,7 @@ class Manager : public Utilities::BaseRefRefID {
         logger::error("Failed to initialize Manager.");
         Utilities::MsgBoxesNotifs::InGame::InitErr();
         sources.clear();
+        isUninstalled = true;
         return;
     }
 
