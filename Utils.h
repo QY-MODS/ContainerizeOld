@@ -5,30 +5,28 @@
 #include <windows.h>
 #include <functional>
 #include <unordered_set>
+#include "SimpleIni.h"
+#include <iostream>
+#include <string>
+#include <codecvt>
 
-using _GetFormEditorID = const char* (*)(std::uint32_t);
 
 namespace Utilities {
 
+    // stuff
     const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
     constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
 
     const auto no_src_msgbox = std::format(
         "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
         mod_name);
-    /*const auto po3_err_msgbox = std::format(
-        "{}: You have given an invalid FormID. If you are using Editor IDs, you must have powerofthree's Tweaks "
-        "installed. See mod page for further instructions.",
-        mod_name);*/
+
     const auto po3_err_msgbox = std::format(
-        "{}: You must have powerofthree's Tweaks "
+        "{}: You have given an invalid FormID. If you are using Editor IDs, you must have powerofthree's Tweaks "
         "installed. See mod page for further instructions.",
         mod_name);
     const auto general_err_msgbox = std::format("{}: Something went wrong. Please contact the mod author.", mod_name);
     const auto init_err_msgbox = std::format("{}: The mod failed to initialize and will be terminated.", mod_name);
-    /*const auto load_order_msgbox = std::format(
-        "The equipped light source from your save game could not be registered. Please unequip and reequip it. If you "
-        "had fuel in it, it will be lost. This issue will be solved in the next version.");*/
 
     // string stuff
     template <typename T>
@@ -165,6 +163,10 @@ namespace Utilities {
 
         namespace InGame {
 
+            void IniCreated() { 
+                RE::DebugMessageBox("INI created. Customize it to your liking."); 
+            };
+
             void InitErr() { RE::DebugMessageBox(init_err_msgbox.c_str()); };
 
             void GeneralErr() { RE::DebugMessageBox(general_err_msgbox.c_str()); };
@@ -185,25 +187,34 @@ namespace Utilities {
                         .c_str());
             }
 
-            void ProblemWithItem(std::string id) {
+            void ProblemWithContainer(std::string id) {
                 RE::DebugMessageBox(
-					std::format("{}: Problem with one of the items with the editor id ({}).",
+					std::format("{}: Problem with one of the items with the form id ({}). \
+                        If you have changed the list of containers in the INI file between saves, please first get your items from your old containers.",
                         								Utilities::mod_name, id)
 						.c_str());
             };
 
-            /*void LoadOrderError() {
-                RE::DebugMessageBox((std::format("{}: ", Utilities::mod_name) + load_order_msgbox).c_str());
-            }*/
+            void UninstallSuccessful() {
+				RE::DebugMessageBox(
+					std::format("{}: Uninstall successful. You can now safely remove the mod.",
+								Utilities::mod_name)
+						.c_str());
+			};
+
+            void UninstallFailed() {
+                RE::DebugMessageBox(
+                    std::format("{}: Uninstall failed. Please contact the mod author.", Utilities::mod_name).c_str());
+            };
         };
     };
 
     namespace Types {
 
-        using EditorID = const std::string;
+        //using EditorID = std::string;
         using NameID = std::string;
-        /*using FormID = const std::uint32_t;
-        using RefID = const std::uint32_t;
+        using RefID = std::uint32_t;
+        using FormID = std::uint32_t;
 
         struct FormRefID {
             FormID outerKey;
@@ -214,36 +225,11 @@ namespace Utilities {
             }
         };
 
-        struct EditorRefID {
-            EditorID outerKey;
-            RefID innerKey;
-
-            bool operator<(const EditorRefID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };
-
-        struct FormEditorID {
-            FormID outerKey;
-            EditorID innerKey;
-
-            bool operator<(const FormEditorID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };*/
-
-        struct EditorNameID {
-            EditorID outerKey;
-            NameID innerKey;
-
-            bool operator<(const EditorNameID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };
-
-
-        using ItemListData = std::map<EditorID, unsigned int>; // consider unordered_map or InventoryCountMap
-        using SourceData = std::map<EditorNameID, ItemListData>;
+        
+        using SourceDataKey = RefID;
+        using SourceDataVal = RefID;
+        using SourceData = std::map<SourceDataKey, SourceDataVal>; // Container-Chest Reference ID Pairs
+    
     }
     
     // Get ID stuff
@@ -259,207 +245,154 @@ namespace Utilities {
         return nullptr;
     };
 
-    // https:// github.com/powerof3/AnimObjectSwapper/blob/9b4ec05b87ec35031bfd337e3d9786bc36139a83/src/Manager.cpp#L57
-    std::string GetEditorID(const RE::TESForm* a_form) {
-        switch (a_form->GetFormType()) {
-            case RE::FormType::Keyword:
-            case RE::FormType::LocationRefType:
-            case RE::FormType::Action:
-            case RE::FormType::MenuIcon:
-            case RE::FormType::Global:
-            case RE::FormType::HeadPart:
-            case RE::FormType::Race:
-            case RE::FormType::Sound:
-            case RE::FormType::Script:
-            case RE::FormType::Navigation:
-            case RE::FormType::Cell:
-            case RE::FormType::WorldSpace:
-            case RE::FormType::Land:
-            case RE::FormType::NavMesh:
-            case RE::FormType::Dialogue:
-            case RE::FormType::Quest:
-            case RE::FormType::Idle:
-            case RE::FormType::AnimatedObject:
-            case RE::FormType::ImageAdapter:
-            case RE::FormType::VoiceType:
-            case RE::FormType::Ragdoll:
-            case RE::FormType::DefaultObject:
-            case RE::FormType::MusicType:
-            case RE::FormType::StoryManagerBranchNode:
-            case RE::FormType::StoryManagerQuestNode:
-            case RE::FormType::StoryManagerEventNode:
-            case RE::FormType::SoundRecord:
-                return a_form->GetFormEditorID();
-            default: {
-                static auto tweaks = GetModuleHandle(L"po3_Tweaks");
-                static auto func = reinterpret_cast<_GetFormEditorID>(GetProcAddress(tweaks, "GetFormEditorID"));
-                if (func) {
-                    return func(a_form->formID);
-                }
-                return std::string();
+    template <class T>
+    uint32_t GetLength(T list) {
+        logger::info("Getting length of list");
+        uint32_t length = 0;
+        for (auto _ : list) {
+            ++length;
+            logger::info("Length: {}", length);
+        }
+        return length;
+    }
+
+
+    template <class T>
+    uint32_t GetListLength(RE::BSSimpleList<T>* list) {
+        return GetLength(list);
+    }
+
+    template <class T>
+    bool ValueExists(const std::map<T, T>& myMap, const T& searchValue) {
+        bool valueExists = false;
+        for (const auto& pair : myMap) {
+            if (pair.second == searchValue) {
+                // Value found
+                valueExists = true;
+                break;
             }
         }
+        return valueExists;
     }
 
-    Types::EditorNameID GetEditorNameID(RE::TESObjectREFR* a_ref) {
-        logger::info("Getting editorid and nameid");
-        Types::EditorID editorid =
-            GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
-        Types::NameID nameid = a_ref->GetDisplayFullName();
-        logger::info("Editorid: {} - nameid: {}", editorid, nameid);
-        return {editorid, nameid};
+    // https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp
+    template <typename T>
+    // BaseData is based off how powerof3's did it in Afterlife
+    class BaseData {
+    public:
+        float GetData(Types::FormRefID formId, T missing) {
+            Locker locker(m_Lock);
+            if (auto idx = m_Data.find(formId) != m_Data.end()) {
+                return m_Data[formId];
+            }
+            return missing;
+        }
+
+        void SetData(Types::FormRefID formId, T value) {
+            Locker locker(m_Lock);
+            m_Data[formId] = value;
+        }
+
+        virtual const char* GetType() = 0;
+
+        virtual bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
+                          std::uint32_t version);
+        virtual bool Save(SKSE::SerializationInterface* serializationInterface);
+        virtual bool Load(SKSE::SerializationInterface* serializationInterface);
+
+        void Clear();
+
+        virtual void DumpToLog() = 0;
+
+    protected:
+        std::map<Types::FormRefID, T> m_Data;
+
+        using Lock = std::recursive_mutex;
+        using Locker = std::lock_guard<Lock>;
+        mutable Lock m_Lock;
     };
 
-    namespace TESConversions {
+    class BaseFormRefIDRefID : public BaseData<Types::RefID> {
+    public:
+        virtual void DumpToLog() override {
+            Locker locker(m_Lock);
+            for (const auto& [formId, value] : m_Data) {
+                logger::info("Dump Row From {} - ContainerFormID: {} - ContainerRefID: {} - ChestRefID: {}", GetType(),
+                             formId.outerKey, formId.innerKey, value);
+            }
+            // sakat olabilir
+            logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
+        }
+    };
 
-        //Types::EditorRefID GetEditorRefID(RE::TESObjectREFR* a_ref) {
-        //    logger::info("Getting editorid and refid");
-        //    Types::EditorID editorid = GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(a_ref->GetBaseObject()->GetFormID()));
-        //    Types::RefID refid = a_ref->GetFormID();
-        //    logger::info("Editorid: {} - Refid: {}", editorid, refid);
-        //    return {editorid, refid};
-        //};
-        
+    // BaseData is based off how powerof3's did it in Afterlife
+    template <typename T>
+    bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
+                           std::uint32_t version) {
+        if (!serializationInterface->OpenRecord(type, version)) {
+            logger::error("Failed to open record for Data Serialization!");
+            return false;
+        }
 
-        const Types::ItemListData InventoryCountMap2ItemListData(const RE::TESObjectREFR::InventoryCountMap& inventoryCountMap) {
-            logger::info("Converting inventorycountmap to itemlistdata");
-            Types::ItemListData itemListData;
-            if (!inventoryCountMap.size()) logger::info("Inventorycountmap is empty");
-            for (const auto& [obj, count] : inventoryCountMap) {
-                Types::EditorID editorID = GetEditorID(RE::TESForm::LookupByID<RE::TESForm>(obj->GetFormID()));
-                if (editorID.empty()) continue;
-                if (!count) continue;
-                itemListData[editorID] = count;
-		    }
-		    return itemListData;
-	    }
+        return Save(serializationInterface);
     }
 
-    
+    template <typename T>
+    bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface) {
+        assert(serializationInterface);
+        Locker locker(m_Lock);
 
+        const auto numRecords = m_Data.size();
+        if (!serializationInterface->WriteRecordData(numRecords)) {
+            logger::error("Failed to save {} data records", numRecords);
+            return false;
+        }
 
-    //// https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp
-    //template <typename T>
-    //// BaseData is based off how powerof3's did it in Afterlife
-    //class BaseData {
-    //public:
-    //    float GetData(FormRefID formId, T missing) {
-    //        Locker locker(m_Lock);
-    //        if (auto idx = m_Data.find(formId) != m_Data.end()) {
-    //            return m_Data[formId];
-    //        }
-    //        return missing;
-    //    }
+        for (const auto& [formId, value] : m_Data) {
+            if (!serializationInterface->WriteRecordData(formId)) {
+                logger::error("Failed to save data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+                return false;
+            }
 
-    //    void SetData(FormRefID formId, T value) {
-    //        Locker locker(m_Lock);
-    //        m_Data[formId] = value;
-    //    }
+            if (!serializationInterface->WriteRecordData(value)) {
+                logger::error("Failed to save value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+                return false;
+            }
+        }
+        return true;
+    }
 
-    //    virtual const char* GetType() = 0;
+    template <typename T>
+    bool BaseData<T>::Load(SKSE::SerializationInterface* serializationInterface) {
+        assert(serializationInterface);
 
-    //    virtual bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
-    //                      std::uint32_t version);
-    //    virtual bool Save(SKSE::SerializationInterface* serializationInterface);
-    //    virtual bool Load(SKSE::SerializationInterface* serializationInterface);
+        std::size_t recordDataSize;
+        serializationInterface->ReadRecordData(recordDataSize);
 
-    //    void Clear();
+        Locker locker(m_Lock);
+        m_Data.clear();
 
-    //    virtual void DumpToLog() = 0;
+        Types::FormRefID formId;
+        T value;
 
-    //protected:
-    //    std::map<FormRefID, T> m_Data;
+        for (auto i = 0; i < recordDataSize; i++) {
+            serializationInterface->ReadRecordData(formId);
 
-    //    using Lock = std::recursive_mutex;
-    //    using Locker = std::lock_guard<Lock>;
-    //    mutable Lock m_Lock;
-    //};
+            if (!serializationInterface->ResolveFormID(formId.outerKey, formId.outerKey)) {
+                logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
+                continue;
+            }
 
-    //class BaseFormFloat : public BaseData<float> {
-    //public:
-    //    virtual void DumpToLog() override {
-    //        Locker locker(m_Lock);
-    //        for (const auto& [formId, value] : m_Data) {
-    //            logger::info("Dump Row From {} - FormID1st: {} - FormID2nd: {} - value: {}", GetType(), formId.outerKey,
-    //                         formId.innerKey, value);
-    //        }
-    //        // sakat olabilir
-    //        logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
-    //    }
-    //};
+            serializationInterface->ReadRecordData(value);
+            m_Data[formId] = value;
+        }
+        return true;
+    }
 
-    //// BaseData is based off how powerof3's did it in Afterlife
-    //template <typename T>
-    //bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
-    //                       std::uint32_t version) {
-    //    if (!serializationInterface->OpenRecord(type, version)) {
-    //        logger::error("Failed to open record for Data Serialization!");
-    //        return false;
-    //    }
-
-    //    return Save(serializationInterface);
-    //}
-
-    //template <typename T>
-    //bool BaseData<T>::Save(SKSE::SerializationInterface* serializationInterface) {
-    //    assert(serializationInterface);
-    //    Locker locker(m_Lock);
-
-    //    const auto numRecords = m_Data.size();
-    //    if (!serializationInterface->WriteRecordData(numRecords)) {
-    //        logger::error("Failed to save {} data records", numRecords);
-    //        return false;
-    //    }
-
-    //    for (const auto& [formId, value] : m_Data) {
-    //        if (!serializationInterface->WriteRecordData(formId)) {
-    //            logger::error("Failed to save data for FormID2: ({},{})", formId.outerKey, formId.innerKey);
-    //            return false;
-    //        }
-
-    //        if (!serializationInterface->WriteRecordData(value)) {
-    //            logger::error("Failed to save value data for form2: ({},{})", formId.outerKey, formId.innerKey);
-    //            return false;
-    //        }
-    //    }
-    //    return true;
-    //}
-
-    //template <typename T>
-    //bool BaseData<T>::Load(SKSE::SerializationInterface* serializationInterface) {
-    //    assert(serializationInterface);
-
-    //    std::size_t recordDataSize;
-    //    serializationInterface->ReadRecordData(recordDataSize);
-
-    //    Locker locker(m_Lock);
-    //    m_Data.clear();
-
-    //    FormRefID formId;
-    //    T value;
-
-    //    for (auto i = 0; i < recordDataSize; i++) {
-    //        serializationInterface->ReadRecordData(formId);
-    //        // Ensure form still exists
-    //        // bunu nasil yapacagiz?
-    //        FormRefID fixedId;
-    //        if (!serializationInterface->ResolveFormID(formId.outerKey, fixedId.outerKey) ||
-    //            !serializationInterface->ResolveFormID(formId.innerKey, fixedId.innerKey)) {
-    //            logger::error("Failed to resolve formID1st {} {} and Failed to resolve formID2nd {} {}"sv,
-    //                          formId.outerKey, fixedId.outerKey, formId.innerKey, fixedId.innerKey);
-    //            continue;
-    //        }
-
-    //        serializationInterface->ReadRecordData(value);
-    //        m_Data[formId] = value;
-    //    }
-    //    return true;
-    //}
-
-    //template <typename T>
-    //void BaseData<T>::Clear() {
-    //    Locker locker(m_Lock);
-    //    m_Data.clear();
-    //}
+    template <typename T>
+    void BaseData<T>::Clear() {
+        Locker locker(m_Lock);
+        m_Data.clear();
+    }
 
 };
