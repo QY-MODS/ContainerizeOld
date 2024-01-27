@@ -52,7 +52,7 @@ namespace Settings {
 
     // Assuming Utilities::mod_name is of type std::string
 
-    constexpr auto path = L"Data/SKSE/Plugins/EverythingContainer.ini";
+    constexpr auto path = L"Data/SKSE/Plugins/Containerize.ini";
 
     //const std::string suffix = " | EC";
     //const std::string suffix = "";
