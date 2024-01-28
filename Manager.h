@@ -6,9 +6,6 @@
 class Manager : public Utilities::BaseFormRefIDRefID {
     // private variables
 
-    bool isUninstalled = false;
-
-
     std::vector<std::string> buttons = {"Open", "Activate", "Cancel", "More..."};
     std::vector<std::string> buttons_more = {"Uninstall", "Back", "Cancel"};
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
@@ -243,8 +240,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             if (!uninstall_successful) break;
             for (auto it = src->data.begin(); it != src->data.end();) {
                 // here i could call MsgBoxCallback(1), i.e. Activate. For now, I leave it decoupled.
-                current_container = RE::TESForm::LookupByID<RE::TESObjectREFR>(it->first);
-                current_container->SetActivationBlocked(0);
                 auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(it->second);
                 if (!chest) {
                     uninstall_successful = false;
@@ -275,7 +270,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         logger::info("uninstall_successful: {}", uninstall_successful);
 
         if (uninstall_successful) {
-            sources.clear();
+            //sources.clear();
             current_container = nullptr; 
             logger::info("Uninstall successful.");
             Utilities::MsgBoxesNotifs::InGame::UninstallSuccessful();
@@ -374,6 +369,9 @@ public:
     std::vector<Source> sources;
     bool listen_menuclose = false;
     bool listen_activate = true;
+
+    bool isUninstalled = false;
+    
 
     bool RefIsContainer(RE::TESObjectREFR* ref) {
         if (!ref) return false;
