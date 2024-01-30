@@ -12,6 +12,7 @@ struct Source {
     std::uint32_t formid;
     const std::string editorid;
     SourceData data;
+    std::vector<RefID> linkedChests;
 
     Source(std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {

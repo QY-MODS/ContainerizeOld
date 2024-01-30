@@ -6,7 +6,7 @@
 class Manager : public Utilities::BaseFormRefIDRefID {
     // private variables
 
-    std::vector<std::string> buttons = {"Open", "Activate", "Cancel", "More..."};
+    std::vector<std::string> buttons = {"Open", "Take", "Cancel", "More..."};
     std::vector<std::string> buttons_more = {"Uninstall", "Back", "Cancel"};
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     RE::TESObjectREFR* current_container = nullptr;
@@ -175,13 +175,20 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         // Cancel
         if (result == 2) return;
         
-        // Activating container (also transfering all items to player)
+        // Putting container to inventory (with the items inside it)
         if (result == 1) {
             listen_activate = false;
-            current_container->SetActivationBlocked(0);
+            //current_container->SetActivationBlocked(0);
             const auto container_refid = current_container->GetFormID();
             auto chest = GetContainerChest(current_container);
-            current_container->GetBaseObject()->Activate(current_container, player_ref, 1, nullptr, 1);
+            //current_container->GetBaseObject()->Activate(current_container, player_ref, 1, nullptr, 1);
+            RE::ExtraDataList* extraList = &current_container->extraList;
+            player_ref->AddObjectToContainer(current_container->GetBaseObject()->As<RE::TESBoundObject>(),
+                                             extraList, 1, nullptr);
+            if (current_container->GetFormID()) logger::error("Container refid is not null!!!");
+            // modify carry weight
+            RE::PlayerCharacter::GetSingleton()->AsActorValueOwner()->ModActorValue(RE::ActorValue::kCarryWeight,
+                                                                                    chest->GetWeightInContainer());
             if (!current_container->GetFormID()) {
                 RemoveAllItemsFromChest(chest, true);
                 auto src = GetContainerSource(current_container->GetBaseObject()->GetFormID());
@@ -193,8 +200,8 @@ class Manager : public Utilities::BaseFormRefIDRefID {
                     Utilities::MsgBoxesNotifs::InGame::GeneralErr();
                 }
 
-            } else
-                current_container->SetActivationBlocked(1);
+            } /*else
+                current_container->SetActivationBlocked(1);*/
             listen_activate = true;
 
             return;
@@ -448,7 +455,11 @@ public:
             for (const auto& [cont_ref, chest_ref] : src.data) {
                 SetData({src.formid, cont_ref}, chest_ref);
 			}
+            for (const auto& linkedchest : src.linkedChests) {
+                SetData({src.formid, linkedchest}, linkedchest);
+            }
         }
+        
     };
 
     void ReceiveData() {
@@ -460,13 +471,19 @@ public:
                 if (cont_formref.outerKey == src.formid) {
                     auto it = src.data.find(cont_formref.innerKey);
                     if (it != src.data.end()) {
-                        logger::error("RefID {} with formid {} already exists in sources.", cont_formref.innerKey,
+                        logger::error("RefID {} with formid {} already exists in sources data.", cont_formref.innerKey,
                                      cont_formref.outerKey);
                         Utilities::MsgBoxesNotifs::InGame::GeneralErr();
                     }
-                    src.data[cont_formref.innerKey] = chest_ref;
-                    no_match = false;
-                    break;
+                    if (cont_formref.innerKey == chest_ref) {
+                        src.linkedChests.push_back(chest_ref);
+                        no_match = false;
+                        break;
+                    } else {
+                        src.data[cont_formref.innerKey] = chest_ref;
+                        no_match = false;
+                        break;
+                    }
                 }
             }
             if (no_match) {
