@@ -79,10 +79,10 @@ public:
         if (!listen_container_changed && !M->RefIsContainer(event->reference.get().get())) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20) return RE::BSEventNotifyControl::kContinue;
         logger::info("Item {} went into container {}.", event->baseObj, event->newContainer);
-        if (M->RefIsContainer(event->reference.get().get())) {
-            ;
+        //if (M->RefIsContainer(event->reference.get().get())) {
+        //    ;
 
-        }
+        //}
         M->InspectItemTransfer();
         return RE::BSEventNotifyControl::kContinue;
     }

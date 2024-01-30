@@ -182,10 +182,51 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             const auto container_refid = current_container->GetFormID();
             auto chest = GetContainerChest(current_container);
             //current_container->GetBaseObject()->Activate(current_container, player_ref, 1, nullptr, 1);
-            RE::ExtraDataList* extraList = &current_container->extraList;
-            player_ref->AddObjectToContainer(current_container->GetBaseObject()->As<RE::TESBoundObject>(),
-                                             extraList, 1, nullptr);
+            auto newName = static_cast<RE::ExtraTextDisplayData*>(RE::BSExtraData::Create<RE::ExtraTextDisplayData>());
+            newName->next = nullptr;
+            newName->SetName("asd");
+            //newName->displayName = "asd";
+            newName->customNameLength = 3;
+            newName->ownerInstance = RE::ExtraTextDisplayData::DisplayDataType::kCustomName;
+            //newName->temperFactor = 1;
+            current_container->extraList.Add(newName);
+
+            player_ref->As<RE::Actor>()->PickUpObject(current_container, 1, false, true);
+            
+            if (current_container) logger::error("Container is not null!");
             if (current_container->GetFormID()) logger::error("Container refid is not null!!!");
+
+            for (auto& extra : current_container->extraList) {
+                logger::info("Type: {}", static_cast<std::uint8_t>(extra.GetType()));
+                if (extra.GetType() == RE::ExtraDataType::kFlags) {
+                	auto flags = static_cast<RE::ExtraFlags*>(&extra)->flags;
+                    if (flags.any(RE::ExtraFlags::Flag::kBlockActivate)) {
+                        logger::info("kBlockActivate");
+                    }
+                    if (flags.any(RE::ExtraFlags::Flag::kBlockPlayerActivate)) {
+						logger::info("kBlockPlayerActivate");
+					}
+                    if (flags.any(RE::ExtraFlags::Flag::kBlockLoadEvents)) {
+                    	logger::info("kBlockLoadEvents");
+                    }
+                    if (flags.any(RE::ExtraFlags::Flag::kBlockActivateText)) {
+						logger::info("kBlockActivateText");
+					}
+                    if (flags.any(RE::ExtraFlags::Flag::kPlayerHasTaken)) {
+                    	logger::info("kPlayerHasTaken");
+                    }
+                }
+                if (extra.GetType() == RE::ExtraDataType::kStartingPosition) {
+                    logger::info("kStartingPosition");
+                }
+                if (extra.GetType() == RE::ExtraDataType::kTextDisplayData) {
+                    auto hmm = static_cast<RE::ExtraTextDisplayData*>(&extra);
+                    logger::info("Name: {}", hmm->displayName);
+                    logger::info("Name: {}", hmm->temperFactor);
+				}
+			}
+            
+            
             // modify carry weight
             RE::PlayerCharacter::GetSingleton()->AsActorValueOwner()->ModActorValue(RE::ActorValue::kCarryWeight,
                                                                                     chest->GetWeightInContainer());
