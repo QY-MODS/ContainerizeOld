@@ -18,6 +18,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
     RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000EA299);
     RE::NiPoint3 unownedChestPos = {1989.0740f, 1793.2015f, 6784.0000f};
+    RE::TESObjectREFR* unownedChestOG = nullptr;
 
     // private functions
     RE::TESObjectREFR* MakeChest(RE::NiPoint3 Pos3 = {0.0f, 0.0f, 0.0f}) {
@@ -152,6 +153,10 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
         if (!new_form) {return RaiseMngrErr("Failed to create new form.");}
         new_form->Copy(realcontainer);
+        new_form->fullName = realcontainer->GetFullName();
+        logger::info("Created form with type: {}, Base ID: {:x}, Ref ID: {:x}, Name: {}",RE::FormTypeToString(new_form->GetFormType()), new_form->GetFormID(),
+										 new_form->GetFormID(), new_form->GetName());
+        
         
         // update weight and value
         auto chest = GetContainerChest(current_container);
@@ -346,12 +351,8 @@ class Manager : public Utilities::BaseFormRefIDRefID {
 
             // Remove the original container from the world
             logger::info("Removing container from world");
-            //player_ref->As<RE::Actor>()->PickUpObject(current_container, 1, false, true);
-            current_container->Disable();
-            current_container->SetDelete(true);
+            RemoveObject(current_container);
             current_container = nullptr;
-            //player_ref->RemoveItem(curr_container_base, 1, RE::ITEM_REMOVE_REASON::kRemove, extraL, nullptr);
-            //player_ref->RemoveItem(curr_container_base, 1, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
             logger::info("Container removed from world");
             
             listen_activate = true;
@@ -484,6 +485,16 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         Uninstall();
 
     }
+        
+    void RemoveObject(RE::TESObjectREFR* ref) {
+        if (!ref || ref->IsDisabled() || ref->IsDeleted()) return RaiseMngrErr("Object is null or disabled or deleted");
+        logger::info("Picking up");
+        player_ref->As<RE::Actor>()->PickUpObject(ref, 1, true, true);
+        logger::info("Removing");
+        player_ref->RemoveItem(ref->GetBaseObject(), 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr,unownedChestOG);
+        logger::info("Removed");
+	}
+
 
     void InitFailed() {
         logger::critical("Failed to initialize Manager.");
@@ -536,7 +547,15 @@ class Manager : public Utilities::BaseFormRefIDRefID {
 
         // Check if unowned chest is in the cell
         auto runtimeData = unownedCell->GetRuntimeData();
-        if (!unownedCell || !unownedChest || !unownedChest->As<RE::TESBoundObject>()) {
+        for (const auto& ref : runtimeData.references) {
+			if (!ref) continue;
+			if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
+				unownedChestOG = ref.get();
+				break;
+			}
+		}
+
+        if (!unownedChestOG || !unownedCell || !unownedChest || !unownedChest->As<RE::TESBoundObject>()) {
             logger::error("Failed to initialize Manager due to missing unowned chest/cell");
             init_failed = true;
         }
@@ -549,6 +568,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     // Remove all created chests while transferring the items and replace the created containers in the inventory with the original
     void Uninstall() {
         bool uninstall_successful = true;
+
         logger::info("Uninstalling...");
         logger::info("No of chests in cell: {}", GetNoChests());
         for (auto& src : sources) {
@@ -641,6 +661,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         if (uninstall_successful) {
             // sources.clear();
             current_container = nullptr;
+            unownedChestOG = nullptr;
             logger::info("Uninstall successful.");
             Utilities::MsgBoxesNotifs::InGame::UninstallSuccessful();
         } else {
@@ -690,6 +711,8 @@ public:
 
     bool RefIsContainer(RE::TESObjectREFR* ref) {
         if (!ref) return false;
+        if (ref->IsDisabled()) return false;
+        if (ref->IsDeleted()) return false;
         auto base = ref->GetBaseObject();
         if (!base) return false;
         auto formid = base->GetFormID();
@@ -699,17 +722,10 @@ public:
         return false;
     }
 
- //   bool IsFakeContainer(FormID fake) {
-	//	for (const auto& [chest_ref, cont_forms] : ChestToFakeContainer) {
-	//		if (cont_forms.innerKey == fake) {
-	//			return true;
-	//		}
-	//	}
-	//	return false;
-	//}
-
     bool RefIsFakeContainer(RE::TESObjectREFR* ref) {
         if (!ref) return false;
+        if (ref->IsDisabled()) return false;
+        if (ref->IsDeleted()) return false;
         auto base = ref->GetBaseObject();
         if (!base) return false;
         auto formid = base->GetFormID();
@@ -719,7 +735,7 @@ public:
 		return false;
     }
 
-    bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake) {
+    bool SwapDroppedFakeContainer(RE::TESObjectREFRPtr ref_fake) {
 
         // need the linked chest for updating source data
         auto chest_refid = GetContainerChest(ref_fake->GetBaseObject()->GetFormID());
@@ -730,7 +746,8 @@ public:
             return false;
         }
         logger::info("checkpoint 1");
-        ref_fake->Disable();
+        RemoveObject(ref_fake.get());
+
         logger::info("checkpoint 2");
         RE::TESObjectREFR* real_cont = RE::TESDataHandler::GetSingleton()->CreateReferenceAtLocation(real_base, ref_fake->GetPosition(), ref_fake->GetAngle(),
                                             player_ref->GetParentCell(), player_ref->GetWorldspace(),nullptr, nullptr, {}, true, false).get().get();
@@ -738,8 +755,6 @@ public:
         // add extradata to the new container
         //real_cont->extraList.Add(ref_fake->extraList.GetByType(RE::ExtraDataType::kEnchantment));
         logger::info("checkpoint 4");
-        ref_fake->SetDelete(true);
-        ref_fake = nullptr;
         logger::info("checkpoint 5");
 
         // update source data
