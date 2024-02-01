@@ -12,7 +12,6 @@ struct Source {
     std::uint32_t formid;
     const std::string editorid;
     SourceData data;
-    std::vector<RefID> linkedChests;
 
     Source(std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {
@@ -35,17 +34,6 @@ struct Source {
     };
 
     RE::TESBoundObject* GetBoundObject() { return Utilities::GetFormByID<RE::TESBoundObject>(formid, editorid); };
-
-    void RemoveDataEntry(RefID refid) {
-		auto it = data.find(refid);
-		if (it != data.end()) {
-			data.erase(it);
-			logger::info("Removed data entry for refid {}", refid);
-        } else {
-			logger::info("Could not find data entry for refid {}", refid);
-            Utilities::MsgBoxesNotifs::InGame::GeneralErr();
-        }
-	};
 };
 
 
@@ -156,6 +144,45 @@ namespace Settings {
 
         return sources;
     }
+
+    std::unordered_set<std::string> AllowedFormTypes{ 
+        "SCRL",  //	17 SCRL	ScrollItem
+        "ARMO",  //	1A ARMO	TESObjectARMO
+        "BOOK",  //	1B BOOK	TESObjectBOOK
+        "INGR",  //	1E INGR	IngredientItem
+        "MISC",  //	20 MISC TESObjectMISC
+        "WEAP",  //	29 WEAP	TESObjectWEAP
+        "AMMO",  //	2A AMMO	TESAmmo
+        "SLGM"   //	34 SLGM	TESSoulGem
+	};
+
+
+    //enum class AllowedFormTypes {
+    //    "SCRL",  //	17 SCRL	ScrollItem
+    //    Armor,   //	1A ARMO	TESObjectARMO
+    //    Book,    //	1B BOOK	TESObjectBOOK
+    //    // Container,                   //	1C CONT	TESObjectCONT
+    //    // Door,                        //	1D DOOR	TESObjectDOOR
+    //    Ingredient,  //	1E INGR	IngredientItem
+    //    Misc,        //	20 MISC TESObjectMISC
+    //    // Apparatus,                   //	21 APPA	BGSApparatus
+    //    // Static,                      //	22 STAT	TESObjectSTAT
+    //    // StaticCollection,            //	23 SCOL BGSStaticCollection
+    //    // MovableStatic,               //	24 MSTT	BGSMovableStatic
+    //    // Furniture,                   //	28 FURN	TESFurniture
+    //    Weapon,  //	29 WEAP	TESObjectWEAP
+    //    Ammo,    //	2A AMMO	TESAmmo
+    //    // NPC,                         //	2B NPC_	TESNPC
+    //    // LeveledNPC,                  //	2C LVLN	TESLevCharacter
+    //    // KeyMaster,                   //	2D KEYM	TESKey
+    //    // AlchemyItem,                 //	2E ALCH	AlchemyItem
+    //    // Note,                        //	30 NOTE	BGSNote
+    //    // ConstructibleObject,         //	31 COBJ	BGSConstructibleObject
+    //    SoulGem,  //	34 SLGM	TESSoulGem
+    //    // LeveledItem,                 //	35 LVLI	TESLevItem
+    //    // LeveledSpell,                //	52 LVSP	TESLevSpell
+    //    // AnimatedObject,              //	53 ANIO	TESObjectANIO
+    //};
 
 };
 

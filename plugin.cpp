@@ -21,7 +21,8 @@ public:
         static OurEventSink singleton;
         return &singleton;
     }
-    // to put saved items to chest and to open chest (DONE)
+
+    // Prompts Messagebox
     RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
                                           RE::BSTEventSource<RE::TESActivateEvent>*) {
         if (!event) return RE::BSEventNotifyControl::kContinue;
@@ -76,14 +77,30 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::TESContainerChangedEvent* event,
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
         if (!event) return RE::BSEventNotifyControl::kContinue;
-        if (!listen_container_changed && !M->RefIsContainer(event->reference.get().get())) return RE::BSEventNotifyControl::kContinue;
+        //if (!listen_container_changed && !M->RefIsContainer(event->reference.get().get())) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20) return RE::BSEventNotifyControl::kContinue;
         logger::info("Item {} went into container {}.", event->baseObj, event->newContainer);
-        //if (M->RefIsContainer(event->reference.get().get())) {
-        //    ;
+        
+        
+        if (!event->newContainer && !M->AllFakesInInventory()) {
+            auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
+            // iterate through all objects in the cell
+            auto cell_runtime_date = player_cell->GetRuntimeData();
+            for (auto& ref : cell_runtime_date.references) {
+                if (M->RefIsFakeContainer(ref.get())) {
+                    logger::info("Dropped fake container with ref id {}.", ref->GetFormID());
+                    if (!M->SwapDroppedFakeContainer(ref.get())) {
+						logger::info("Failed to swap fake container.");
+                        return RE::BSEventNotifyControl::kContinue;
+					}
+                    break;
+                }
+			}
+        }
 
-        //}
-        M->InspectItemTransfer();
+        if (!listen_container_changed) return RE::BSEventNotifyControl::kContinue;
+        // check if container has enough capacity
+        //M->InspectItemTransfer();
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -160,3 +177,5 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 
     return true;
 }
+
+

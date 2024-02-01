@@ -108,8 +108,129 @@ namespace Utilities {
 
     bool IsPo3Installed() { return std::filesystem::exists(po3path); };
 
+    // bidirectional map
+    template <typename Key, typename Value>
+    class BidirectionalMap {
+    public:
+        bool insert(const Key& key, const Value& value) {
+            auto result1 = keyToValue.insert({key, value});
+            auto result2 = valueToKey.insert({value, key});
+            return result1.second && result2.second;  // Returns true if both inserts were successful
+        }
+
+        // Method to insert all entries from another bidirectional map
+        bool insertAll(const BidirectionalMap& other) {
+            bool success = true;
+            for (const auto& [key, value] : other) {
+                // Insert the entry into the current bidirectional map
+                success = insert(key, value);
+                if (!success) {
+					// If insertion failed, break out of the loop
+					break;
+				}
+            }
+            return success;
+        }
+
+        const Value& getValue(const Key& key) const {
+            auto it = keyToValue.find(key);
+            if (it != keyToValue.end()) {
+                return it->second;
+            } else {
+                logger::info("Key not found in getValue");
+                throw std::out_of_range("Key not found in getValue");
+            }
+        }
+
+        const Key& getKey(const Value& value) const {
+            auto it = valueToKey.find(value);
+            if (it != valueToKey.end()) {
+                return it->second;
+            } else {
+                logger::info("Value not found in getKey");
+                throw std::out_of_range("Value not found in getKey");
+            }
+        }
+
+        bool containsKey(const Key& key) { return keyToValue.find(key) != keyToValue.end(); }
+
+        bool containsValue(const Value& value) { return valueToKey.find(value) != valueToKey.end(); }
+
+        // check at the same time if it exists among both keys or values
+        template <typename T>
+        bool contains(const T& keyOrValue) const {
+            static_assert(std::is_same<Key, T>::value, "Key and Value types must be the same");
+            static_assert(std::is_same<Value, T>::value, "Key and Value types must be the same");
+            auto keyIt = keyToValue.find(keyOrValue);
+            auto valueIt = valueToKey.find(keyOrValue);
+            return keyIt != keyToValue.end() || valueIt != valueToKey.end();
+        }
+
+        // Method to update the value associated with a key
+        bool updateValue(const Key& key, const Value& newValue) {
+            auto keyIt = keyToValue.find(key);
+            if (keyIt != keyToValue.end()) {
+                // Update the value for the existing key
+                Value oldValue = keyIt->second;
+                keyIt->second = newValue;
+                
+                // Also update the valueToKey map
+                auto valueIt = valueToKey.find(oldValue);
+                if (valueIt != valueToKey.end()) {
+                    valueToKey.erase(valueIt);
+                    valueToKey.insert({newValue, key});
+                    return true;
+                }
+            }
+            return false;  // Key not found
+        }
+
+        // Method to remove an entry by key
+        bool removeByKey(const Key& key) {
+            auto keyIt = keyToValue.find(key);
+            if (keyIt != keyToValue.end()) {
+                auto valueIt = valueToKey.find(keyIt->second);
+                if (valueIt != valueToKey.end()) {
+                    keyToValue.erase(keyIt);
+                    valueToKey.erase(valueIt);
+                    return true;
+                }
+            }
+            return false;  // Key not found
+        }
+
+        // Method to remove an entry by value
+        bool removeByValue(const Value& value) {
+            auto valueIt = valueToKey.find(value);
+            if (valueIt != valueToKey.end()) {
+                auto keyIt = keyToValue.find(valueIt->second);
+                if (keyIt != keyToValue.end()) {
+                    valueToKey.erase(valueIt);
+                    keyToValue.erase(keyIt);
+                    return true;
+                }
+            }
+            return false;  // Value not found
+        }
+
+        void clear() {
+            keyToValue.clear();
+            valueToKey.clear();
+        }
+
+        auto begin() const { return keyToValue.begin(); }
+
+        auto end() const { return keyToValue.end(); }
+
+        bool isEmpty() const { return keyToValue.empty() && valueToKey.empty(); }
+
+    private:
+        std::map<Key, Value> keyToValue;
+        std::map<Value, Key> valueToKey;
+    };
 
     
+    // message boxes and notifications
 
     namespace MsgBoxesNotifs {
 
@@ -173,6 +294,12 @@ namespace Utilities {
 
             void NoSourceFound() { RE::DebugMessageBox(no_src_msgbox.c_str()); };
 
+            void FormTypeErr(RE::FormID id) {
+				RE::DebugMessageBox(
+					std::format("{}: The form type of the item with FormID ({}) is not supported. Please contact the mod author.",
+						Utilities::mod_name, Utilities::dec2hex(id)).c_str());
+			};
+            
             void FormIDError(RE::FormID id) {
                 RE::DebugMessageBox(
                     std::format("{}: The ID ({}) could not have been found.",
@@ -209,6 +336,7 @@ namespace Utilities {
         };
     };
 
+    // type stuff
     namespace Types {
 
         //using EditorID = std::string;
@@ -225,10 +353,18 @@ namespace Utilities {
             }
         };
 
+        struct FormFormID {
+            FormID outerKey;
+            FormID innerKey;
+
+            bool operator<(const FormFormID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+            }
+        };
         
-        using SourceDataKey = RefID;
-        using SourceDataVal = RefID;
-        using SourceData = std::map<SourceDataKey, SourceDataVal>; // Container-Chest Reference ID Pairs
+        using SourceDataKey = RefID; // Chest Ref ID
+        using SourceDataVal = RefID; // Container Ref ID if it exists otherwise Chest Ref ID
+        using SourceData = BidirectionalMap<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
     
     }
     
@@ -245,6 +381,8 @@ namespace Utilities {
         return nullptr;
     };
 
+    // Utility functions
+
     template <class T>
     uint32_t GetLength(T list) {
         logger::info("Getting length of list");
@@ -255,7 +393,6 @@ namespace Utilities {
         }
         return length;
     }
-
 
     template <class T>
     uint32_t GetListLength(RE::BSSimpleList<T>* list) {
@@ -275,6 +412,41 @@ namespace Utilities {
         return valueExists;
     }
 
+    bool FormIsOfType(RE::TESForm* form, RE::FormType type) {
+		return form->GetFormType() == type;
+	}
+
+    template <typename T>
+    struct FormTraits {
+        static float GetWeight(T* form) {
+            // Default implementation, assuming T has a member variable 'weight'
+            return form->weight;
+        }
+
+        static void SetWeight(T* form, float weight) {
+            // Default implementation, set the weight if T has a member variable 'weight'
+            form->weight = weight;
+        }
+    };
+
+    // Specialization for TESAmmo
+    template <>
+    struct FormTraits<RE::TESAmmo> {
+        static float GetWeight(RE::TESAmmo*) {
+            // Handle TESAmmo case where 'weight' is not a member
+            // You might return a default value or calculate it based on other factors
+            return 0.0f;  // For example, returning 0 as a default value
+        }
+
+        static void SetWeight(RE::TESAmmo*, float) {
+            // Handle setting the weight for TESAmmo
+            // (implementation based on your requirements)
+            // For example, if TESAmmo had a SetWeight method, you would call it here
+        }
+    };
+
+    // Saving and Loading
+    
     // https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp
     template <typename T>
     // BaseData is based off how powerof3's did it in Afterlife
