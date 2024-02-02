@@ -3,7 +3,7 @@
 // FFI04Sack 000DAB04
 
 Manager* M;
-bool listen_container_changed = false;
+bool listen_weight_limit = false;
 
 class OurEventSink : public RE::BSTEventSink<RE::TESActivateEvent>,
                      public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
@@ -66,9 +66,9 @@ public:
         if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
 
         if (event->opening) {
-            listen_container_changed = true;
+            listen_weight_limit = true;
         } else {
-            listen_container_changed = false;
+            listen_weight_limit = false;
 			M->listen_menuclose = false;
         }
         return RE::BSEventNotifyControl::kContinue;
@@ -76,41 +76,45 @@ public:
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESContainerChangedEvent* event,
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
+        
+        if (!M->listen_container_change) return RE::BSEventNotifyControl::kContinue;
         logger::info("asdasd");
         if (!event) return RE::BSEventNotifyControl::kContinue;
-        //if (!listen_container_changed && !M->RefIsContainer(event->reference.get().get())) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20) return RE::BSEventNotifyControl::kContinue;
         logger::info("Item {} went into container {}.", event->baseObj, event->newContainer);
         
-        
-        if (!event->newContainer && !M->AllFakesInInventory()) {
-            logger::info("Dropped fake container.");
-            auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
-            // iterate through all objects in the cell
-            auto cell_runtime_date = player_cell->GetRuntimeData();
-            logger::info("Cell has {} references.", cell_runtime_date.references.size());
-            unsigned int disabled_count = 0;
-            for (auto& ref : cell_runtime_date.references) {
-                if (ref->IsDeleted() || ref->IsDisabled()) disabled_count++;
-            }
-            logger::info("disabled count: {}", disabled_count);
-
-            for (auto& ref : cell_runtime_date.references) {
-                if (M->RefIsFakeContainer(ref.get())) {
-                    logger::info("Dropped fake container with ref id {}.", ref->GetFormID());
-                    if (!M->SwapDroppedFakeContainer(ref)) {
-						logger::info("Failed to swap fake container.");
-                        return RE::BSEventNotifyControl::kContinue;
-					} else logger::info("Swapped fake container.");
-                    //ref.reset();
-                    break;
+        // a container left player inventory
+        if (!M->AllFakesInInventory()) {
+            // drop event
+            if (!event->newContainer) {
+                logger::info("Dropped fake container.");
+                auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
+                // iterate through all objects in the cell................
+                auto cell_runtime_data = player_cell->GetRuntimeData();
+                logger::info("Cell has {} references.", cell_runtime_data.references.size());
+                unsigned int disabled_count = 0;
+                for (auto& ref : cell_runtime_data.references) {
+                    if (ref->IsDeleted() || ref->IsDisabled()) disabled_count++;
                 }
-			}
+                logger::info("disabled count: {}", disabled_count);
+                auto dropppedinventory = RE::PlayerCharacter::GetSingleton()->GetDroppedInventory();
+                logger::info("dropped inventory has {} references.", dropppedinventory.size());
+                for (auto& ref : cell_runtime_data.references) {
+                    if (M->RefIsFakeContainer(ref.get())) {
+                        logger::info("Dropped fake container with ref id {}.", ref->GetFormID());
+                        if (!M->SwapDroppedFakeContainer(ref)) {
+						    logger::error("Failed to swap fake container.");
+                            return RE::BSEventNotifyControl::kContinue;
+					    } else logger::info("Swapped fake container.");
+                        break;
+                    }
+			    }
+            }
         }
 
-        //if (!listen_container_changed) return RE::BSEventNotifyControl::kContinue;
+
         // check if container has enough capacity
-        //M->InspectItemTransfer();
+        if (listen_weight_limit) M->InspectItemTransfer();
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -182,7 +186,7 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 
     SetupLog();
     SKSE::Init(skse);
-    InitializeSerialization();
+    //InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 
     return true;

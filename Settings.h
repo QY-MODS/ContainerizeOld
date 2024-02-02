@@ -8,9 +8,9 @@ using namespace Utilities::Types;
 
 struct Source {
 
-    const float capacity;
+    float capacity;
     std::uint32_t formid;
-    const std::string editorid;
+    std::string editorid;
     SourceData data;
 
     Source(std::uint32_t id, const std::string id_str, float capacity)

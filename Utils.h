@@ -341,8 +341,8 @@ namespace Utilities {
 
         //using EditorID = std::string;
         using NameID = std::string;
+        using FormID = RE::FormID;
         using RefID = std::uint32_t;
-        using FormID = std::uint32_t;
 
         struct FormRefID {
             FormID outerKey;
