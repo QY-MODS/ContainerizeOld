@@ -499,13 +499,13 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
         //auto chest_val = GetChestValue(chest_linked);
         //logger::info("chest_val: {}", chest_val);
-        //auto curr_container_base = current_container->GetBaseObject();
+        auto real_container = FakeToRealContainer(fake_form->GetFormID());
         /*auto realcontainer_value_in_chest =
             chest_linked->GetInventory().find(curr_container_base)->second.second->GetValue();*/
         //logger::info("Real container value in chest: {}", realcontainer_value_in_chest);
-        //auto realcontainer_val = curr_container_base->GetGoldValue();
+        auto realcontainer_val = real_container->GetGoldValue();
         //logger::info("Real container value: {}", realcontainer_val);
-        //Utilities::FormTraits<T>::SetValue(fake_form, chest_val - realcontainer_value_in_chest + realcontainer_val);
+        Utilities::FormTraits<T>::SetValue(fake_form, realcontainer_val);
         //logger::info("Fake container value: {}", Utilities::FormTraits<T>::GetValue(fake_form));
         Utilities::FormTraits<T>::SetWeight(fake_form, chest_linked->GetWeightInContainer());
     }
@@ -530,11 +530,19 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     FormID CreateFakeContainer(T* realcontainer, RE::ExtraDataList* extralist) {
         T* new_form = nullptr;
         new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
+        /*auto form_factory = RE::IFormFactory::GetConcreteFormFactoryByType<T>();
+        if (!form_factory) {
+			RaiseMngrErr("Failed to get form factory.");
+			return 0;
+		}*/
+        //new_form = form_factory->Create();
         if (!new_form) {
             RaiseMngrErr("Failed to create new form.");
             return 0;
         }
         new_form->Copy(realcontainer);
+        /*new_form->InitializeData();
+        new_form->InitItemImpl();*/
         new_form->fullName = realcontainer->GetFullName();
         logger::info("Created form with type: {}, Base ID: {:x}, Ref ID: {:x}, Name: {}",
                      RE::FormTypeToString(new_form->GetFormType()), new_form->GetFormID(), new_form->GetFormID(),
@@ -571,65 +579,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     }
 
 #define DISABLE_IF_NO_CURR_CONT if (!current_container) return RaiseMngrErr("Current container is null");
-
-
-    //template <typename T>
-    //void AddFakeContainerToPlayer(T* realcontainer, RE::ExtraDataList* extralist) {
-    //    DISABLE_IF_NO_CURR_CONT
-    //    
-    //    
-    //}
-
-
-    // Unused.
-    /* template <typename T>
-    RE::TESObjectREFR* ReplaceContainerWithDuplicate(T* container_form, RE::TESObjectREFR* container_ref) {
-        
-        T* new_form = nullptr;
-        new_form = container_form->CreateDuplicateForm(true, (void*)new_form)->As<T>();
-        if (!new_form) {
-            logger::error("Failed to create new form.");
-            Utilities::MsgBoxesNotifs::InGame::GeneralErr();
-            return nullptr;
-        }
-        new_form->Copy(container_form);
-
-        new_form->fullName = "asd";
-
-
-        //newForms[container_form->GetFormID()].push_back(new_form->GetFormID());
-
-        // get position, rotation, cell and worldspace of old form
-        auto pos = container_ref->GetPosition();
-        auto rot = container_ref->GetAngle();
-        auto cell = container_ref->GetParentCell();
-        auto worldspace = container_ref->GetWorldspace();
-        
-        // print worldspace formid
-        auto formid = worldspace->GetFormID();
-        logger::info("Worldspace formid: {}", formid);
-        //look up by formid
-        auto worldspace_ = RE::TESForm::LookupByID<RE::TESWorldSpace>(formid);
-        if (!worldspace_) {
-			logger::error("Failed to look up worldspace by formid.");
-			Utilities::MsgBoxesNotifs::InGame::GeneralErr();
-			return nullptr;
-		}
-
-        // create object reference for new form
-        auto newform_ref = RE::TESDataHandler::GetSingleton()
-            ->CreateReferenceAtLocation(new_form, pos, rot, cell, worldspace,
-                                        nullptr,nullptr, {}, true, false).get().get();
-
-        // remove old form
-        container_ref->Disable();
-
-        // print old ref formid
-        logger::info("Old ref formid: {}", container_ref->GetFormID());
-
-        // return new form ref
-        return newform_ref;
-    }*/
 
     RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, FormID item_id,
                                    RE::ITEM_REMOVE_REASON reason) { 
@@ -1052,13 +1001,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             }
         }
 
-
-        // make chest in the cell
-        //MakeChest(unownedChestPos);
-
-
         logger::info("No of chests in cell: {}", GetNoChests());
-
 
         // Check if unowned chest is in the cell and get its ref
         auto runtimeData = unownedCell->GetRuntimeData();
@@ -1232,6 +1175,7 @@ public:
 
     // external refid is in one of the source data
     bool IsExternalContainerRegistered(RefID external_container_id){
+        if (!external_container_id) return false;
         if (RE ::FormTypeToString(RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)
                                       ->GetObjectReference()
                                       ->GetFormType()) != "CONT") {
@@ -1402,6 +1346,25 @@ public:
 
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
     
+    void HandleCraftingMenuOpen() { 
+        ENABLE_IF_NOT_UNINSTALLED
+        for (const auto& src : sources) {
+            for (const auto& [chest_ref, cont_ref] : src.data) {
+                /*auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
+                if (!chest) return RaiseMngrErr("Chest is null");
+                RemoveAllItemsFromChest(chest, true);*/
+                auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
+                RemoveItemReverse(chest,player_ref,src.formid,RE::ITEM_REMOVE_REASON::kDropping);
+                break;
+            }
+		}
+    }
+
+    void HandleCraftingMenuClose() { 
+        ENABLE_IF_NOT_UNINSTALLED 
+    }
+
+    // places fake objects in external containers
     void HandleFakePlacement(RE::TESObjectREFR* external_cont) {
         ENABLE_IF_NOT_UNINSTALLED
         // if the external container is already handled (handled_external_containers) return
@@ -1439,12 +1402,6 @@ public:
                         player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
                         RemoveItemReverse(player_ref, external_cont, fake_formid,
                                           RE::ITEM_REMOVE_REASON::kStoreInContainer);
-                        /*external_cont->GetContainer()->AddObjectToContainer(
-                            fake_refhandle.get()->GetObjectReference(), 1,
-                            RE::TESForm::LookupByID(0x07));*/
-                        /*chest->GetContainer()->AddObjectToContainer(
-							real_refhandle.get()->GetObjectReference(), 1,
-							RE::TESForm::LookupByID(0x07));*/
 					}
 				}
 			}

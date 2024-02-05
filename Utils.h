@@ -446,9 +446,9 @@ namespace Utilities {
 		//	return form->value;
 		//}
 
-        //static void SetValue(T* form, int value) {
-        //    form->value = value;
-        //}
+        static void SetValue(T* form, int value) {
+            form->value = value;
+        }
     };
 
     // Specialization for TESAmmo
@@ -469,9 +469,25 @@ namespace Utilities {
   //      static int GetValue(RE::TESAmmo* form) {
 		//	return form->value;
 		//}
-  //      static void SetValue(RE::TESAmmo* form, int value) {
-		//	form->value = value;
-		//}
+        static void SetValue(RE::TESAmmo* form, int value) {
+			form->value = value;
+		}
+    };
+
+    template <>
+    struct FormTraits<RE::AlchemyItem> {
+        static float GetWeight(RE::AlchemyItem* form) { 
+            return form->weight;
+        }
+
+        static void SetWeight(RE::AlchemyItem* form, float weight) { 
+            form->weight = weight;
+        }
+
+        //      static int GetValue(RE::TESAmmo* form) {
+        //	return form->value;
+        //}
+        static void SetValue(RE::AlchemyItem*, int) { return; }
     };
 
     float GetBoundObjectWeight(RE::TESBoundObject* object) {

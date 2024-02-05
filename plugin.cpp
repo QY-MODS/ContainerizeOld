@@ -76,7 +76,15 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
         if (!event) return RE::BSEventNotifyControl::kContinue;
-        if (event->menuName != "ContainerMenu") return RE::BSEventNotifyControl::kContinue;
+        
+        if (event->menuName == RE::CraftingMenu::MENU_NAME) {
+            if (event->opening) M->HandleCraftingMenuOpen();
+            else M->HandleCraftingMenuClose();
+        }
+        
+        
+        
+        if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
 
         if (event->opening) {
