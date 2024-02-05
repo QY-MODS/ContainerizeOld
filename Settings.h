@@ -153,7 +153,8 @@ namespace Settings {
         "MISC",  //	20 MISC TESObjectMISC
         "WEAP",  //	29 WEAP	TESObjectWEAP
         "AMMO",  //	2A AMMO	TESAmmo
-        "SLGM"   //	34 SLGM	TESSoulGem
+        "SLGM",  // 34 SLGM	TESSoulGem
+        "ALCH",  //	2E ALCH	AlchemyItem
 	};
 
 

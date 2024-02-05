@@ -4,10 +4,12 @@
 
 Manager* M;
 bool listen_weight_limit = false;
+bool listen_crosshair_ref = true;
 
 class OurEventSink : public RE::BSTEventSink<RE::TESActivateEvent>,
                      public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
                      public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
+                     public RE::BSTEventSink<RE::TESSellEvent>,
                      public RE::BSTEventSink<RE::TESContainerChangedEvent>{
 
     OurEventSink() = default;
@@ -31,7 +33,7 @@ public:
         if (!event->objectActivated->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
-        if (!M->RefIsContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
+        if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
 
         
         M->ActivateContainer(event->objectActivated.get());
@@ -46,7 +48,19 @@ public:
 
         if (!event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
-        if (!M->RefIsContainer(event->crosshairRef.get())) return RE::BSEventNotifyControl::kContinue;
+        if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
+
+        if (M->IsCONT(event->crosshairRef->GetFormID()) && M->IsExternalContainerRegistered(event->crosshairRef->GetFormID())) {
+            // if the fake items are not in it we need to place them (this happens upon load game)
+            M->listen_container_change = false;
+            listen_crosshair_ref = false; 
+            M->HandleFakePlacement(event->crosshairRef.get());
+            M->listen_container_change = true;
+            listen_crosshair_ref = true;
+        }
+
+
+        if (!M->IsRealContainer(event->crosshairRef.get())) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->IsActivationBlocked() && !M->isUninstalled) return RE::BSEventNotifyControl::kContinue;
 
         
@@ -73,6 +87,17 @@ public:
         }
         return RE::BSEventNotifyControl::kContinue;
     }
+    // (Unused)
+    RE::BSEventNotifyControl ProcessEvent(const RE::TESSellEvent* event, RE::BSTEventSource<RE::TESSellEvent>*) {
+		logger::info("Sell event detected.");
+        if (!event) return RE::BSEventNotifyControl::kContinue;
+		if (!event->target) return RE::BSEventNotifyControl::kContinue;
+		if (!event->seller) return RE::BSEventNotifyControl::kContinue;
+        logger::info("Seller: {}", event->seller->GetName());
+        logger::info("Target: {}", event->target->GetName());
+
+		return RE::BSEventNotifyControl::kContinue;
+    }
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESContainerChangedEvent* event,
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
@@ -80,44 +105,87 @@ public:
         if (!M->listen_container_change) return RE::BSEventNotifyControl::kContinue;
         logger::info("asdasd");
         if (!event) return RE::BSEventNotifyControl::kContinue;
-        if (event->oldContainer != 20) return RE::BSEventNotifyControl::kContinue;
-        logger::info("Item {} went into container {}.", event->baseObj, event->newContainer);
-        
-        // a container left player inventory
-        if (!M->AllFakesInInventory()) {
-            // drop event
-            if (!event->newContainer) {
-                logger::info("Dropped fake container.");
-                auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
-                // iterate through all objects in the cell................
-                auto cell_runtime_data = player_cell->GetRuntimeData();
-                logger::info("Cell has {} references.", cell_runtime_data.references.size());
-                unsigned int disabled_count = 0;
-                for (auto& ref : cell_runtime_data.references) {
-                    if (ref->IsDeleted() || ref->IsDisabled()) disabled_count++;
+        if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
+        if (!event->itemCount || event->itemCount > 1) return RE::BSEventNotifyControl::kContinue;
+        if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
+        logger::info("Item {} went into container {} from container {}.", event->baseObj, event->newContainer, event->oldContainer);
+
+        // to player inventory <-
+        if (event->newContainer == 20) {
+
+            if (M->IsRealContainer(event->baseObj) && M->RealContainerIsRegistered(event->baseObj)) {
+                if (!M->IsChest(event->oldContainer) && !M->IsExternalContainerRegistered(event->oldContainer)){
+                    // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
+                    logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
+					M->DropTake(event->baseObj);
                 }
-                logger::info("disabled count: {}", disabled_count);
-                auto dropppedinventory = RE::PlayerCharacter::GetSingleton()->GetDroppedInventory();
-                logger::info("dropped inventory has {} references.", dropppedinventory.size());
-                for (auto& ref : cell_runtime_data.references) {
-                    if (M->RefIsFakeContainer(ref.get())) {
-                        logger::info("Dropped fake container with ref id {}.", ref->GetFormID());
-                        if (!M->SwapDroppedFakeContainer(ref)) {
-						    logger::error("Failed to swap fake container.");
-                            return RE::BSEventNotifyControl::kContinue;
-					    } else logger::info("Swapped fake container.");
-                        break;
-                    }
-			    }
+            } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
+                logger::info("Unlinking external container.");
+                M->UnLinkExternalContainer(event->baseObj, event->oldContainer);
             }
         }
 
 
+        // from player inventory ->
+        if (event->oldContainer == 20) {
+            logger::info("Something left player inventory.");
+            // a fake container left player inventory
+            if (M->IsFakeContainer(event->baseObj)) {
+                logger::info("Fake container left player inventory.");
+                // drop event
+                if (!event->newContainer) {
+                    logger::info("Dropped fake container.");
+                    auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
+                    // iterate through all objects in the cell................
+                    auto cell_runtime_data = player_cell->GetRuntimeData();
+                    logger::info("Cell has {} references.", cell_runtime_data.references.size());
+                    unsigned int disabled_count = 0;
+                    for (auto& ref : cell_runtime_data.references) {
+                        if (ref->IsDeleted() || ref->IsDisabled()) disabled_count++;
+                    }
+                    logger::info("disabled count: {}", disabled_count);
+                    auto dropppedinventory = RE::PlayerCharacter::GetSingleton()->GetDroppedInventory();
+                    logger::info("dropped inventory has {} references.", dropppedinventory.size());
+                    for (auto& ref : cell_runtime_data.references) {
+                        if (M->IsFakeContainer(ref.get())) {
+                            logger::info("Dropped fake container with ref id {}.", ref->GetFormID());
+                            if (!M->SwapDroppedFakeContainer(ref)) {
+						        logger::error("Failed to swap fake container.");
+                                return RE::BSEventNotifyControl::kContinue;
+					        } else logger::info("Swapped fake container.");
+                            break;
+                        }
+			        }
+                }
+                // Barter transfer
+                else if (RE::UI::GetSingleton()->IsMenuOpen(RE::BarterMenu::MENU_NAME) &&
+                         RE::FormTypeToString(RE::TESForm::LookupByID<RE::TESObjectREFR>(event->newContainer)
+                                                  ->GetObjectReference()
+                                                  ->GetFormType()) == "CONT") {
+				    logger::info("Sold container.");
+                    M->HandleSell(event->baseObj, event->newContainer);
+			    }
+                // container transfer
+                else if (RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+                    logger::info("Container transfer.");
+                    // TODO: maybe disallow to another container if it is not an unownedchest belonging to one of our other containers
+            	    // need to register the container: chestrefid -> thiscontainerrefid
+                    logger::info("Container menu is open.");
+                    M->LinkExternalContainer(event->baseObj, event->newContainer);
+                }
+                else {
+                    Utilities::MsgBoxesNotifs::InGame::CustomErrMsg("Unsupported behaviour. Please put back the container you removed from your inventory.");
+				    logger::error("Unsupported. Please put back the container you removed from your inventory.");
+                }
+		    }
+            else if (M->IsChest(event->newContainer) && listen_weight_limit) M->InspectItemTransfer();
+        }
+        
+
         // check if container has enough capacity
-        if (listen_weight_limit) M->InspectItemTransfer();
+
         return RE::BSEventNotifyControl::kContinue;
     }
-
 
 };
 
@@ -127,19 +195,25 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         // Start
         auto sources = Settings::LoadINISettings();
         M = Manager::GetSingleton(sources);
-        
+    }
+    if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
+        message->type == SKSE::MessagingInterface::kNewGame) {
         // EventSink
         auto* eventSink = OurEventSink::GetSingleton();
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-
         eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
+        eventSourceHolder->AddEventSink<RE::TESSellEvent>(eventSink);
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(OurEventSink::GetSingleton());
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
     }
 }
 
+
+
+#define DISABLE_IF_UNINSTALLED if (M->isUninstalled) return;
 void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
+    DISABLE_IF_UNINSTALLED 
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
@@ -147,6 +221,7 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
 }
 
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
+    DISABLE_IF_UNINSTALLED
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
@@ -172,6 +247,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     M->ReceiveData();
     logger::info("Data loaded from skse co-save.");
 }
+#undef DISABLE_IF_UNINSTALLED
 
 void InitializeSerialization() {
     auto* serialization = SKSE::GetSerializationInterface();
@@ -186,7 +262,7 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 
     SetupLog();
     SKSE::Init(skse);
-    //InitializeSerialization();
+    InitializeSerialization();
     SKSE::GetMessagingInterface()->RegisterListener(OnMessage);
 
     return true;

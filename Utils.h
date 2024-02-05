@@ -166,7 +166,7 @@ namespace Utilities {
             return keyIt != keyToValue.end() || valueIt != valueToKey.end();
         }
 
-        // Method to update the value associated with a key
+        // Method to update the value associated with a key. Also updates the valueToKey map
         bool updateValue(const Key& key, const Value& newValue) {
             auto keyIt = keyToValue.find(key);
             if (keyIt != keyToValue.end()) {
@@ -333,6 +333,8 @@ namespace Utilities {
                 RE::DebugMessageBox(
                     std::format("{}: Uninstall failed. Please contact the mod author.", Utilities::mod_name).c_str());
             };
+
+            void CustomErrMsg(const std::string& msg) { RE::DebugMessageBox((mod_name + ": " + msg).c_str()); };
         };
     };
 
@@ -383,6 +385,17 @@ namespace Utilities {
 
     // Utility functions
 
+
+    std::size_t GetExtraDataListLength(const RE::ExtraDataList* dataList) {
+        std::size_t length = 0;
+
+        for (auto it = dataList->begin(); it != dataList->end(); ++it) {
+            // Increment the length for each element in the list
+            ++length;
+        }
+
+        return length;
+    }
     template <class T>
     uint32_t GetLength(T list) {
         logger::info("Getting length of list");
@@ -427,6 +440,15 @@ namespace Utilities {
             // Default implementation, set the weight if T has a member variable 'weight'
             form->weight = weight;
         }
+    
+  //      static int GetValue(T* form) {
+		//	// Default implementation, assuming T has a member variable 'value'
+		//	return form->value;
+		//}
+
+        //static void SetValue(T* form, int value) {
+        //    form->value = value;
+        //}
     };
 
     // Specialization for TESAmmo
@@ -443,7 +465,69 @@ namespace Utilities {
             // (implementation based on your requirements)
             // For example, if TESAmmo had a SetWeight method, you would call it here
         }
+
+  //      static int GetValue(RE::TESAmmo* form) {
+		//	return form->value;
+		//}
+  //      static void SetValue(RE::TESAmmo* form, int value) {
+		//	form->value = value;
+		//}
     };
+
+    float GetBoundObjectWeight(RE::TESBoundObject* object) {
+        if (!object) {
+            Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
+            return 0;
+        }
+        std::string formtype(RE::FormTypeToString(object->GetFormType()));
+        if (formtype == "ARMO") return FormTraits<RE::TESObjectARMO>::GetWeight(object->As<RE::TESObjectARMO>());
+        if (formtype == "WEAP") return FormTraits<RE::TESObjectWEAP>::GetWeight(object->As<RE::TESObjectWEAP>());
+        if (formtype == "MISC") return FormTraits<RE::TESObjectMISC>::GetWeight(object->As<RE::TESObjectMISC>());
+        if (formtype == "BOOK") return FormTraits<RE::TESObjectBOOK>::GetWeight(object->As<RE::TESObjectBOOK>());
+        if (formtype == "AMMO") return FormTraits<RE::TESAmmo>::GetWeight(object->As<RE::TESAmmo>());
+        if (formtype == "KEYM") return FormTraits<RE::TESKey>::GetWeight(object->As<RE::TESKey>());
+        if (formtype == "SLGM") return FormTraits<RE::TESSoulGem>::GetWeight(object->As<RE::TESSoulGem>());
+        if (formtype == "SCRL") return FormTraits<RE::ScrollItem>::GetWeight(object->As<RE::ScrollItem>());
+        if (formtype == "LIGH") return FormTraits<RE::TESObjectLIGH>::GetWeight(object->As<RE::TESObjectLIGH>());
+        if (formtype == "ALCH") return FormTraits<RE::AlchemyItem>::GetWeight(object->As<RE::AlchemyItem>());
+
+		return 0;
+	}
+
+    /*int GetBoundObjectValue(RE::TESBoundObject* object) {
+        if (!object) {
+            Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
+            return 0;
+        }
+        std::string formtype(RE::FormTypeToString(object->GetFormType()));
+        if (formtype == "ARMO") FormTraits<RE::TESObjectARMO>::GetValue(object->As<RE::TESObjectARMO>());
+        if (formtype == "WEAP") FormTraits<RE::TESObjectWEAP>::GetValue(object->As<RE::TESObjectWEAP>());
+        if (formtype == "MISC") FormTraits<RE::TESObjectMISC>::GetValue(object->As<RE::TESObjectMISC>());
+        if (formtype == "BOOK") FormTraits<RE::TESObjectBOOK>::GetValue(object->As<RE::TESObjectBOOK>());
+        if (formtype == "AMMO") FormTraits<RE::TESAmmo>::GetValue(object->As<RE::TESAmmo>());
+        if (formtype == "KEYM") FormTraits<RE::TESKey>::GetValue(object->As<RE::TESKey>());
+        if (formtype == "SLGM") FormTraits<RE::TESSoulGem>::GetValue(object->As<RE::TESSoulGem>());
+        if (formtype == "SCRL") FormTraits<RE::ScrollItem>::GetValue(object->As<RE::ScrollItem>());
+        if (formtype == "LIGH") FormTraits<RE::TESObjectLIGH>::GetValue(object->As<RE::TESObjectLIGH>());
+        return 0;
+    }*/
+
+    /*void SetBoundObjectValue(RE::TESBoundObject* object, int value) {
+        if (!object) {
+            Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
+            return;
+        }
+		std::string formtype(RE::FormTypeToString(object->GetFormType()));
+		if (formtype == "ARMO") FormTraits<RE::TESObjectARMO>::SetValue(object->As<RE::TESObjectARMO>(), value);
+		if (formtype == "WEAP") FormTraits<RE::TESObjectWEAP>::SetValue(object->As<RE::TESObjectWEAP>(), value);
+		if (formtype == "MISC") FormTraits<RE::TESObjectMISC>::SetValue(object->As<RE::TESObjectMISC>(), value);
+		if (formtype == "BOOK") FormTraits<RE::TESObjectBOOK>::SetValue(object->As<RE::TESObjectBOOK>(), value);
+		if (formtype == "AMMO") FormTraits<RE::TESAmmo>::SetValue(object->As<RE::TESAmmo>(), value);
+		if (formtype == "KEYM") FormTraits<RE::TESKey>::SetValue(object->As<RE::TESKey>(), value);
+		if (formtype == "SLGM") FormTraits<RE::TESSoulGem>::SetValue(object->As<RE::TESSoulGem>(), value);
+		if (formtype == "SCRL") FormTraits<RE::ScrollItem>::SetValue(object->As<RE::ScrollItem>(), value);
+		if (formtype == "LIGH") FormTraits<RE::TESObjectLIGH>::SetValue(object->As<RE::TESObjectLIGH>(), value);
+	}*/
 
     // Saving and Loading
     
