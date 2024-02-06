@@ -5,11 +5,14 @@
 Manager* M;
 bool listen_weight_limit = false;
 bool listen_crosshair_ref = true;
+bool furniture_entered = false;
+bool block_eventsinks = false;
+RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
 
 class OurEventSink : public RE::BSTEventSink<RE::TESActivateEvent>,
                      public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
                      public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
-                     public RE::BSTEventSink<RE::TESSellEvent>,
+                     public RE::BSTEventSink<RE::TESFurnitureEvent>,
                      public RE::BSTEventSink<RE::TESContainerChangedEvent>{
 
     OurEventSink() = default;
@@ -27,6 +30,8 @@ public:
     // Prompts Messagebox
     RE::BSEventNotifyControl ProcessEvent(const RE::TESActivateEvent* event,
                                           RE::BSTEventSource<RE::TESActivateEvent>*) {
+        
+        if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!event->objectActivated) return RE::BSEventNotifyControl::kContinue;
         if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
@@ -34,7 +39,6 @@ public:
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
-
         
         M->ActivateContainer(event->objectActivated.get());
 
@@ -42,10 +46,11 @@ public:
         return RE::BSEventNotifyControl::kContinue;
     }
 
-    // to disable ref activation (DONE)
+    // to disable ref activation
     RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* event,
                                           RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
 
+        if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
@@ -72,18 +77,12 @@ public:
         return RE::BSEventNotifyControl::kContinue;
     }
     
-    // to close chest and save the contents and remove items (MAYBE)
+    // to close chest and save the contents and remove items
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
                                           RE::BSTEventSource<RE::MenuOpenCloseEvent>*) {
+        
+        if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
-        
-        if (event->menuName == RE::CraftingMenu::MENU_NAME) {
-            if (event->opening) M->HandleCraftingMenuOpen();
-            else M->HandleCraftingMenuClose();
-        }
-        
-        
-        
         if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
 
@@ -95,14 +94,43 @@ public:
         }
         return RE::BSEventNotifyControl::kContinue;
     }
-    // (Unused)
-    RE::BSEventNotifyControl ProcessEvent(const RE::TESSellEvent* event, RE::BSTEventSource<RE::TESSellEvent>*) {
-		logger::info("Sell event detected.");
+    
+    RE::BSEventNotifyControl ProcessEvent(const RE::TESFurnitureEvent* event,
+                                          RE::BSTEventSource<RE::TESFurnitureEvent>*) {
+        
+        if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
-		if (!event->target) return RE::BSEventNotifyControl::kContinue;
-		if (!event->seller) return RE::BSEventNotifyControl::kContinue;
-        logger::info("Seller: {}", event->seller->GetName());
-        logger::info("Target: {}", event->target->GetName());
+        if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+        if (furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter)
+            return RE::BSEventNotifyControl::kContinue;
+        if (!furniture_entered && event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit)
+			return RE::BSEventNotifyControl::kContinue;
+        if (event->targetFurniture->GetBaseObject()->formType.underlying() != 40) return RE::BSEventNotifyControl::kContinue;
+
+
+        auto bench = event->targetFurniture->GetBaseObject()->As<RE::TESFurniture>();
+        if (!bench) return RE::BSEventNotifyControl::kContinue;
+        auto bench_type = static_cast<std::uint8_t>(bench->workBenchData.benchType.get());
+        if (bench_type != 2 && bench_type != 3 && bench_type != 7) return RE::BSEventNotifyControl::kContinue;
+
+        if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter) {
+            logger::info("Furniture event: Enter {}", event->targetFurniture->GetName());
+            furniture_entered = true;
+            furniture = event->targetFurniture;
+            M->HandleCraftingEnter();
+        }
+        else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
+            logger::info("Furniture event: Exit {}", event->targetFurniture->GetName());
+            if (event->targetFurniture == furniture) {
+                M->HandleCraftingExit();
+                furniture_entered = false;
+                furniture = nullptr;
+            }
+        }
+        else {
+			logger::info("Furniture event: Unknown");
+		}
+
 
 		return RE::BSEventNotifyControl::kContinue;
     }
@@ -110,10 +138,12 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::TESContainerChangedEvent* event,
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
         
+        if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!M->listen_container_change) return RE::BSEventNotifyControl::kContinue;
         logger::info("asdasd");
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
+        if (furniture_entered) return RE::BSEventNotifyControl::kContinue;
         if (!event->itemCount || event->itemCount > 1) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
         logger::info("Item {} went into container {} from container {}.", event->baseObj, event->newContainer, event->oldContainer);
@@ -201,7 +231,7 @@ public:
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
-        auto sources = Settings::LoadINISettings();
+        auto sources = Settings::LoadINISources();
         M = Manager::GetSingleton(sources);
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
@@ -211,7 +241,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
         eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
-        eventSourceHolder->AddEventSink<RE::TESSellEvent>(eventSink);
+        eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(OurEventSink::GetSingleton());
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
     }
@@ -230,6 +260,9 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
 
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED
+    
+    block_eventsinks = true;
+
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
@@ -252,8 +285,16 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
                 break;
         }
     }
+
+    logger::info("Resetting.");
+    listen_weight_limit = false;
+    listen_crosshair_ref = true;
+    furniture_entered = false;
+    M->Reset();
+    logger::info("Receiving Data.");
     M->ReceiveData();
     logger::info("Data loaded from skse co-save.");
+    block_eventsinks = false;
 }
 #undef DISABLE_IF_UNINSTALLED
 

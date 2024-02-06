@@ -48,22 +48,25 @@ namespace Settings {
     constexpr std::array<const char*, 3> InISections = {"Containers",
                                                         "Capacities",
                                                         "Other Stuff"};
-    constexpr std::array<const char*, 2> InIDefaultKeys = {"src1", "src1"};
+    constexpr std::array<const char*, 3> InIDefaultKeys = {"src1", "src1", "INI_changed_msg"};
+    constexpr std::array<const char*, 2> InIDefaultVals = {"", ""};
 
     const std::array<std::string, 3> section_comments =
         {";Make sure to use unique keys, e.g. src1=... NOTsrc1=...",
          std::format(";Make sure to use matching keys with the ones provided in section {}.",
                      static_cast<std::string>(InISections[0])),
+        ";",
         };
 
    
-    constexpr std::uint32_t kSerializationVersion = 123;
-    constexpr std::uint32_t kDataKey = 'CONT';
+    constexpr std::uint32_t kSerializationVersion = 729;
+    constexpr std::uint32_t kDataKey = 'CTRZ';
 
+    constexpr std::array<const char*, 1> otherstuffKeys = {"INI_changed_msg"};
 
-    std::vector<Source> LoadINISettings() {
+    std::vector<Source> LoadINISources() {
         
-        logger::info("Loading ini settings");
+        logger::info("Loading ini settings: Sources");
 
         std::vector<Source> sources;
 
@@ -84,16 +87,14 @@ namespace Settings {
         ini.LoadFile(path);
 
         // Create Sections with defaults if they don't exist
-        for (int i = 0; i < InISections.size(); ++i) {
+        for (int i = 0; i < InISections.size()-1; ++i) {
             logger::info("Checking section {}", InISections[i]);
             if (!ini.SectionExists(InISections[i])) {
                 logger::info("Section {} does not exist. Creating it.", InISections[i]);
                 ini.SetValue(InISections[i], nullptr, nullptr);
                 logger::info("Setting default keys for section {}", InISections[i]);
-                if (i < InISections.size() - 1) {
-                    ini.SetValue(InISections[i], InIDefaultKeys[i], nullptr, section_comments[i].c_str());
-                    logger::info("Default values set for section {}", InISections[i]);
-                }
+                ini.SetValue(InISections[i], InIDefaultKeys[i], InIDefaultVals[i], section_comments[i].c_str());
+                logger::info("Default values set for section {}", InISections[i]);
             }
         }
 
@@ -141,8 +142,47 @@ namespace Settings {
 
         ini.SaveFile(path);
 
-
         return sources;
+    }
+
+    std::unordered_map<std::string,bool> LoadOtherSettings() {
+    
+        logger::info("Loading ini settings: OtherStuff");
+
+        std::unordered_map<std::string, bool> others;
+
+        CSimpleIniA ini;
+        CSimpleIniA::TNamesDepend otherkeys;
+
+        ini.SetUnicode();
+        ini.LoadFile(path);
+
+        // Create Sections with defaults if they don't exist
+        if (!ini.SectionExists(InISections[2])) {
+            ini.SetBoolValue(InISections[2], InIDefaultKeys[2], true, section_comments[2].c_str());
+            logger::info("Default values set for section {}", InISections[2]);
+        }
+
+
+        ini.GetAllKeys(InISections[2], otherkeys);
+        auto numOthers = otherkeys.size();
+        logger::info("otherkeys size {}", numOthers);
+
+        if (numOthers == 0) {
+			logger::warn("No other settings found in the ini file. Using defaults.");
+			ini.SetBoolValue(InISections[2], InIDefaultKeys[2], true);
+			
+		}
+
+        bool val1;
+        // other stuff section
+        val1 = ini.GetBoolValue(InISections[2], InIDefaultKeys[2]);
+        ini.SetBoolValue(InISections[2], InIDefaultKeys[2], val1, ";Set to false to suppress the 'INI changed between saves' message.");
+        others["INI_changed_msg"] = val1;
+
+        ini.SaveFile(path);
+
+        return others;
     }
 
     std::unordered_set<std::string> AllowedFormTypes{ 

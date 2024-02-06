@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <functional>
 #include <unordered_set>
+#include <unordered_map>
 #include "SimpleIni.h"
 #include <iostream>
 #include <string>
@@ -316,8 +317,7 @@ namespace Utilities {
 
             void ProblemWithContainer(std::string id) {
                 RE::DebugMessageBox(
-					std::format("{}: Problem with one of the items with the form id ({}). \
-                        If you have changed the list of containers in the INI file between saves, please first get your items from your old containers.",
+					std::format("{}: Problem with one of the items with the form id ({}). This is expected if you have changed the list of containers in the INI file between saves. Corresponding items will be returned to your inventory. You can suppress this message by changing the setting in your INI.",
                         								Utilities::mod_name, id)
 						.c_str());
             };
@@ -408,8 +408,12 @@ namespace Utilities {
     }
 
     template <class T>
-    uint32_t GetListLength(RE::BSSimpleList<T>* list) {
-        return GetLength(list);
+    unsigned int GetListLength(RE::BSSimpleList<T>* list) {
+        unsigned int count = 0;
+        for (const auto& _ : *list) {
+            ++count;
+        }
+        return count;
     }
 
     template <class T>
@@ -591,6 +595,19 @@ namespace Utilities {
             for (const auto& [formId, value] : m_Data) {
                 logger::info("Dump Row From {} - ContainerFormID: {} - ContainerRefID: {} - ChestRefID: {}", GetType(),
                              formId.outerKey, formId.innerKey, value);
+            }
+            // sakat olabilir
+            logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
+        }
+    };
+
+    class BaseFormRefIDFormRefID : public BaseData<Types::FormRefID> {
+    public:
+        virtual void DumpToLog() override {
+            Locker locker(m_Lock);
+            for (const auto& [formId, value] : m_Data) {
+                logger::info("Dump Row From {} - RealContainerFormID: {} - UnownedRefID: {} - FakeContainerFormID: {} - ContainerRefID: {}", GetType(),
+                             formId.outerKey, formId.innerKey, value.outerKey, value.innerKey);
             }
             // sakat olabilir
             logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());

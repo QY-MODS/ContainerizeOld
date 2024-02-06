@@ -3,7 +3,9 @@
 #include "Settings.h"
 
 
-class Manager : public Utilities::BaseFormRefIDRefID {
+// TODO: handled_external_conts duzgun calisiyo mu test et. save et. barrela fakeplacement yap. save et. roll back save. sonra ilerki save e geri don, bakalim fakeitemlar hala duruyor mu
+
+class Manager : public Utilities::BaseFormRefIDFormRefID {
     // private variables
     std::vector<std::string> buttons = {"Open", "Take", "Cancel", "More..."};
     std::vector<std::string> buttons_more = {"Uninstall", "Deregister", "Back", "Cancel"};
@@ -21,8 +23,7 @@ class Manager : public Utilities::BaseFormRefIDRefID {
     //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
     RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
     RE::TESObjectREFR* unownedChestOG = nullptr;
-    std::vector<RefID> deregisteredChests; // runtime specific
-    std::vector<RefID> handled_external_conts; // runtime specific
+    std::unordered_set<RefID> handled_external_conts; // runtime specific
 
 
     // private functions
@@ -151,211 +152,198 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         return nullptr;
     }
 
-    //template <typename ExtraType>
-    //void UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
-    //    auto extraData = static_cast<ExtraType*>(copy_from->extraList.GetByType(ExtraType::EXTRADATATYPE));
-    //    if (extraData) {
-    //        auto extraDataFake = RE::BSExtraData::Create<ExtraType>();
-    //        *extraDataFake = *extraData;  // Assuming the class has a copy assignment operator
-    //        copy_to->extraList.Add(extraDataFake);
-    //    } else {
-    //        RaiseMngrErr("Failed to get ExtraData from copy_from");
-    //    }
-    //}
-
-    void UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
+    void UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to) {
         if (!copy_from || !copy_to) return RaiseMngrErr("copy_from or copy_to is null");
         // Enchantment
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kEnchantment)) {
+        if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
             logger::info("Enchantment found");
             auto enchantment =
-                static_cast<RE::ExtraEnchantment*>(copy_from->extraList.GetByType(RE::ExtraDataType::kEnchantment));
+                static_cast<RE::ExtraEnchantment*>(copy_from->GetByType(RE::ExtraDataType::kEnchantment));
             if (enchantment) {
                 RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>();
                 enchantment_fake->enchantment = enchantment->enchantment;
                 enchantment_fake->charge = enchantment->charge;
                 enchantment_fake->removeOnUnequip = enchantment->removeOnUnequip;
-                copy_to->extraList.Add(enchantment_fake);
+                copy_to->Add(enchantment_fake);
             } else
                 RaiseMngrErr("Failed to get enchantment from copy_from");
         }
         // Health
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kHealth)) {
+        if (copy_from->HasType(RE::ExtraDataType::kHealth)) {
             logger::info("Health found");
-            auto health = static_cast<RE::ExtraHealth*>(copy_from->extraList.GetByType(RE::ExtraDataType::kHealth));
+            auto health = static_cast<RE::ExtraHealth*>(copy_from->GetByType(RE::ExtraDataType::kHealth));
             if (health) {
                 RE::ExtraHealth* health_fake = RE::BSExtraData::Create<RE::ExtraHealth>();
                 health_fake->health = health->health;
-                copy_to->extraList.Add(health_fake);
+                copy_to->Add(health_fake);
             } else
                 RaiseMngrErr("Failed to get health from copy_from");
         }
         // Rank
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kRank)) {
+        if (copy_from->HasType(RE::ExtraDataType::kRank)) {
             logger::info("Rank found");
-            auto rank = static_cast<RE::ExtraRank*>(copy_from->extraList.GetByType(RE::ExtraDataType::kRank));
+            auto rank = static_cast<RE::ExtraRank*>(copy_from->GetByType(RE::ExtraDataType::kRank));
             if (rank) {
                 RE::ExtraRank* rank_fake = RE::BSExtraData::Create<RE::ExtraRank>();
                 rank_fake->rank = rank->rank;
-                copy_to->extraList.Add(rank_fake);
+                copy_to->Add(rank_fake);
             } else
                 RaiseMngrErr("Failed to get rank from copy_from");
         }
         // TimeLeft
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kTimeLeft)) {
+        if (copy_from->HasType(RE::ExtraDataType::kTimeLeft)) {
             logger::info("TimeLeft found");
-            auto timeleft =
-                static_cast<RE::ExtraTimeLeft*>(copy_from->extraList.GetByType(RE::ExtraDataType::kTimeLeft));
+            auto timeleft = static_cast<RE::ExtraTimeLeft*>(copy_from->GetByType(RE::ExtraDataType::kTimeLeft));
             if (timeleft) {
                 RE::ExtraTimeLeft* timeleft_fake = RE::BSExtraData::Create<RE::ExtraTimeLeft>();
                 timeleft_fake->time = timeleft->time;
-                copy_to->extraList.Add(timeleft_fake);
-            } else RaiseMngrErr("Failed to get timeleft from copy_from");
+                copy_to->Add(timeleft_fake);
+            } else
+                RaiseMngrErr("Failed to get timeleft from copy_from");
         }
         // Charge
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kCharge)) {
+        if (copy_from->HasType(RE::ExtraDataType::kCharge)) {
             logger::info("Charge found");
-            auto charge = static_cast<RE::ExtraCharge*>(copy_from->extraList.GetByType(RE::ExtraDataType::kCharge));
+            auto charge = static_cast<RE::ExtraCharge*>(copy_from->GetByType(RE::ExtraDataType::kCharge));
             if (charge) {
                 RE::ExtraCharge* charge_fake = RE::BSExtraData::Create<RE::ExtraCharge>();
                 charge_fake->charge = charge->charge;
-                copy_to->extraList.Add(charge_fake);
+                copy_to->Add(charge_fake);
             } else
                 RaiseMngrErr("Failed to get charge from copy_from");
         }
         // Scale
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kScale)) {
+        if (copy_from->HasType(RE::ExtraDataType::kScale)) {
             logger::info("Scale found");
-            auto scale = static_cast<RE::ExtraScale*>(copy_from->extraList.GetByType(RE::ExtraDataType::kScale));
+            auto scale = static_cast<RE::ExtraScale*>(copy_from->GetByType(RE::ExtraDataType::kScale));
             if (scale) {
                 RE::ExtraScale* scale_fake = RE::BSExtraData::Create<RE::ExtraScale>();
                 scale_fake->scale = scale->scale;
-                copy_to->extraList.Add(scale_fake);
+                copy_to->Add(scale_fake);
             } else
                 RaiseMngrErr("Failed to get scale from copy_from");
         }
         // UniqueID
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kUniqueID)) {
+        if (copy_from->HasType(RE::ExtraDataType::kUniqueID)) {
             logger::info("UniqueID found");
-            auto uniqueid =
-                static_cast<RE::ExtraUniqueID*>(copy_from->extraList.GetByType(RE::ExtraDataType::kUniqueID));
+            auto uniqueid = static_cast<RE::ExtraUniqueID*>(copy_from->GetByType(RE::ExtraDataType::kUniqueID));
             if (uniqueid) {
                 RE::ExtraUniqueID* uniqueid_fake = RE::BSExtraData::Create<RE::ExtraUniqueID>();
                 uniqueid_fake->baseID = uniqueid->baseID;
                 uniqueid_fake->uniqueID = uniqueid->uniqueID;
-                copy_to->extraList.Add(uniqueid_fake);
+                copy_to->Add(uniqueid_fake);
             } else
                 RaiseMngrErr("Failed to get uniqueid from copy_from");
         }
         // Poison
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kPoison)) {
+        if (copy_from->HasType(RE::ExtraDataType::kPoison)) {
             logger::info("Poison found");
-            auto poison = static_cast<RE::ExtraPoison*>(copy_from->extraList.GetByType(RE::ExtraDataType::kPoison));
+            auto poison = static_cast<RE::ExtraPoison*>(copy_from->GetByType(RE::ExtraDataType::kPoison));
             if (poison) {
                 RE::ExtraPoison* poison_fake = RE::BSExtraData::Create<RE::ExtraPoison>();
                 poison_fake->poison = poison->poison;
                 poison_fake->count = poison->count;
-                copy_to->extraList.Add(poison_fake);
+                copy_to->Add(poison_fake);
             } else
                 RaiseMngrErr("Failed to get poison from copy_from");
         }
         // ObjectHealth
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kObjectHealth)) {
+        if (copy_from->HasType(RE::ExtraDataType::kObjectHealth)) {
             logger::info("ObjectHealth found");
             auto objhealth =
-                static_cast<RE::ExtraObjectHealth*>(copy_from->extraList.GetByType(RE::ExtraDataType::kObjectHealth));
+                static_cast<RE::ExtraObjectHealth*>(copy_from->GetByType(RE::ExtraDataType::kObjectHealth));
             if (objhealth) {
                 RE::ExtraObjectHealth* objhealth_fake = RE::BSExtraData::Create<RE::ExtraObjectHealth>();
                 objhealth_fake->health = objhealth->health;
-                copy_to->extraList.Add(objhealth_fake);
+                copy_to->Add(objhealth_fake);
             } else
                 RaiseMngrErr("Failed to get objecthealth from copy_from");
         }
         // Light
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kLight)) {
+        if (copy_from->HasType(RE::ExtraDataType::kLight)) {
             logger::info("Light found");
-            auto light = static_cast<RE::ExtraLight*>(copy_from->extraList.GetByType(RE::ExtraDataType::kLight));
+            auto light = static_cast<RE::ExtraLight*>(copy_from->GetByType(RE::ExtraDataType::kLight));
             if (light) {
                 RE::ExtraLight* light_fake = RE::BSExtraData::Create<RE::ExtraLight>();
                 light_fake->lightData = light->lightData;
-                copy_to->extraList.Add(light_fake);
+                copy_to->Add(light_fake);
             } else
                 RaiseMngrErr("Failed to get light from copy_from");
         }
         // Radius
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kRadius)) {
+        if (copy_from->HasType(RE::ExtraDataType::kRadius)) {
             logger::info("Radius found");
-            auto radius = static_cast<RE::ExtraRadius*>(copy_from->extraList.GetByType(RE::ExtraDataType::kRadius));
+            auto radius = static_cast<RE::ExtraRadius*>(copy_from->GetByType(RE::ExtraDataType::kRadius));
             if (radius) {
                 RE::ExtraRadius* radius_fake = RE::BSExtraData::Create<RE::ExtraRadius>();
                 radius_fake->radius = radius->radius;
-                copy_to->extraList.Add(radius_fake);
+                copy_to->Add(radius_fake);
             } else
                 RaiseMngrErr("Failed to get radius from copy_from");
         }
         // Sound (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kSound)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kSound)) {
             logger::info("Sound found");
-            auto sound = static_cast<RE::ExtraSound*>(copy_from->extraList.GetByType(RE::ExtraDataType::kSound));
+            auto sound = static_cast<RE::ExtraSound*>(copy_from->GetByType(RE::ExtraDataType::kSound));
             if (sound) {
                 RE::ExtraSound* sound_fake = RE::BSExtraData::Create<RE::ExtraSound>();
                 sound_fake->handle = sound->handle;
-                copy_to->extraList.Add(sound_fake);
+                copy_to->Add(sound_fake);
             } else
                 RaiseMngrErr("Failed to get radius from copy_from");
         }*/
         // LinkedRef (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kLinkedRef)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kLinkedRef)) {
             logger::info("LinkedRef found");
             auto linkedref =
-                static_cast<RE::ExtraLinkedRef*>(copy_from->extraList.GetByType(RE::ExtraDataType::kLinkedRef));
+                static_cast<RE::ExtraLinkedRef*>(copy_from->GetByType(RE::ExtraDataType::kLinkedRef));
             if (linkedref) {
                 RE::ExtraLinkedRef* linkedref_fake = RE::BSExtraData::Create<RE::ExtraLinkedRef>();
                 linkedref_fake->linkedRefs = linkedref->linkedRefs;
-                copy_to->extraList.Add(linkedref_fake);
+                copy_to->Add(linkedref_fake);
             } else
                 RaiseMngrErr("Failed to get linkedref from copy_from");
         }*/
         // Horse
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kHorse)) {
+        if (copy_from->HasType(RE::ExtraDataType::kHorse)) {
             logger::info("Horse found");
-            auto horse = static_cast<RE::ExtraHorse*>(copy_from->extraList.GetByType(RE::ExtraDataType::kHorse));
+            auto horse = static_cast<RE::ExtraHorse*>(copy_from->GetByType(RE::ExtraDataType::kHorse));
             if (horse) {
                 RE::ExtraHorse* horse_fake = RE::BSExtraData::Create<RE::ExtraHorse>();
                 horse_fake->horseRef = horse->horseRef;
-                copy_to->extraList.Add(horse_fake);
+                copy_to->Add(horse_fake);
             } else
                 RaiseMngrErr("Failed to get horse from copy_from");
         }
         // Hotkey
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kHotkey)) {
+        if (copy_from->HasType(RE::ExtraDataType::kHotkey)) {
             logger::info("Hotkey found");
-            auto hotkey = static_cast<RE::ExtraHotkey*>(copy_from->extraList.GetByType(RE::ExtraDataType::kHotkey));
+            auto hotkey = static_cast<RE::ExtraHotkey*>(copy_from->GetByType(RE::ExtraDataType::kHotkey));
             if (hotkey) {
                 RE::ExtraHotkey* hotkey_fake = RE::BSExtraData::Create<RE::ExtraHotkey>();
                 hotkey_fake->hotkey = hotkey->hotkey;
-                copy_to->extraList.Add(hotkey_fake);
+                copy_to->Add(hotkey_fake);
             } else
                 RaiseMngrErr("Failed to get hotkey from copy_from");
         }
         // Weapon Attack Sound (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kWeaponAttackSound)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kWeaponAttackSound)) {
             logger::info("WeaponAttackSound found");
             auto weaponattacksound = static_cast<RE::ExtraWeaponAttackSound*>(
-                copy_from->extraList.GetByType(RE::ExtraDataType::kWeaponAttackSound));
+                copy_from->GetByType(RE::ExtraDataType::kWeaponAttackSound));
             if (weaponattacksound) {
                 RE::ExtraWeaponAttackSound* weaponattacksound_fake =
                     RE::BSExtraData::Create<RE::ExtraWeaponAttackSound>();
                 weaponattacksound_fake->handle = weaponattacksound->handle;
-                copy_to->extraList.Add(weaponattacksound_fake);
+                copy_to->Add(weaponattacksound_fake);
             } else
                 RaiseMngrErr("Failed to get weaponattacksound from copy_from");
         }*/
         // Activate Ref (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kActivateRef)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kActivateRef)) {
             logger::info("ActivateRef found");
             auto activateref =
-                static_cast<RE::ExtraActivateRef*>(copy_from->extraList.GetByType(RE::ExtraDataType::kActivateRef));
+                static_cast<RE::ExtraActivateRef*>(copy_from->GetByType(RE::ExtraDataType::kActivateRef));
             if (activateref) {
                 RE::ExtraActivateRef* activateref_fake = RE::BSExtraData::Create<RE::ExtraActivateRef>();
                 activateref_fake->parents = activateref->parents;
@@ -364,10 +352,10 @@ class Manager : public Utilities::BaseFormRefIDRefID {
                 RaiseMngrErr("Failed to get activateref from copy_from");
         }*/
         // TextDisplayData
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kTextDisplayData)) {
+        if (copy_from->HasType(RE::ExtraDataType::kTextDisplayData)) {
             logger::info("TextDisplayData found");
-            auto textdisplaydata = static_cast<RE::ExtraTextDisplayData*>(
-                copy_from->extraList.GetByType(RE::ExtraDataType::kTextDisplayData));
+            auto textdisplaydata =
+                static_cast<RE::ExtraTextDisplayData*>(copy_from->GetByType(RE::ExtraDataType::kTextDisplayData));
             if (textdisplaydata) {
                 RE::ExtraTextDisplayData* textdisplaydata_fake = RE::BSExtraData::Create<RE::ExtraTextDisplayData>();
                 textdisplaydata_fake->displayName = textdisplaydata->displayName;
@@ -376,110 +364,121 @@ class Manager : public Utilities::BaseFormRefIDRefID {
                 textdisplaydata_fake->ownerInstance = textdisplaydata->ownerInstance;
                 textdisplaydata_fake->temperFactor = textdisplaydata->temperFactor;
                 textdisplaydata_fake->customNameLength = textdisplaydata->customNameLength;
-                copy_to->extraList.Add(textdisplaydata_fake);
+                copy_to->Add(textdisplaydata_fake);
             } else
                 RaiseMngrErr("Failed to get textdisplaydata from copy_from");
         }
         // Soul
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kSoul)) {
+        if (copy_from->HasType(RE::ExtraDataType::kSoul)) {
             logger::info("Soul found");
-            auto soul = static_cast<RE::ExtraSoul*>(copy_from->extraList.GetByType(RE::ExtraDataType::kSoul));
+            auto soul = static_cast<RE::ExtraSoul*>(copy_from->GetByType(RE::ExtraDataType::kSoul));
             if (soul) {
                 RE::ExtraSoul* soul_fake = RE::BSExtraData::Create<RE::ExtraSoul>();
                 soul_fake->soul = soul->soul;
-                copy_to->extraList.Add(soul_fake);
+                copy_to->Add(soul_fake);
             } else
                 RaiseMngrErr("Failed to get soul from copy_from");
         }
         // Flags (OK)
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kFlags)) {
+        if (copy_from->HasType(RE::ExtraDataType::kFlags)) {
             logger::info("Flags found");
-            auto flags = static_cast<RE::ExtraFlags*>(copy_from->extraList.GetByType(RE::ExtraDataType::kFlags));
+            auto flags = static_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags));
             if (flags) {
                 SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
-                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate)) flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
-                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate)) flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
-                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents)) flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
-                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText)) flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
-                if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken)) flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
-                //RE::ExtraFlags* flags_fake = RE::BSExtraData::Create<RE::ExtraFlags>();
-                //flags_fake->flags = flags->flags;
-                //copy_to->extraList.Add(flags_fake);
+                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate))
+                    flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
+                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate))
+                    flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
+                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents))
+                    flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
+                if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText))
+                    flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
+                if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken))
+                    flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
+                // RE::ExtraFlags* flags_fake = RE::BSExtraData::Create<RE::ExtraFlags>();
+                // flags_fake->flags = flags->flags;
+                // copy_to->Add(flags_fake);
             } else
                 RaiseMngrErr("Failed to get flags from copy_from");
         }
         // Lock (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kLock)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kLock)) {
             logger::info("Lock found");
-            auto lock = static_cast<RE::ExtraLock*>(copy_from->extraList.GetByType(RE::ExtraDataType::kLock));
+            auto lock = static_cast<RE::ExtraLock*>(copy_from->GetByType(RE::ExtraDataType::kLock));
             if (lock) {
                 RE::ExtraLock* lock_fake = RE::BSExtraData::Create<RE::ExtraLock>();
                 lock_fake->lock = lock->lock;
-                copy_to->extraList.Add(lock_fake);
+                copy_to->Add(lock_fake);
             } else
                 RaiseMngrErr("Failed to get lock from copy_from");
         }*/
         // Teleport (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kTeleport)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kTeleport)) {
             logger::info("Teleport found");
             auto teleport =
-                static_cast<RE::ExtraTeleport*>(copy_from->extraList.GetByType(RE::ExtraDataType::kTeleport));
+                static_cast<RE::ExtraTeleport*>(copy_from->GetByType(RE::ExtraDataType::kTeleport));
             if (teleport) {
                 RE::ExtraTeleport* teleport_fake = RE::BSExtraData::Create<RE::ExtraTeleport>();
                 teleport_fake->teleportData = teleport->teleportData;
-                copy_to->extraList.Add(teleport_fake);
+                copy_to->Add(teleport_fake);
             } else
                 RaiseMngrErr("Failed to get teleport from copy_from");
         }*/
         // LockList (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kLockList)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kLockList)) {
             logger::info("LockList found");
             auto locklist =
-                static_cast<RE::ExtraLockList*>(copy_from->extraList.GetByType(RE::ExtraDataType::kLockList));
+                static_cast<RE::ExtraLockList*>(copy_from->GetByType(RE::ExtraDataType::kLockList));
             if (locklist) {
                 RE::ExtraLockList* locklist_fake = RE::BSExtraData::Create<RE::ExtraLockList>();
                 locklist_fake->list = locklist->list;
-                copy_to->extraList.Add(locklist_fake);
+                copy_to->Add(locklist_fake);
             } else
                 RaiseMngrErr("Failed to get locklist from copy_from");
         }*/
         // OutfitItem (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kOutfitItem)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kOutfitItem)) {
             logger::info("OutfitItem found");
             auto outfititem =
-                static_cast<RE::ExtraOutfitItem*>(copy_from->extraList.GetByType(RE::ExtraDataType::kOutfitItem));
+                static_cast<RE::ExtraOutfitItem*>(copy_from->GetByType(RE::ExtraDataType::kOutfitItem));
             if (outfititem) {
                 RE::ExtraOutfitItem* outfititem_fake = RE::BSExtraData::Create<RE::ExtraOutfitItem>();
                 outfititem_fake->id = outfititem->id;
-                copy_to->extraList.Add(outfititem_fake);
+                copy_to->Add(outfititem_fake);
             } else
                 RaiseMngrErr("Failed to get outfititem from copy_from");
         }*/
         // CannotWear (Disabled)
-        /*if (copy_from->extraList.HasType(RE::ExtraDataType::kCannotWear)) {
+        /*if (copy_from->HasType(RE::ExtraDataType::kCannotWear)) {
             logger::info("CannotWear found");
             auto cannotwear =
-                static_cast<RE::ExtraCannotWear*>(copy_from->extraList.GetByType(RE::ExtraDataType::kCannotWear));
+                static_cast<RE::ExtraCannotWear*>(copy_from->GetByType(RE::ExtraDataType::kCannotWear));
             if (cannotwear) {
                 RE::ExtraCannotWear* cannotwear_fake = RE::BSExtraData::Create<RE::ExtraCannotWear>();
-                copy_to->extraList.Add(cannotwear_fake);
+                copy_to->Add(cannotwear_fake);
             } else
                 RaiseMngrErr("Failed to get cannotwear from copy_from");
         }*/
         // Ownership (OK)
-        if (copy_from->extraList.HasType(RE::ExtraDataType::kOwnership)) {
+        if (copy_from->HasType(RE::ExtraDataType::kOwnership)) {
             logger::info("Ownership found");
-            auto ownership =
-                static_cast<RE::ExtraOwnership*>(copy_from->extraList.GetByType(RE::ExtraDataType::kOwnership));
+            auto ownership = static_cast<RE::ExtraOwnership*>(copy_from->GetByType(RE::ExtraDataType::kOwnership));
             if (ownership) {
-                logger::info("length of fake extradatalist: {}", copy_to->extraList.GetCount());
+                logger::info("length of fake extradatalist: {}", copy_to->GetCount());
                 RE::ExtraOwnership* ownership_fake = RE::BSExtraData::Create<RE::ExtraOwnership>();
                 ownership_fake->owner = ownership->owner;
-                copy_to->extraList.Add(ownership_fake);
-                logger::info("length of fake extradatalist: {}", copy_to->extraList.GetCount());
+                copy_to->Add(ownership_fake);
+                logger::info("length of fake extradatalist: {}", copy_to->GetCount());
             } else
                 RaiseMngrErr("Failed to get ownership from copy_from");
         }
+    }
+
+    void UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
+        if (!copy_from || !copy_to) return RaiseMngrErr("copy_from or copy_to is null");
+        auto* copy_from_extralist = &copy_from->extraList;
+        auto* copy_to_extralist = &copy_to->extraList;
+        UpdateExtras(copy_from_extralist, copy_to_extralist);
     }
 
     int GetChestValue(RE::TESObjectREFR* a_chest) {
@@ -523,8 +522,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
         else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked);
         else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
     }
-
-
 
     template <typename T>
     FormID CreateFakeContainer(T* realcontainer, RE::ExtraDataList* extralist) {
@@ -783,17 +780,14 @@ class Manager : public Utilities::BaseFormRefIDRefID {
             if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
-            RemoveItem(unownedChestOG, player_ref, fake_container_id,
-                                            RE::ITEM_REMOVE_REASON::kStoreInContainer);
+            RemoveItem(unownedChestOG, player_ref, fake_container_id, RE::ITEM_REMOVE_REASON::kStoreInContainer);
 
             logger::info("doing the trick 1...");
-            auto fake_refhandle =
-                RemoveItem(player_ref, nullptr, fake_container_id,
-                        RE::ITEM_REMOVE_REASON::kDropping);
+            auto fake_refhandle = RemoveItem(player_ref, nullptr, fake_container_id, RE::ITEM_REMOVE_REASON::kDropping);
 
             logger::info("Updating extras");
             UpdateExtras(current_container, fake_refhandle.get().get());
-
+            
             logger::info("doing the trick 2...");
             listen_container_change = false;
             player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, true);
@@ -871,8 +865,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
                         if (chest_ref == cont_ref) RemoveItem(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
                         else RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref)->SetActivationBlocked(false);
                         ChestToFakeContainer.erase(chest_ref);
-                        deregisteredChests.push_back(chest_ref);
-
 					}
                     break;
                 }
@@ -893,7 +885,6 @@ class Manager : public Utilities::BaseFormRefIDRefID {
 
     }
     
-
     void HandleRegistration(RE::TESObjectREFR* a_container){
 
         // Create the fake container form and put in the unownedchestOG
@@ -1020,6 +1011,9 @@ class Manager : public Utilities::BaseFormRefIDRefID {
 
         if (init_failed) InitFailed();
 
+        // Load also other settings...
+        _other_settings = Settings::LoadOtherSettings();
+
         logger::info("Manager initialized.");
     }
 
@@ -1029,60 +1023,29 @@ class Manager : public Utilities::BaseFormRefIDRefID {
 
         logger::info("Uninstalling...");
         logger::info("No of chests in cell: {}", GetNoChests());
-        RE::TESObjectREFR* chest = nullptr;
-        for (auto& src : sources) {
-            if (!uninstall_successful) break;
-            for (const auto& [chest_ref, cont_ref] : src.data) {
-                if (!chest_ref) {
-                    logger::info("Chest refid is null");
-                    uninstall_successful = false;
-                    break;
-                }
-                chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
-                if (!chest) {
-                    logger::info("Chest not found");
-                    uninstall_successful = false;
-                    break;
-                }
-                RemoveAllItemsFromChest(chest, true);
-                if (chest->GetInventory().size()) {
-                    uninstall_successful = false;
-                    logger::info("Chest with refid {} is not empty.", chest_ref);
-                    break;
-                }
-                logger::info("Disabling chest with refid {}", chest_ref);
-                chest->Disable();
-                chest->SetDelete(true);
-                //chest = nullptr;
-                logger::info("Chest with refid {} disabled.", chest_ref);
-                // if key and value are equal, then it is a fake container in the player inventory
-                if (chest_ref == cont_ref) ChestToFakeContainer.erase(chest_ref);
-            }
-            src.data.clear();
-        }
 
-        // delete also the deregistered chests
-        for (const auto& chest_ref : deregisteredChests) {
-			chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
-            if (!chest) {
-				logger::info("Chest not found");
-				uninstall_successful = false;
-				break;
+        // Delete all unowned chests and try to return all items to the player's inventory while doing that
+        auto unownedRuntimeData = unownedCell->GetRuntimeData();
+        for (const auto& ref : unownedRuntimeData.references) {
+			if (!ref) continue;
+            auto refID = ref->GetFormID();
+            if (refID == unownedChestOG->GetFormID()) continue;
+            if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
+                RemoveAllItemsFromChest(ref.get(), true);
+                if (ref->GetInventory().size()) {
+				    uninstall_successful = false;
+                    logger::info("Chest with refid {} is not empty.", refID);
+				    break;
+			    }
+                ref->Disable();
+                ref->SetDelete(true);
+                // chest = nullptr;
+                logger::info("Chest with refid {} disabled.", refID);
 			}
-			RemoveAllItemsFromChest(chest, true);
-            if (chest->GetInventory().size()) {
-				uninstall_successful = false;
-				logger::info("Chest with refid {} is not empty.", chest_ref);
-				break;
-			}
-			logger::info("Disabling chest with refid {}", chest_ref);
-			chest->Disable();
-			chest->SetDelete(true);
-			//chest = nullptr;
-			logger::info("Chest with refid {} disabled.", chest_ref);
 		}
 
-        chest = nullptr;
+        Reset();
+
 
         logger::info("uninstall_successful: {}", uninstall_successful);
 
@@ -1147,10 +1110,9 @@ public:
     bool listen_activate = true;
     bool listen_container_change = true;
 
+    std::unordered_map<std::string, bool> _other_settings;
     bool isUninstalled = false;
     
-
-
     bool IsRealContainer(FormID realcontainer_formid) {
         for (const auto& src : sources) {
             if (src.formid == realcontainer_formid) return true;
@@ -1346,29 +1308,65 @@ public:
 
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
     
-    void HandleCraftingMenuOpen() { 
+    void HandleCraftingEnter() { 
         ENABLE_IF_NOT_UNINSTALLED
+        listen_container_change = false;
+        logger::info("Crafting menu opened");
         for (const auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
-                /*auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
-                if (!chest) return RaiseMngrErr("Chest is null");
-                RemoveAllItemsFromChest(chest, true);*/
+                if (chest_ref != cont_ref) continue;
                 auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
-                RemoveItemReverse(chest,player_ref,src.formid,RE::ITEM_REMOVE_REASON::kDropping);
-                break;
+                if (!chest) return RaiseMngrErr("Chest is null");
+                RemoveItemReverse(chest, player_ref, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+                auto fake_refid = ChestToFakeContainer[chest_ref].innerKey;
+                RemoveItemReverse(player_ref, unownedChestOG, fake_refid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
             }
 		}
+        listen_container_change = true;
     }
 
-    void HandleCraftingMenuClose() { 
-        ENABLE_IF_NOT_UNINSTALLED 
+    void HandleCraftingExit() { 
+        ENABLE_IF_NOT_UNINSTALLED
+        listen_container_change = false;
+        logger::info("Crafting menu opened");
+        for (auto& src : sources) {
+            for (const auto& [chest_ref, cont_ref] : src.data) {
+                if (chest_ref != cont_ref) continue;
+                auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
+                if (!chest) return RaiseMngrErr("Chest is null");
+                logger::info("RemoveItemReverse1");
+                auto real_refhandle = RemoveItemReverse(player_ref, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
+                if (!real_refhandle.get()) {
+                    // it can happen when using arcane enchanter to destroy the item
+                    logger::info("Real refhandle is null. Probably destroy in arcane enchanter.");
+                    RemoveAllItemsFromChest(chest, true);
+                    src.data.removeByKey(chest_ref);
+                    ChestToFakeContainer.erase(chest_ref);
+                    continue;
+                }
+                logger::info("RemoveItemReverse2");
+                auto fake_refhandle = RemoveItemReverse(unownedChestOG, nullptr, ChestToFakeContainer[chest_ref].innerKey,
+                                      RE::ITEM_REMOVE_REASON::kDropping);
+                logger::info("Updating extras");
+                UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
+                logger::info("PickUpObject1");
+                player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
+                logger::info("RemoveItemReverse3");
+                RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+                logger::info("UpdateFakeWV");
+                UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
+                logger::info("PickUpObject2");
+                player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
+            }
+        }
+        listen_container_change = true;
     }
 
     // places fake objects in external containers
     void HandleFakePlacement(RE::TESObjectREFR* external_cont) {
         ENABLE_IF_NOT_UNINSTALLED
         // if the external container is already handled (handled_external_containers) return
-        if (std::find(handled_external_conts.begin(), handled_external_conts.end(), external_cont->GetFormID()) != handled_external_conts.end()) return;
+        if (handled_external_conts.find(external_cont->GetFormID()) != handled_external_conts.end()) return;
         logger::info("Handling external container");
 
         listen_container_change = false;
@@ -1407,7 +1405,7 @@ public:
 			}
         }
         logger::info("handled_external_conts a ekliyom");
-        handled_external_conts.push_back(external_cont->GetFormID());
+        handled_external_conts.insert(external_cont->GetFormID());
         listen_container_change = true;
         logger::info("HandleFakePlacement done");
     }
@@ -1426,56 +1424,24 @@ public:
 
         logger::info("Linking external container.");
         auto external_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(externalcontainer);
-        //if (!external_ref) return RaiseMngrErr("External container not found.");
-        //auto external_formid = external_ref->GetBaseObject()->GetFormID();
-        //logger::info("Linking external container with refid: {} and formid: {}",externalcontainer,external_formid);
         auto realcontainer_boundobj = FakeToRealContainer(fakecontainer);
         auto chest_refid = GetContainerChest(fakecontainer);
         auto src = GetContainerSource(realcontainer_boundobj->GetFormID());
-        //auto linked_refid = src->data.getValue(chest_refid);
-        //// chest refid and linked refid have to be equal bcs the fake container was in player before
-        //if (chest_refid != linked_refid) return RaiseMngrErr("Chest refid and linked refid are not equal.");
-        //// Swap the fake container that went into the external container with the real container
-        //// TODO :These 2 steps can be done when the player closes the container menu
-        //// 1. Remove fake container from external container to unownedchestOG
-        //RemoveItem(external_ref, unownedChestOG, fakecontainer, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        //// 2. Put real container from respective unownedchest to external container
-        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-        //if (!chest) return RaiseMngrErr("Chest is null");
-        //RemoveItem(chest, external_ref, realcontainer_boundobj->GetFormID(), RE::ITEM_REMOVE_REASON::kStoreInContainer);
         src->data.updateValue(chest_refid, externalcontainer);
 
         // if external container is one of ours (bcs of weight limit):
         if (IsChest(externalcontainer)) {
+            logger::info("External container is one of our unowneds.");
             auto weight_limit = GetContainerSource(ChestToFakeContainer[externalcontainer].outerKey)->capacity;
-            if (external_ref->GetWeightInContainer() + chest->GetWeightInContainer() > weight_limit){
+            if (external_ref->GetWeightInContainer() > weight_limit) {
                 RemoveItem(external_ref, player_ref, fakecontainer,
                            RE::ITEM_REMOVE_REASON::kStoreInContainer);
                 src->data.updateValue(chest_refid, chest_refid);
             }
-                
-            //for (const auto& item : inventory) {
-            //    auto item_obj = item.first;
-            //    auto item_count = item.second.first;
-            //    auto inv_data = item.second.second.get();
-            //    auto asd = inv_data->extraLists;
-            //    if (external_ref->GetWeightInContainer() + item_count * Utilities::GetBoundObjectWeight(item_obj) < weight_limit) {
-            //        if (!asd || asd->empty()) chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, external_ref);
-            //        else chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, asd->front(), external_ref);
-            //    } 
-            //    else {
-            //        if (!asd || asd->empty()) chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, player_ref);
-            //        else chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kStoreInContainer, asd->front(),player_ref);
-            //    }
-            //}
-            //if (chest->GetInventory().size()) return RaiseMngrErr("Chest is not empty!");
-            //// Deregister chest
-            //src->data.removeByKey(chest_refid);
-            //ChestToFakeContainer.erase(chest_refid);
         }
 
         // add it to handled_external_conts
-        handled_external_conts.push_back(externalcontainer);
+        handled_external_conts.insert(externalcontainer);
 
 
         listen_container_change = true;
@@ -1516,7 +1482,7 @@ public:
         src->data.updateValue(chest_refid, chest_refid);
 
         // remove it from handled_external_conts
-        handled_external_conts.erase(std::remove(handled_external_conts.begin(), handled_external_conts.end(), externalcontainer), handled_external_conts.end());
+        handled_external_conts.erase(externalcontainer);
 
         logger::info("Unlinked external container.");
     }
@@ -1547,7 +1513,6 @@ public:
         ChestToFakeContainer.erase(chest_refid);
         logger::info("Sell handled.");
     }
-
 
     void ActivateContainer(RE::TESObjectREFR* a_container) {
         ENABLE_IF_NOT_UNINSTALLED
@@ -1625,90 +1590,205 @@ public:
 		Uninstall();
 	}
 
+    void Reset() {
+        ENABLE_IF_NOT_UNINSTALLED
+        for (auto& src : sources) {
+			src.data.clear();
+		}
+        ChestToFakeContainer.clear(); // we will update this in ReceiveData
+        handled_external_conts.clear();
+        current_container = nullptr;
+        listen_menuclose = false;
+        listen_activate = true;
+        listen_container_change = true;
+        isUninstalled = false;
+    }
+
     void SendData() {
         ENABLE_IF_NOT_UNINSTALLED
+        Clear();
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 if (!chest_ref) {
                     return RaiseMngrErr("Chest refid is null");
                 }
-                SetData({src.formid, chest_ref}, cont_ref);
+                SetData({src.formid, chest_ref}, {ChestToFakeContainer[chest_ref].innerKey, cont_ref});
 			}
         }
         
     };
 
-    // bitmedi
     void ReceiveData() {
         ENABLE_IF_NOT_UNINSTALLED
 
         listen_container_change = false;
 
         bool no_match = true;
-        FormID contForm; RefID chestRef;
-        for (const auto& [contForm_chestRef, cont_ref] : m_Data) {
+        FormID realcontForm; RefID chestRef; FormID fakecontForm; RefID contRef;
+        for (const auto& [realcontForm_chestRef, fakecontForm_contRef] : m_Data) {
             no_match = true;
-            contForm = contForm_chestRef.outerKey;
-            chestRef = contForm_chestRef.innerKey;
+            realcontForm = realcontForm_chestRef.outerKey;
+            chestRef = realcontForm_chestRef.innerKey;
+            fakecontForm = fakecontForm_contRef.outerKey;
+            contRef = fakecontForm_contRef.innerKey;
             for (auto& src : sources) {
-                if (contForm == src.formid) {
-                    if (src.data.containsKey(chestRef) && src.data.getValue(chestRef) != cont_ref) {
-						logger::error("RefID {} or RefID {} at formid {} already exists in sources data.", chestRef,
-                                										cont_ref, contForm);
+                if (realcontForm == src.formid) {
+                    //if (src.data.containsKey(chestRef) && src.data.getValue(chestRef) != cont_ref) 
+                    if (!src.data.insert(chestRef, contRef)) {
+                        logger::error("RefID {} or RefID {} at formid {} already exists in sources data.", chestRef,
+                                      contRef, realcontForm);
 						break;
                     }
-                    else src.data.insert(chestRef, cont_ref);
-                    // cont_ref specifies the ref id of the container where the real container is in. 
-                    // if the real container is out in the world, cont_ref will be equal to the refid of the real_container reference
-                    // if a fake container is in the player's inventory, cont_ref will be refid of its linked chest
-                    if (chestRef == cont_ref) {
-                        bool already_in_inventory = false;
-                        if (ChestToFakeContainer.find(chestRef) != ChestToFakeContainer.end()) {
-                            auto fakeid = ChestToFakeContainer[chestRef].innerKey;
-                            for (const auto& [obj, count_entry] : player_ref->GetInventory()) {
-                                if (obj->GetFormID() == fakeid) {
-								    already_in_inventory = true;
-								    break;
-							    }
-						    }
-						}
-                        if (!already_in_inventory) {
-                            logger::info("Fake container not found in player's inventory. Adding it...");
-							auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef);
-                            if (!chest) return RaiseMngrErr("Chest not found");
-                            logger::info("RemoveItemReverse1");
-							auto real_refhandle = RemoveItemReverse(chest, nullptr, contForm, RE::ITEM_REMOVE_REASON::kDropping);
-                            src.data.updateValue(chestRef, real_refhandle.get()->GetFormID());
-                            logger::info("HandleRegistration");
-                            HandleRegistration(
-                                real_refhandle.get().get());  // sets current_container, creates the fake with the chest
-                                                              // link and puts it in unownedchestOG
-                            logger::info("RemoveItemReverse2");
-                            auto fake_refhandle = RemoveItemReverse(unownedChestOG, nullptr, ChestToFakeContainer[chestRef].innerKey,
-                                                                    RE::ITEM_REMOVE_REASON::kDropping);
-                            logger::info("Updating extras");
-                            UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
-                            logger::info("PickUpObject1");
-                            player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
-                            logger::info("RemoveItemReverse3");
-                            RemoveItemReverse(player_ref, chest, contForm, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-                            logger::info("UpdateFakeWV");
-                            UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
-                            logger::info("PickUpObject2");
-                            player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
-                            src.data.updateValue(chestRef, chestRef);
-						}
+                    if (!ChestToFakeContainer.insert({chestRef, {realcontForm, fakecontForm}}).second) {
+                        logger::error(
+                            "realcontForm {} with fakecontForm {} at chestref {} already exists in "
+                            "ChestToFakeContainer.",
+                            chestRef, realcontForm, fakecontForm);
+                        break;
                     }
                     no_match = false;
                     break;
                 }
             }
             if (no_match) {
-                logger::critical("FormID {} not found in sources.", contForm);
-                Utilities::MsgBoxesNotifs::InGame::ProblemWithContainer(std::to_string(contForm));
-                return InitFailed();
+                logger::warn("FormID {} not found in sources.", realcontForm);
+                if (_other_settings[Settings::otherstuffKeys[0]]) {
+                    Utilities::MsgBoxesNotifs::InGame::ProblemWithContainer(std::to_string(realcontForm));
+                }
+                // user probably changed the INI. we try to retrieve the items.
+                auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chestRef);
+                if (!chest) return RaiseMngrErr("Items could not be retrieved!");
+                RemoveAllItemsFromChest(chest, true);
+                m_Data.erase(realcontForm_chestRef);
             }
+
         }
+
+        // Now i need to iterate through the sources deal with some cases
+        for (auto& src : sources) {
+            for (const auto& [chest_ref, cont_ref] : src.data) {
+                // if the real container is out in the world, cont_ref will be equal to the refid of the real_container
+                // if a fake container is in player's inventory, cont_ref will be refid of its linked chest
+                // otherwise cont_ref is of an external container. in that case we add the fake container to it at runtime
+                if (chest_ref == cont_ref) {
+                    // in this case i need to place the fake container in player's inventory if it is not there
+                    // I have the fake_formid from ChestToFakeContainer
+                    bool already_in_inventory = false;
+                    auto fakeid = ChestToFakeContainer[chest_ref].innerKey;
+                    for (const auto& [obj, count_entry] : player_ref->GetInventory()) {
+                        if (obj->GetFormID() == fakeid) {
+                            already_in_inventory = true;
+                            break;
+                        }
+                    }
+                    if (!already_in_inventory) {
+                        logger::info("Fake container not found in player's inventory. Adding it...");
+                        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
+                        if (!chest) return RaiseMngrErr("Chest not found");
+                        logger::info("RemoveItemReverse1");
+                        auto real_refhandle = RemoveItemReverse(chest, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
+                        // doing the trick for registering/creating the fake container
+                        src.data.updateValue(chest_ref, real_refhandle.get()->GetFormID());
+                        ChestToFakeContainer.erase(chest_ref);
+                        logger::info("HandleRegistration");
+                        HandleRegistration(real_refhandle.get().get());  // sets current_container, creates the fake with the
+                                                                         // chest link and puts it in unownedchestOG
+                        logger::info("RemoveItemReverse2");
+                        auto fake_refhandle =
+                            RemoveItemReverse(unownedChestOG, nullptr, ChestToFakeContainer[chest_ref].innerKey,
+                                              RE::ITEM_REMOVE_REASON::kDropping);
+                        logger::info("Updating extras");
+                        UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
+                        logger::info("PickUpObject1");
+                        player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
+                        logger::info("RemoveItemReverse3");
+                        RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+                        logger::info("UpdateFakeWV");
+                        UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
+                        logger::info("PickUpObject2");
+                        player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
+                        // I do this bcs I changed it above
+                        src.data.updateValue(chest_ref, cont_ref);
+                    }
+                }
+                // OR the external container is actually one of our chests!
+                else if (IsChest(cont_ref)) {
+                    bool already_in_chest = false;
+                    auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
+                    if (!chest_cont_ref) return RaiseMngrErr("Chest not found");
+                    auto inventory_chest_cont_ref = chest_cont_ref->GetInventory();
+                    // Check if fake container is in the chest
+                    auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+                    auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+                    if (!fake_cont || inventory_chest_cont_ref.find(fake_cont) == inventory_chest_cont_ref.end()) {
+                        already_in_chest = false;
+                    }
+                    if (!already_in_chest) {
+						logger::info("Fake container not found in chest. Adding it...");
+                        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
+                        if (!chest) return RaiseMngrErr("Chest not found");
+                        logger::info("RemoveItemReverse1");
+                        auto real_refhandle =
+                            RemoveItemReverse(chest, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
+                        // doing the trick for registering/creating the fake container
+                        src.data.updateValue(chest_ref, real_refhandle.get()->GetFormID());
+                        ChestToFakeContainer.erase(chest_ref);
+                        logger::info("HandleRegistration");
+                        HandleRegistration(
+                            real_refhandle.get().get());  // sets current_container, creates the fake with the
+                                                          // chest link and puts it in unownedchestOG
+                        logger::info("RemoveItemReverse2");
+                        fake_formid = ChestToFakeContainer[chest_ref].innerKey; // the new one
+                        auto fake_refhandle =
+                            RemoveItemReverse(unownedChestOG, nullptr, fake_formid,
+                                              RE::ITEM_REMOVE_REASON::kDropping);
+                        logger::info("Updating extras");
+                        UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
+                        logger::info("PickUpObject1");
+                        player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
+                        logger::info("RemoveItemReverse3");
+                        RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+                        logger::info("UpdateFakeWV");
+                        UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
+                        logger::info("PickUpObject2");
+                        player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
+                        // this is different than chestrefid == chestrefid case
+                        RemoveItemReverse(player_ref, chest_cont_ref, fake_formid,
+                                          RE::ITEM_REMOVE_REASON::kStoreInContainer);
+                        // I do this bcs I changed it above
+                        src.data.updateValue(chest_ref, cont_ref);
+					}
+                }
+                // otherwise it is a real container out in the world or a normal external container, where the latter is not covered here
+                else {
+					// I need to make sure that there is a fake container in unownedChestOG
+					bool already_in_unownedchest = false;
+                    auto inventory_chest_unownedOG = unownedChestOG->GetInventory();
+                    // Check if fake container is in the chest
+                    auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+                    auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+                    if (!fake_cont || inventory_chest_unownedOG.find(fake_cont) == inventory_chest_unownedOG.end()) {
+                        already_in_unownedchest = false;
+                    }
+                    if (!already_in_unownedchest) {
+                        auto real_container_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(src.formid);
+                        auto fakeid = CreateFakeContainer(real_container_obj, nullptr);
+                        ChestToFakeContainer[chest_ref].innerKey = fakeid;
+                    }
+				}
+
+
+			}
+		}
+
+        // At the very end remove nonexisting fakeforms from ChestToFakeContainer
+        for (auto it = ChestToFakeContainer.begin(); it != ChestToFakeContainer.end();) {
+			if (!RE::TESForm::LookupByID<RE::TESBoundObject>(it->second.innerKey)) {
+				it = ChestToFakeContainer.erase(it);
+			} else {
+				++it;
+			}
+		}
         
         current_container = nullptr;
         listen_container_change = true;
