@@ -43,6 +43,7 @@ public:
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
         M->ActivateContainer(event->objectActivated.get());
+        M->Print();
 
 
         return RE::BSEventNotifyControl::kContinue;
@@ -59,7 +60,8 @@ public:
 
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             if (M->IsCONT(event->crosshairRef->GetFormID()) &&
-                M->IsExternalContainerRegistered(event->crosshairRef->GetFormID())) {
+                M->IsExternalContainerRegistered(event->crosshairRef->GetFormID()) &&
+                !M->IsUnownedChest(event->crosshairRef->GetFormID())) {
                 // if the fake items are not in it we need to place them (this happens upon load game)
                 M->listen_container_change = false;
                 listen_crosshair_ref = false; 
@@ -157,16 +159,18 @@ public:
         // to player inventory <-
         if (event->newContainer == 20) {
 
-            if (M->IsRealContainer(event->baseObj) && M->RealContainerIsRegistered(event->baseObj)) {
-                if (!block_droptake && !M->IsChest(event->oldContainer) &&
-                    !M->IsExternalContainerRegistered(event->oldContainer)) {
+            if (M->IsRealContainer(event->baseObj) && M->RealContainerHasRegistry(event->baseObj)) {
+                auto reference_ = event->reference;
+                if (!block_droptake && M->IsARegistry(reference_.native_handle())) {
                     // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
                     logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
 					M->DropTake(event->baseObj);
+                    M->Print();
                 }
             } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
                 logger::info("Unlinking external container.");
                 M->UnLinkExternalContainer(event->baseObj, event->oldContainer);
+                M->Print();
             }
         }
 
@@ -180,27 +184,34 @@ public:
                 // drop event
                 if (!event->newContainer) {
                     logger::info("Dropped fake container.");
-                    auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
-                    // iterate through all objects in the cell................
-                    auto cell_runtime_data = player_cell->GetRuntimeData();
-                    logger::info("Cell has {} references.", cell_runtime_data.references.size());
-                    unsigned int disabled_count = 0;
-                    for (auto& ref : cell_runtime_data.references) {
-                        if (ref->IsDeleted() || ref->IsDisabled()) disabled_count++;
-                    }
-                    logger::info("disabled count: {}", disabled_count);
-                    auto dropppedinventory = RE::PlayerCharacter::GetSingleton()->GetDroppedInventory();
-                    logger::info("dropped inventory has {} references.", dropppedinventory.size());
-                    for (auto& ref : cell_runtime_data.references) {
-                        if (M->IsFakeContainer(ref.get())) {
-                            logger::info("Dropped fake container with ref id {}.", ref->GetFormID());
-                            if (!M->SwapDroppedFakeContainer(ref)) {
-						        logger::error("Failed to swap fake container.");
-                                return RE::BSEventNotifyControl::kContinue;
-					        } else logger::info("Swapped fake container.");
-                            break;
+                    RE::TESObjectREFR* ref = nullptr;
+                    if (event->reference.native_handle()) {
+						ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(event->reference.native_handle());
+					}
+                    if (!ref) {
+                        // iterate through all objects in the cell................
+                        auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
+                        auto cell_runtime_data = player_cell->GetRuntimeData();
+                        for (auto& ref_ : cell_runtime_data.references) {
+                            if (M->IsFakeContainer(ref_.get())) {
+                                logger::info("Dropped fake container with ref id {}.", ref_->GetFormID());
+                                if (!M->SwapDroppedFakeContainer(ref_.get())) {
+						            logger::error("Failed to swap fake container.");
+                                    return RE::BSEventNotifyControl::kContinue;
+					            } else logger::info("Swapped fake container.");
+                                break;
+                            }
+			            }
+					} 
+                    else if (M->IsFakeContainer(ref)) {
+                        if (!M->SwapDroppedFakeContainer(ref)) {
+                            logger::error("Failed to swap fake container.");
+                            return RE::BSEventNotifyControl::kContinue;
+                        } else {
+                            logger::info("Swapped fake container.");
+                            M->Print();
                         }
-			        }
+                    }
                 }
                 // Barter transfer
                 else if (RE::UI::GetSingleton()->IsMenuOpen(RE::BarterMenu::MENU_NAME) &&
@@ -211,6 +222,7 @@ public:
                     block_droptake = true;
                     M->HandleSell(event->baseObj, event->newContainer);
                     block_droptake = false;
+                    M->Print();
 			    }
                 // container transfer
                 else if (RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
@@ -219,6 +231,7 @@ public:
             	    // need to register the container: chestrefid -> thiscontainerrefid
                     logger::info("Container menu is open.");
                     M->LinkExternalContainer(event->baseObj, event->newContainer);
+                    M->Print();
                 }
                 else {
                     Utilities::MsgBoxesNotifs::InGame::CustomErrMsg("Unsupported behaviour. Please put back the container you removed from your inventory.");

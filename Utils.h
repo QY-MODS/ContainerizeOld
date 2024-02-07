@@ -112,6 +112,12 @@ namespace Utilities {
 
     bool IsPo3Installed() { return std::filesystem::exists(po3path); };
     
+    template <typename Key, typename Value>
+    void printMap(const std::map<Key, Value>& myMap) {
+        for (const auto& pair : myMap) {
+			logger::info("Key: {}, Value: {}", pair.first, pair.second);
+		}
+	}
 
     // bidirectional map
     template <typename Key, typename Value>
