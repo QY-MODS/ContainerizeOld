@@ -10,6 +10,9 @@
 #include <iostream>
 #include <string>
 #include <codecvt>
+#include <mutex>  // for std::mutex
+
+
 
 
 namespace Utilities {
@@ -108,15 +111,21 @@ namespace Utilities {
     }
 
     bool IsPo3Installed() { return std::filesystem::exists(po3path); };
+    
 
     // bidirectional map
     template <typename Key, typename Value>
     class BidirectionalMap {
     public:
         bool insert(const Key& key, const Value& value) {
+            // Lock the mutex to ensure thread safety
+            //std::lock_guard<std::mutex> lock(mutex);
+
             auto result1 = keyToValue.insert({key, value});
             auto result2 = valueToKey.insert({value, key});
-            return result1.second && result2.second;  // Returns true if both inserts were successful
+
+            // Check if both inserts were successful
+            return result1.second && result2.second;
         }
 
         // Method to insert all entries from another bidirectional map
@@ -153,9 +162,9 @@ namespace Utilities {
             }
         }
 
-        bool containsKey(const Key& key) { return keyToValue.find(key) != keyToValue.end(); }
+        bool containsKey(const Key& key) const { return keyToValue.find(key) != keyToValue.end(); }
 
-        bool containsValue(const Value& value) { return valueToKey.find(value) != valueToKey.end(); }
+        bool containsValue(const Value& value) const { return valueToKey.find(value) != valueToKey.end(); }
 
         // check at the same time if it exists among both keys or values
         template <typename T>
@@ -167,28 +176,51 @@ namespace Utilities {
             return keyIt != keyToValue.end() || valueIt != valueToKey.end();
         }
 
-        // Method to update the value associated with a key. Also updates the valueToKey map
+
         bool updateValue(const Key& key, const Value& newValue) {
+            // Lock the mutex to ensure thread safety
+            //std::lock_guard<std::mutex> lock(mutex);
+
             auto keyIt = keyToValue.find(key);
-            if (keyIt != keyToValue.end()) {
-                // Update the value for the existing key
-                Value oldValue = keyIt->second;
-                keyIt->second = newValue;
-                
-                // Also update the valueToKey map
-                auto valueIt = valueToKey.find(oldValue);
-                if (valueIt != valueToKey.end()) {
-                    valueToKey.erase(valueIt);
-                    valueToKey.insert({newValue, key});
-                    return true;
-                }
+            if (keyIt == keyToValue.end()) {
+                logger::warn("updateValue: Key {} not found in keyToValue.", key);
+                logger::warn("printing keyToValue");
+                printKeyToValue();
+                return false;  // Key not found
             }
-            return false;  // Key not found
+
+            const Value& oldValue = keyIt->second;
+
+            if (oldValue == newValue) {
+                logger::info("updateValue: New value is same as old value. No update needed.");
+                return true;  // Return true to indicate that no update was necessary
+            }
+
+            auto valueIt = valueToKey.find(oldValue);
+            if (valueIt == valueToKey.end()) {
+                logger::warn("updateValue: oldValue {} not found in valueToKey.", oldValue);
+                logger::warn("printing valueToKey");
+                printValueToKey();
+                return false;  // Value not found
+            }
+
+            // Update the maps
+            logger::info("updateValue: Key {}, oldValue {}, newValue {}", key, oldValue, newValue);
+            logger::info("keyToValue[{}] = {}", key, keyToValue[key]);
+            logger::info("valueToKey[{}] = {}", oldValue, valueToKey[oldValue]);
+            keyIt->second = newValue;
+            valueToKey.erase(valueIt);
+            valueToKey[newValue] = key;
+
+            return true;
         }
 
         // Method to remove an entry by key
         bool removeByKey(const Key& key) {
+            //std::lock_guard<std::mutex> lock(mutex);
+
             auto keyIt = keyToValue.find(key);
+
             if (keyIt != keyToValue.end()) {
                 auto valueIt = valueToKey.find(keyIt->second);
                 if (valueIt != valueToKey.end()) {
@@ -202,6 +234,9 @@ namespace Utilities {
 
         // Method to remove an entry by value
         bool removeByValue(const Value& value) {
+            
+            //std::lock_guard<std::mutex> lock(mutex);
+
             auto valueIt = valueToKey.find(value);
             if (valueIt != valueToKey.end()) {
                 auto keyIt = keyToValue.find(valueIt->second);
@@ -215,15 +250,39 @@ namespace Utilities {
         }
 
         void clear() {
+
+            //std::lock_guard<std::mutex> lock(mutex);
+
             keyToValue.clear();
             valueToKey.clear();
         }
 
-        auto begin() const { return keyToValue.begin(); }
+        auto begin() const {
+            //std::lock_guard<std::mutex> lock(mutex);
+            return keyToValue.begin();
+        }
 
-        auto end() const { return keyToValue.end(); }
+        auto end() const {
+            //std::lock_guard<std::mutex> lock(mutex);
+            return keyToValue.end();
+        }
 
-        bool isEmpty() const { return keyToValue.empty() && valueToKey.empty(); }
+        bool isEmpty() const {
+            //std::lock_guard<std::mutex> lock(mutex);
+            return keyToValue.empty() && valueToKey.empty();
+        }
+
+        void printValueToKey() {
+            for (const auto& pair : valueToKey) {
+                logger::info("Key: {}, Value: {}", pair.first, pair.second);
+            }
+        }
+
+        void printKeyToValue() {
+            for (const auto& pair : keyToValue) {
+				logger::info("Key: {}, Value: {}", pair.first, pair.second);
+			}
+		}
 
     private:
         std::map<Key, Value> keyToValue;
@@ -366,7 +425,8 @@ namespace Utilities {
         
         using SourceDataKey = RefID; // Chest Ref ID
         using SourceDataVal = RefID; // Container Ref ID if it exists otherwise Chest Ref ID
-        using SourceData = BidirectionalMap<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
+        //using SourceData = BidirectionalMap<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
+        using SourceData = std::map<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
     
     }
     
@@ -416,17 +476,15 @@ namespace Utilities {
         return count;
     }
 
-    template <class T>
-    bool ValueExists(const std::map<T, T>& myMap, const T& searchValue) {
-        bool valueExists = false;
+
+    template <typename Key, typename Value>
+    bool containsValue(const std::map<Key, Value>& myMap, const Value& valueToFind) {
         for (const auto& pair : myMap) {
-            if (pair.second == searchValue) {
-                // Value found
-                valueExists = true;
-                break;
+            if (pair.second == valueToFind) {
+                return true;
             }
         }
-        return valueExists;
+        return false;
     }
 
     bool FormIsOfType(RE::TESForm* form, RE::FormType type) {

@@ -7,6 +7,8 @@ bool listen_weight_limit = false;
 bool listen_crosshair_ref = true;
 bool furniture_entered = false;
 bool block_eventsinks = false;
+bool block_droptake = false;
+
 RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
 
 class OurEventSink : public RE::BSTEventSink<RE::TESActivateEvent>,
@@ -46,7 +48,7 @@ public:
         return RE::BSEventNotifyControl::kContinue;
     }
 
-    // to disable ref activation
+    // to disable ref activation and external container-fake container placement
     RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* event,
                                           RE::BSTEventSource<SKSE::CrosshairRefEvent>*) {
 
@@ -55,17 +57,21 @@ public:
         if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
 
-        if (M->IsCONT(event->crosshairRef->GetFormID()) && M->IsExternalContainerRegistered(event->crosshairRef->GetFormID())) {
-            // if the fake items are not in it we need to place them (this happens upon load game)
-            M->listen_container_change = false;
-            listen_crosshair_ref = false; 
-            M->HandleFakePlacement(event->crosshairRef.get());
-            M->listen_container_change = true;
-            listen_crosshair_ref = true;
+        if (!M->IsRealContainer(event->crosshairRef.get())) {
+            if (M->IsCONT(event->crosshairRef->GetFormID()) &&
+                M->IsExternalContainerRegistered(event->crosshairRef->GetFormID())) {
+                // if the fake items are not in it we need to place them (this happens upon load game)
+                M->listen_container_change = false;
+                listen_crosshair_ref = false; 
+                M->HandleFakePlacement(event->crosshairRef.get());
+                M->listen_container_change = true;
+                listen_crosshair_ref = true;
+            }
+
+            else return RE::BSEventNotifyControl::kContinue;
+        
         }
 
-
-        if (!M->IsRealContainer(event->crosshairRef.get())) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->IsActivationBlocked() && !M->isUninstalled) return RE::BSEventNotifyControl::kContinue;
 
         
@@ -152,7 +158,8 @@ public:
         if (event->newContainer == 20) {
 
             if (M->IsRealContainer(event->baseObj) && M->RealContainerIsRegistered(event->baseObj)) {
-                if (!M->IsChest(event->oldContainer) && !M->IsExternalContainerRegistered(event->oldContainer)){
+                if (!block_droptake && !M->IsChest(event->oldContainer) &&
+                    !M->IsExternalContainerRegistered(event->oldContainer)) {
                     // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
                     logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
 					M->DropTake(event->baseObj);
@@ -201,7 +208,9 @@ public:
                                                   ->GetObjectReference()
                                                   ->GetFormType()) == "CONT") {
 				    logger::info("Sold container.");
+                    block_droptake = true;
                     M->HandleSell(event->baseObj, event->newContainer);
+                    block_droptake = false;
 			    }
                 // container transfer
                 else if (RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
