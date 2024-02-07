@@ -158,7 +158,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         if (!chest) return RaiseMngrErr("Chest not found");
         auto src = GetContainerSource(ChestToFakeContainer[chest_ref].outerKey);
         if (!src) return RaiseMngrErr("Source not found");
-        if (src->data.erase(chest_ref)==src->data.end()) return RaiseMngrErr("Failed to remove chest refid from source");
+        if (!src->data.erase(chest_ref)) return RaiseMngrErr("Failed to remove chest refid from source");
         if (!ChestToFakeContainer.erase(chest_ref)) return RaiseMngrErr("Failed to erase chest refid from ChestToFakeContainer");
         RemoveAllItemsFromChest(chest, true);
     }
