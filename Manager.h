@@ -4,6 +4,7 @@
 
 
 // TODO: handled_external_conts duzgun calisiyo mu test et. save et. barrela fakeplacement yap. save et. roll back save. sonra ilerki save e geri don, bakalim fakeitemlar hala duruyor mu
+// TODO: uninstall
 
 class Manager : public Utilities::BaseFormRefIDFormRefID {
     // private variables
@@ -156,6 +157,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
 
     // returns items in chest to player and removes entries linked to the chest from src.data and ChestToFakeContainer
     void DeRegisterChest(RefID chest_ref) {
+        logger::info("Deregistering chest");
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
         if (!chest) return RaiseMngrErr("Chest not found");
         auto src = GetContainerSource(ChestToFakeContainer[chest_ref].outerKey);
@@ -578,7 +580,12 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
                      RE::FormTypeToString(new_form->GetFormType()), new_form->GetFormID(), new_form->GetFormID(),
                      new_form->GetName());
         logger::info("Adding fake container to unownedChestOG");
+        logger::info("NEW FORMID: {}", new_form->GetFormID());
         unownedChestOG->AddObjectToContainer(new_form, extralist, 1, nullptr);
+        auto inventory_unownedChestOG = unownedChestOG->GetInventory();
+        for (const auto& item : inventory_unownedChestOG) {
+            logger::info("ITEM in unownedChestOG: {}, formid: {}", item.first->GetName(), item.first->GetFormID());
+		}
         logger::info("Added fake container to unownedChestOG");
 
         //if (!current_container) return RaiseMngrErr("Current container is null");
@@ -653,6 +660,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
+            //logger::info("item_obj: {}, form_id: {}", item_obj->GetName(), item_obj->GetFormID());
             if (item_obj->GetFormID() == item_id) {
                 auto inv_data = item->second.second.get();
                 auto asd = inv_data->extraLists;
@@ -969,10 +977,15 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
                 fake_cont->GetFormID());
             }
             if (!already_in_unownedchest) {
+                logger::info("Fake container NOT found in unownedchestOG");
                 auto real_container_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(src->formid);
                 auto fakeid = CreateFakeContainer(real_container_obj, nullptr);
                 // load game den dolayi
+                logger::info("ChestToFakeContainer (chest refid: {}) before: {}", chest_ref,
+                             ChestToFakeContainer[chest_ref].innerKey);
                 ChestToFakeContainer[chest_ref].innerKey = fakeid;
+                logger::info("ChestToFakeContainer (chest refid: {}) after: {}", chest_ref,
+                    							 ChestToFakeContainer[chest_ref].innerKey);
             }
 		}
     
@@ -1122,18 +1135,48 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         Uninstall();
     }
 
-    //SourceData GetAllData() {
-    //    // Merged map to store the result
-    //    SourceData mergedData;
-    //    for (const auto& src : sources) {
-    //        if (!mergedData.insertAll(src.data)) {
-    //        	RaiseMngrErr("Failed to insert map into mergedData.");
-    //            return {};
-    //        }
-    //    }
-    //    // Return the merged map
-    //    return mergedData;
-    //}
+    void IF_NOT_IN_CHEST_TRICK(Source& src, const SourceDataKey chest_ref, const SourceDataVal cont_ref) {
+        logger::info("Fake container not found in chest with refid: {}. Adding it...", chest_ref);
+        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
+        auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
+        if (!chest) return RaiseMngrErr("Chest not found");
+        if (!chest_cont_ref) return RaiseMngrErr("Container chest not found");
+        logger::info("RemoveItemReverse1");
+        auto real_refhandle = RemoveItemReverse(chest, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
+        if (!real_refhandle.get()) return RaiseMngrErr("Real refhandle is null.");
+        // doing the trick for registering/creating the fake container
+        src.data[chest_ref] = real_refhandle.get()->GetFormID();
+        logger::info("HandleRegistration");
+        logger::info("ChestToFakeContainer (chest refid: {}) before HandleRegistration: {}", chest_ref,
+                     ChestToFakeContainer[chest_ref].innerKey);
+        HandleRegistration(real_refhandle.get().get());  // sets current_container, creates the fake with the
+                                                         // chest link and puts it in unownedchestOG
+        logger::info("RemoveItemReverse2");
+        auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // the new one
+        logger::info("fake_formid: {}", fake_formid);
+        auto inventory_unownedOG = unownedChestOG->GetInventory();
+        for (const auto& [obj, count_entry] : inventory_unownedOG) {
+            logger::info("obj: {}, count: {}, formid: {}", obj->GetName(), count_entry.first, obj->GetFormID());
+        }
+        auto fake_refhandle =
+            RemoveItemReverse(unownedChestOG, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kDropping);
+        if (!fake_refhandle.get()) return RaiseMngrErr("Fake refhandle is null.");
+        logger::info("Updating extras");
+        UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
+        logger::info("PickUpObject1");
+        player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
+        logger::info("RemoveItemReverse3");
+        RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+        logger::info("UpdateFakeWV");
+        UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
+        logger::info("PickUpObject2");
+        player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
+        // this is different than chestrefid == chestrefid case
+        RemoveItemReverse(player_ref, chest_cont_ref, fake_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+        // I do this bcs I changed it above
+        logger::info("CONT REF BUT ACTUALLY ONE OF OUR CHESTS: {}", cont_ref);
+        src.data[chest_ref] = cont_ref;
+    }
 
 public:
     Manager(std::vector<Source>& data) : sources(data) { Init(); };
@@ -1152,6 +1195,10 @@ public:
 
     std::unordered_map<std::string, bool> _other_settings;
     bool isUninstalled = false;
+
+    //std::mutex mutex;
+
+
     
     bool IsRealContainer(FormID realcontainer_formid) {
         for (const auto& src : sources) {
@@ -1625,6 +1672,8 @@ public:
 
     void SendData() {
         ENABLE_IF_NOT_UNINSTALLED
+        logger::info("--------Sending data---------");
+        Print(); 
         Clear();
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
@@ -1639,6 +1688,10 @@ public:
 
     void ReceiveData() {
         ENABLE_IF_NOT_UNINSTALLED
+
+        logger::info("--------Receiving data---------");
+
+        //std::lock_guard<std::mutex> lock(mutex);
 
         listen_container_change = false;
 
@@ -1683,12 +1736,16 @@ public:
 
         }
 
+        Print();
+
         // Now i need to iterate through the sources deal with some cases
         for (auto& src : sources) {
-            for (const auto& [chest_ref, cont_ref] : src.data) {
+            for (auto it = src.data.begin(); it != src.data.end(); ++it) {
                 // if the real container is out in the world, cont_ref will be equal to the refid of the real_container
                 // if a fake container is in player's inventory, cont_ref will be refid of its linked chest
                 // otherwise cont_ref is of an external container. in that case we add the fake container to it at runtime
+                const auto& chest_ref = it->first;
+                const auto& cont_ref = it->second;
                 if (chest_ref == cont_ref) {
                     logger::info("Player had fake item in inventory.");
                     // in this case i need to place the fake container in player's inventory if it is not there
@@ -1751,7 +1808,7 @@ public:
                 }
                 // OR the external container is actually one of our chests! This can happen if a fake container is placed "inside" another one
                 else if (IsChest(cont_ref)) {
-                    logger::info("External container is one of our unowneds.");
+                    logger::info("External container is one of our unowneds with refid: {}", cont_ref);
                     bool already_in_chest = true;
                     auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
                     if (!chest_cont_ref) return RaiseMngrErr("Chest not found");
@@ -1761,7 +1818,8 @@ public:
                     auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
                     if (!fake_cont || inventory_chest_cont_ref.find(fake_cont) == inventory_chest_cont_ref.end()) {
                         already_in_chest = false;
-                    } else if (!std::strlen(fake_cont->GetName())) {
+                    }
+                    else if (!std::strlen(fake_cont->GetName())) {
                         fake_cont->Copy(RE::TESForm::LookupByID<RE::TESForm>(src.formid));
                         logger::info("Fake container found in chest with name {} and formid {}.", fake_cont->GetName(), fake_cont->GetFormID());
                         logger::info("Updating Extras...");
@@ -1781,40 +1839,12 @@ public:
                                           RE::ITEM_REMOVE_REASON::kStoreInContainer);
                     }
                     if (!already_in_chest) {
-						logger::info("Fake container not found in chest. Adding it...");
-                        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
-                        if (!chest) return RaiseMngrErr("Chest not found");
-                        logger::info("RemoveItemReverse1");
-                        auto real_refhandle =
-                            RemoveItemReverse(chest, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
-                        // doing the trick for registering/creating the fake container
-                        src.data[chest_ref] = real_refhandle.get()->GetFormID();
-                        logger::info("HandleRegistration");
-                        HandleRegistration(
-                            real_refhandle.get().get());  // sets current_container, creates the fake with the
-                                                          // chest link and puts it in unownedchestOG
-                        logger::info("RemoveItemReverse2");
-                        fake_formid = ChestToFakeContainer[chest_ref].innerKey; // the new one
-                        auto fake_refhandle =
-                            RemoveItemReverse(unownedChestOG, nullptr, fake_formid,
-                                              RE::ITEM_REMOVE_REASON::kDropping);
-                        logger::info("Updating extras");
-                        UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
-                        logger::info("PickUpObject1");
-                        player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
-                        logger::info("RemoveItemReverse3");
-                        RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-                        logger::info("UpdateFakeWV");
-                        UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
-                        logger::info("PickUpObject2");
-                        player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
-                        // this is different than chestrefid == chestrefid case
-                        RemoveItemReverse(player_ref, chest_cont_ref, fake_formid,
-                                          RE::ITEM_REMOVE_REASON::kStoreInContainer);
-                        // I do this bcs I changed it above
-                        src.data[chest_ref] = cont_ref;
-                            
-					}
+                        IF_NOT_IN_CHEST_TRICK(src, chest_ref, cont_ref);
+                        Print();
+                    } 
+                    else {
+                        UpdateFakeWV(fake_cont, RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref));
+                    }
                 }
                 // otherwise it is a real container out in the world or a normal external container
                 // need to handle both cases at runtime
