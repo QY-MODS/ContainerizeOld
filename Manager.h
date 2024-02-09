@@ -1073,28 +1073,69 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         logger::info("Uninstalling...");
         logger::info("No of chests in cell: {}", GetNoChests());
 
+        // first lets get rid of the fake items from everywhere
+        for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
+            auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+            if (!chest) {
+                uninstall_successful = false;
+				logger::error("Chest not found");
+				break;
+            }
+            auto fake_formid = real_fake_formid.innerKey;
+			auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+            if (!fake_bound) {
+				uninstall_successful = false;
+				logger::error("Fake bound not found");
+				break;
+			}
+            if (chest->GetInventory().find(fake_bound) != chest->GetInventory().end()) {
+				RemoveItemReverse(chest, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+			}
+			if (player_ref->GetInventory().find(fake_bound) != player_ref->GetInventory().end()) {
+				RemoveItemReverse(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+			}
+		}
+
         // Delete all unowned chests and try to return all items to the player's inventory while doing that
         auto unownedRuntimeData = unownedCell->GetRuntimeData();
         for (const auto& ref : unownedRuntimeData.references) {
 			if (!ref) continue;
-            auto refID = ref->GetFormID();
-            if (refID == unownedChestOG->GetFormID()) continue;
-            if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
-                DeRegisterChest(refID);
+            if (ref->GetFormID() == unownedChestOG->GetFormID()) continue;
+			if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
+                if (ref->IsDisabled() && ref->IsDeleted()) continue;
+				RemoveAllItemsFromChest(ref.get(), true);
                 if (ref->GetInventory().size()) {
-				    uninstall_successful = false;
-                    logger::info("Chest with refid {} is not empty.", refID);
-				    break;
-			    }
-                ref->Disable();
-                ref->SetDelete(true);
-                // chest = nullptr;
-                logger::info("Chest with refid {} disabled.", refID);
+                    uninstall_successful = false;
+                    logger::info("Chest with refid {} is not empty.", ref->GetFormID());
+                    break;
+                }
+				ref->Disable();
+				ref->SetDelete(true);
 			}
 		}
 
-        Reset();
+        // seems like i need to do it for the player again???????
+        for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
+            auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+            if (!chest) {
+                uninstall_successful = false;
+                logger::error("Chest not found");
+                break;
+            }
+            auto fake_formid = real_fake_formid.innerKey;
+            auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+            if (!fake_bound) {
+                uninstall_successful = false;
+                logger::error("Fake bound not found");
+                break;
+            }
+            if (player_ref->GetInventory().find(fake_bound) != player_ref->GetInventory().end()) {
+                RemoveItemReverse(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+            }
+        }
 
+
+        Reset();
 
         logger::info("uninstall_successful: {}", uninstall_successful);
 
