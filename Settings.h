@@ -98,6 +98,12 @@ namespace Settings {
             }
         }
 
+        // Create Sections with defaults if they don't exist
+        if (!ini.SectionExists(InISections[2])) {
+            ini.SetBoolValue(InISections[2], InIDefaultKeys[2], true, section_comments[2].c_str());
+            logger::info("Default values set for section {}", InISections[2]);
+        }
+
 
         // Sections: Containers, Capacities
         ini.GetAllKeys(InISections[0], source_names);
