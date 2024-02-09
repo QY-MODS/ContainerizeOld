@@ -543,14 +543,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         auto realcontainer_val = real_container->GetGoldValue();
         Utilities::FormTraits<T>::SetValue(fake_form, realcontainer_val);
         Utilities::FormTraits<T>::SetWeight(fake_form, chest_linked->GetWeightInContainer());
-        auto chest_refid = chest_linked->GetFormID();
-        logger::info("chestrefid: {} has WEIGHT: {}", chest_refid,Utilities::FormTraits<T>::GetWeight(fake_form));
-        // print inventory with weight
-        auto inventory_chest_linked = chest_linked->GetInventory();
-        for (const auto& item : inventory_chest_linked) {
-			logger::info("ITEM in chest_linked: {}, formid: {}, weight: {}", item.first->GetName(), item.first->GetFormID(), item.first->GetWeight());
-		}
-
     }
 
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked) {

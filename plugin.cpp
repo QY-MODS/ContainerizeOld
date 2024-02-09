@@ -144,15 +144,12 @@ public:
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
         
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
-        logger::info("ezhuef");
         if (!M->listen_container_change) return RE::BSEventNotifyControl::kContinue;
-        logger::info("asdasd");
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
         if (furniture_entered) return RE::BSEventNotifyControl::kContinue;
         if (!event->itemCount || event->itemCount > 1) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
-        logger::info("Item {} went into container {} from container {}.", event->baseObj, event->newContainer, event->oldContainer);
 
         // to player inventory <-
         if (event->newContainer == 20) {
