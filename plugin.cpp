@@ -2,7 +2,7 @@
 
 // FFI04Sack 000DAB04
 
-Manager* M;
+Manager* M = nullptr;
 bool listen_weight_limit = false;
 bool listen_crosshair_ref = true;
 bool furniture_entered = false;
@@ -247,10 +247,15 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
         auto sources = Settings::LoadINISources();
+        if (sources.empty()) {
+            logger::critical("Failed to load INI sources.");
+            return;
+        }
         M = Manager::GetSingleton(sources);
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
+        if (!M) return;
         // EventSink
         auto* eventSink = OurEventSink::GetSingleton();
         auto* eventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
@@ -264,7 +269,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 
 
 
-#define DISABLE_IF_UNINSTALLED if (M->isUninstalled) return;
+#define DISABLE_IF_UNINSTALLED if (!M || M->isUninstalled) return;
 void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED 
     M->SendData();
