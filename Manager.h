@@ -112,7 +112,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         }
         RefID container_refid = real_container->GetFormID();
 
-        logger::info("Getting container source");
         auto src = GetContainerSource(real_container->GetBaseObject()->GetFormID());
         if (!src) {
             RaiseMngrErr("Could not find source for container");
@@ -181,7 +180,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
                 return &src;
             }
         }
-        logger::info("Container source not found");
+        logger::error("Container source not found");
         return nullptr;
     };
 
@@ -539,16 +538,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         
         // assumes base container is already in the chest
         if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
-        //auto chest_val = GetChestValue(chest_linked);
-        //logger::info("chest_val: {}", chest_val);
         auto real_container = FakeToRealContainer(fake_form->GetFormID());
-        /*auto realcontainer_value_in_chest =
-            chest_linked->GetInventory().find(curr_container_base)->second.second->GetValue();*/
-        //logger::info("Real container value in chest: {}", realcontainer_value_in_chest);
+        
         auto realcontainer_val = real_container->GetGoldValue();
-        //logger::info("Real container value: {}", realcontainer_val);
         Utilities::FormTraits<T>::SetValue(fake_form, realcontainer_val);
-        //logger::info("Fake container value: {}", Utilities::FormTraits<T>::GetValue(fake_form));
         Utilities::FormTraits<T>::SetWeight(fake_form, chest_linked->GetWeightInContainer());
         auto chest_refid = chest_linked->GetFormID();
         logger::info("chestrefid: {} has WEIGHT: {}", chest_refid,Utilities::FormTraits<T>::GetWeight(fake_form));
@@ -580,39 +573,19 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
     FormID CreateFakeContainer(T* realcontainer, RE::ExtraDataList* extralist) {
         T* new_form = nullptr;
         new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
-        /*auto form_factory = RE::IFormFactory::GetConcreteFormFactoryByType<T>();
-        if (!form_factory) {
-			RaiseMngrErr("Failed to get form factory.");
-			return 0;
-		}*/
-        //new_form = form_factory->Create();
+
         if (!new_form) {
             RaiseMngrErr("Failed to create new form.");
             return 0;
         }
         new_form->Copy(realcontainer);
-        /*new_form->InitializeData();
-        new_form->InitItemImpl();*/
+
         new_form->fullName = realcontainer->GetFullName();
         logger::info("Created form with type: {}, Base ID: {:x}, Ref ID: {:x}, Name: {}",
                      RE::FormTypeToString(new_form->GetFormType()), new_form->GetFormID(), new_form->GetFormID(),
                      new_form->GetName());
-        logger::info("Adding fake container to unownedChestOG");
-        logger::info("NEW FORMID: {}", new_form->GetFormID());
         unownedChestOG->AddObjectToContainer(new_form, extralist, 1, nullptr);
-        logger::info("Added fake container to unownedChestOG");
-        auto inventory_unownedChestOG = unownedChestOG->GetInventory();
-        for (const auto& item : inventory_unownedChestOG) {
-            logger::info("ITEM in unownedChestOG: {}, formid: {}", item.first->GetName(), item.first->GetFormID());
-		}
 
-        //if (!current_container) return RaiseMngrErr("Current container is null");
-        //auto chest = GetContainerChest(current_container);
-
-        //// add to ChestToFakeContainer
-        //if (!ChestToFakeContainer.insert({chest->GetFormID(), {realcontainer->GetFormID(), new_form->GetFormID()}}).second) {
-        //    return RaiseMngrErr("Failed to insert chest refid and fake container refid into ChestToFakeContainer.");
-        //}
         return new_form->GetFormID();
     }
 
@@ -654,7 +627,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
                     ref_handle =
                         moveFrom->RemoveItem(item_obj, 1, reason, nullptr, moveTo);
 				} else {
-                    logger::info("Removing item with extra data");
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason,
                                                       asd->front(), moveTo);
 				}
@@ -678,14 +650,12 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
-            //logger::info("item_obj: {}, form_id: {}", item_obj->GetName(), item_obj->GetFormID());
             if (item_obj->GetFormID() == item_id) {
                 auto inv_data = item->second.second.get();
                 auto asd = inv_data->extraLists;
                 if (!asd || asd->empty()) {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, nullptr, moveTo);
                 } else {
-                    logger::info("Removing item with extra data");
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, asd->front(), moveTo);
                 }
                 listen_container_change = true;
@@ -703,19 +673,13 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         if (!ref || ref->IsDisabled() || ref->IsDeleted()) return RaiseMngrErr("Object is null or disabled or deleted");
         
         ref->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
-        //logger::info("owner: {}", ref->GetOwner()->GetName());
-        //logger::info("owner: {}", ref->GetOwner()->GetFormID());
 
-        //logger::info("Picking up");
         listen_container_change = false;
         player_ref->As<RE::Actor>()->PickUpObject(ref, 1, false, false);
-        logger::info("Removing");
         RemoveItemReverse(player_ref, move2container, ref->GetBaseObject()->GetFormID(),
                           RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        /*player_ref->RemoveItem(ref->GetBaseObject(), 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr,
-                                   move2container);*/
+
         listen_container_change = true;
-        logger::info("Removed");
     }
 
     void RemoveAllItemsFromChest(RE::TESObjectREFR* chest, bool transfer2player = true) {
@@ -863,20 +827,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
             // update weight and value
             auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_cont) return RaiseMngrErr("Fake container not found");
-            //logger::info("Fake container value before update: {}", Utilities::GetBoundObjectValue(fake_cont));
             UpdateFakeWV(fake_cont, chest);
-            //logger::info("Fake container value after update: {}", Utilities::GetBoundObjectValue(fake_cont));
 
-            // need to figure this out...
-            /*auto fake_cont_player_inv_val = player_ref->GetInventory().find(fake_cont)->second.second->GetValue();
-            logger::info("Fake container value in player's inventory: {}", fake_cont_player_inv_val);
-            auto fake_cont_val = Utilities::GetBoundObjectValue(fake_cont);
-            logger::info("Fake container value: {}", fake_cont_val);
-            auto chest_val = GetChestValue(chest);
-            logger::info("Chest value: {}", chest_val);
-            Utilities::SetBoundObjectValue(fake_cont, fake_cont_val - fake_cont_player_inv_val + chest_val);*/
-            
-            //Utilities::SetBoundObjectValue(fake_cont, 0);
 
             current_container = nullptr;
             listen_activate = true;
@@ -938,7 +890,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         // register the container to the source data if it is not registered
         const auto container_refid = a_container->GetFormID();
         if (!container_refid) return RaiseMngrErr("Container refid is null");
-        logger::info("container has refid: {}", container_refid);
         if (!Utilities::containsValue(src->data,container_refid)) {
             // Not registered. lets find a chest to register it to
             logger::info("Not registered");
@@ -1171,42 +1122,28 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
     }
 
     void qTRICK__(Source& src, const SourceDataKey chest_ref, const SourceDataVal cont_ref, bool execute_trick = false) {
-        logger::info("-- -- qTrick chest_ref {} cont_ref {} execute_trick {}-- -- -", chest_ref, cont_ref,execute_trick);
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
         auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
         if (!chest) return RaiseMngrErr("Chest not found");
         if (!chest_cont_ref) return RaiseMngrErr("Container chest not found");
-        logger::info("RemoveItemReverse1");
         auto real_refhandle = RemoveItemReverse(chest, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
         if (!real_refhandle.get()) return RaiseMngrErr("Real refhandle is null.");
         // doing the trick for registering/creating the fake container
         if (execute_trick) {
             src.data[chest_ref] = real_refhandle.get()->GetFormID();
-            logger::info("HandleRegistration");
-            logger::info("ChestToFakeContainer (chest refid: {}) before HandleRegistration: {}", chest_ref,
-                         ChestToFakeContainer[chest_ref].innerKey);
+            
             HandleRegistration(real_refhandle.get().get());  // sets current_container, creates the fake with the
                                                              // chest link and puts it in unownedchestOG
-            /*auto inventory_unownedOG = unownedChestOG->GetInventory();
-            for (const auto& [obj, count_entry] : inventory_unownedOG) {
-                logger::info("obj: {}, count: {}, formid: {}", obj->GetName(), count_entry.first, obj->GetFormID());
-            }*/
+            
         }
         auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // the new one (execute_trick)
-        logger::info("fake_formid: {}", fake_formid);
         auto chest_of_fake = execute_trick ? unownedChestOG : chest_cont_ref; // at the beginnning different, at the end same
-        logger::info("RemoveItemReverse2");
         auto fake_refhandle = RemoveItemReverse(chest_of_fake, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kDropping);
         if (!fake_refhandle.get()) return RaiseMngrErr("Fake refhandle is null.");
-        logger::info("Updating extras");
         UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
-        logger::info("PickUpObject1");
         player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
-        logger::info("RemoveItemReverse3");
         RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        logger::info("UpdateFakeWV");
         UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
-        logger::info("PickUpObject2");
         player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
         // I do this bcs I changed it above
         if (execute_trick) src.data[chest_ref] = cont_ref;
@@ -1340,20 +1277,15 @@ public:
             return false;
         }
         
-        logger::info("checkpoint 2");
         RE::ObjectRefHandle real_cont_handle = RemoveItemReverse(chestObjRef, nullptr, real_base->GetFormID(),
                                                 RE::ITEM_REMOVE_REASON::kDropping);
         auto real_cont = real_cont_handle.get();
         real_cont->SetParentCell(ref_fake->GetParentCell());
         real_cont->SetPosition(ref_fake->GetPosition());
         
-        logger::info("checkpoint 1");
         RemoveObject(ref_fake,unownedChestOG);
 
-        logger::info("checkpoint 3");
         real_cont->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
-        //logger::info("owner: {}", real_cont->GetOwner()->GetName());
-        //logger::info("owner: {}", real_cont->GetOwner()->GetFormID());
 
         // update source data
         auto src = GetContainerSource(real_base->GetFormID());
@@ -1361,7 +1293,6 @@ public:
             RaiseMngrErr("Could not find source for container");
 			return false;
 		}
-        logger::info("Updating source data with chest refid: {}", chest_refid);
         src->data[chest_refid] = real_cont->GetFormID();
 
         logger::info("Swapped real container has refid: {}", real_cont->GetFormID());
@@ -1391,13 +1322,12 @@ public:
     void HandleCraftingExit() { 
         ENABLE_IF_NOT_UNINSTALLED
         listen_container_change = false;
-        logger::info("Crafting menu opened");
+        logger::info("Crafting menu closed");
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 if (chest_ref != cont_ref) continue;
                 auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
                 if (!chest) return RaiseMngrErr("Chest is null");
-                logger::info("RemoveItemReverse1");
                 auto real_refhandle = RemoveItemReverse(player_ref, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
                 if (!real_refhandle.get()) {
                     // it can happen when using arcane enchanter to destroy the item
@@ -1405,18 +1335,12 @@ public:
                     DeRegisterChest(chest_ref);
                     continue;
                 }
-                logger::info("RemoveItemReverse2");
                 auto fake_refhandle = RemoveItemReverse(unownedChestOG, nullptr, ChestToFakeContainer[chest_ref].innerKey,
                                       RE::ITEM_REMOVE_REASON::kDropping);
-                logger::info("Updating extras");
                 UpdateExtras(real_refhandle.get().get(), fake_refhandle.get().get());
-                logger::info("PickUpObject1");
                 player_ref->As<RE::Actor>()->PickUpObject(real_refhandle.get().get(), 1, false, false);
-                logger::info("RemoveItemReverse3");
                 RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-                logger::info("UpdateFakeWV");
                 UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
-                logger::info("PickUpObject2");
                 player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
             }
         }
@@ -1453,8 +1377,6 @@ public:
                                     RE::ITEM_REMOVE_REASON::kStoreInContainer);
             }
         }
-        //logger::info("handled_external_conts a ekliyom");
-        //handled_external_conts.insert(external_cont->GetFormID());
         listen_container_change = true;
         logger::info("HandleFakePlacement done");
     }
@@ -1517,8 +1439,6 @@ public:
         auto sell_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(sell_refid);
         logger::info("sell ref name: {}", sell_ref->GetName());
         if (!sell_ref) return RaiseMngrErr("Sell ref not found");
-        auto merchantgold = RE::TESDataHandler::GetSingleton()->GetMerchantInventory()->GetItemCount(RE::TESForm::LookupByID<RE::TESBoundObject>(15));
-        logger::info("merchant has {} gold", merchantgold);
         // remove the fake container from vendor
         logger::info("Removed fake container from vendor");
         // add the real container to the vendor from the unownedchest
@@ -1590,10 +1510,8 @@ public:
         if (!current_container) return RaiseMngrErr("current_container is null!");
         // check if container has enough capacity
         auto chest = GetContainerChest(current_container);
-        logger::info("Getting container source");
         auto weight_limit = GetContainerSource(current_container->GetBaseObject()->GetFormID())->capacity;
         while (chest->GetWeightInContainer() > weight_limit) {
-            logger::info("InspectItemTransfer: Getting rid of items");
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
             auto item_obj = item->first;
@@ -1826,7 +1744,8 @@ public:
 		return connected_chests;
 	}
 
-    void Print() { 
+    void Print() {
+        return;
         for (const auto& src : sources) { 
             logger::info("Printing............Source formid: {}", src.formid);
             Utilities::printMap(src.data); 
