@@ -509,10 +509,10 @@ namespace Utilities {
             form->weight = weight;
         }
     
-  //      static int GetValue(T* form) {
-		//	// Default implementation, assuming T has a member variable 'value'
-		//	return form->value;
-		//}
+        static int GetValue(T* form) {
+			// Default implementation, assuming T has a member variable 'value'
+			return form->value;
+		}
 
         static void SetValue(T* form, int value) {
             form->value = value;
@@ -534,9 +534,9 @@ namespace Utilities {
             // For example, if TESAmmo had a SetWeight method, you would call it here
         }
 
-  //      static int GetValue(RE::TESAmmo* form) {
-		//	return form->value;
-		//}
+        static int GetValue(RE::TESAmmo* form) {
+			return form->value;
+		}
         static void SetValue(RE::TESAmmo* form, int value) {
 			form->value = value;
 		}
@@ -552,9 +552,9 @@ namespace Utilities {
             form->weight = weight;
         }
 
-        //      static int GetValue(RE::TESAmmo* form) {
-        //	return form->value;
-        //}
+              static int GetValue(RE::AlchemyItem* form) {
+        	return form->GetGoldValue();
+        }
         static void SetValue(RE::AlchemyItem*, int) { return; }
     };
 

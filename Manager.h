@@ -539,6 +539,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         // assumes base container is already in the chest
         if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
         auto real_container = FakeToRealContainer(fake_form->GetFormID());
+        fake_form->Copy(real_container->As<T>());
         
         auto realcontainer_val = real_container->GetGoldValue();
         Utilities::FormTraits<T>::SetValue(fake_form, realcontainer_val);
@@ -796,7 +797,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
             RemoveItemReverse(unownedChestOG, player_ref, fake_container_id, RE::ITEM_REMOVE_REASON::kStoreInContainer);
 
             auto fake_refhandle = RemoveItemReverse(player_ref, nullptr, fake_container_id, RE::ITEM_REMOVE_REASON::kDropping);
-
             logger::info("Updating extras");
             UpdateExtras(current_container, fake_refhandle.get().get());
             
@@ -1443,6 +1443,15 @@ public:
         ENABLE_IF_NOT_UNINSTALLED
         HandleRegistration(a_container);
         return PromptInterface();
+    };
+
+    void ActivateContainer(FormID fakeid) {
+        ENABLE_IF_NOT_UNINSTALLED
+        auto chest_refid = GetFakeContainerChest(fakeid);
+        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        auto real_container_formid = FakeToRealContainer(fakeid)->GetFormID();
+        auto real_container_name = RE::TESForm::LookupByID<RE::TESBoundObject>(real_container_formid)->GetName();
+        ActivateChest(chest, real_container_name);
     };
 
     // hopefully this works.
