@@ -7,8 +7,8 @@
 
 class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     // private variables
-    std::vector<std::string> buttons = {"Open", "Take", "Cancel", "More..."};
-    std::vector<std::string> buttons_more = {"Uninstall", "Back", "Cancel"};
+    const std::vector<std::string> buttons = {"Open", "Take", "Cancel", "More..."};
+    const std::vector<std::string> buttons_more = {"Uninstall", "Back", "Cancel"};
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     
     //  maybe i dont need this by using uniqueID for new forms
@@ -22,9 +22,11 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000EA299);
     //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
     //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
-    RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
+    const RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
     RE::TESObjectREFR* unownedChestOG = nullptr;
     
+    const FormID carry_weight_boost_formid = 499956;
+
     //std::unordered_set<RefID> handled_external_conts; // runtime specific
     std::map<FormID,bool> is_equipped; // runtime specific and used by handlecrafting
     std::map<FormID, bool> is_faved;  // runtime specific and used by handlecrafting
@@ -821,20 +823,9 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_cont) return RaiseMngrErr("Fake container not found");
             UpdateFakeWV(fake_cont, chest);
-            
-            if (_other_settings[Settings::otherstuffKeys[1]]){
-                auto inventory_player = player_ref->GetInventory();
-                auto enchantment = inventory_player.find(fake_cont)->second.second->GetEnchantment();
-                if (enchantment) {
-                    logger::info("Enchantment: {}", enchantment->GetName());
-                    // remove the enchantment from the fake container if it is carry weight boost
-                    for (const auto& effect : enchantment->effects) {
-                        if (effect->baseEffect->GetFormID() == 499956) {
-                            effect->effectItem.magnitude = 0;
-                        }
-				    }
-                }
-            }
+
+
+            if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id);
 
 
             current_container = nullptr;
@@ -1003,6 +994,25 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             }
         }
     }
+
+    void RemoveEnchantment(FormID item_formid, FormID enchantment_formid){
+        auto inventory_player = player_ref->GetInventory();
+        auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
+        auto enchantment = inventory_player.find(item_obj)->second.second->GetEnchantment();
+        if (enchantment) {
+            logger::info("Enchantment: {}", enchantment->GetName());
+            // remove the enchantment from the fake container if it is carry weight boost
+            for (const auto& effect : enchantment->effects) {
+                if (effect->baseEffect->GetFormID() == enchantment_formid) {
+                    effect->effectItem.magnitude = 0;
+                }
+            }
+        }
+    }
+
+    void RemoveCarryWeightBoost(FormID item_formid){
+		RemoveEnchantment(item_formid, carry_weight_boost_formid);
+	}
 
 #undef DISABLE_IF_NO_CURR_CONT
 
@@ -1747,7 +1757,7 @@ public:
                         }
                     }*/
 				}
-                FormIDX fake_container_x(ChestToFakeContainer[chest_ref].innerKey, is_equipped_x, is_favorited_x);
+                FormIDX fake_container_x(ChestToFakeContainer[chest_ref].innerKey, is_equipped_x, is_favorited_x, "");
                 SetData({src.formid, chest_ref}, {fake_container_x, cont_ref});
 			}
         }
@@ -1928,6 +1938,7 @@ public:
         for (auto it = entries->begin(); it != entries->end(); ++it){
             auto fake_formid = (*it)->object->GetFormID();
             if (IsFakeContainer(fake_formid)) {
+                if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid);
                 bool is_equipped_x = chest_equipped_fav[GetFakeContainerChest(fake_formid)].first;
                 bool is_faved_x = chest_equipped_fav[GetFakeContainerChest((*it)->object->GetFormID())].second;
                 if (is_equipped_x) {

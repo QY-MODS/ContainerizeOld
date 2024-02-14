@@ -423,6 +423,8 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED
     
+    logger::info("Loading Data from skse co-save.");
+    
     block_eventsinks = true;
 
     M->Reset();

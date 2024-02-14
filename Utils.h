@@ -415,8 +415,10 @@ namespace Utilities {
             FormID id;
             bool equipped;
             bool favorited;
-            FormIDX() : id(0), equipped(false), favorited(false) {}
-            FormIDX(FormID id, bool value1, bool value2) : id(id), equipped(value1), favorited(value2) {}
+            std::string name;
+            FormIDX() : id(0), equipped(false), favorited(false), name("") {}
+            FormIDX(FormID id, bool value1, bool value2, std::string value3)
+                : id(id), equipped(value1), favorited(value2), name(value3) {}
         };
 
         struct FormRefID {
