@@ -981,13 +981,23 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             auto formid = (*it)->object->GetFormID();
             if (formid == item->GetFormID()) {
                 if (unequip) {
-                    RE::ActorEquipManager::GetSingleton()->UnequipObject(player_ref->As<RE::Actor>(), (*it)->object, (*it)->extraLists->front(), 1,
-                        (const RE::BGSEquipSlot*)nullptr, true,
-                                                                         false, false);
+                    if ((*it)->extraLists->empty()) {
+                        RE::ActorEquipManager::GetSingleton()->UnequipObject(player_ref->As<RE::Actor>(), (*it)->object, nullptr, 1,
+                            (const RE::BGSEquipSlot*)nullptr, true, false, false);
+                    } else {
+                        RE::ActorEquipManager::GetSingleton()->UnequipObject(player_ref->As<RE::Actor>(), (*it)->object, (*it)->extraLists->front(), 1,
+                            (const RE::BGSEquipSlot*)nullptr, true,false, false);
+                    }
                 } else {
-                    RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object,
-                                                                       (*it)->extraLists->front(), 1,
-                        (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
+                    if ((*it)->extraLists->empty()){
+                        RE::ActorEquipManager::GetSingleton()->EquipObject(
+                            player_ref->As<RE::Actor>(), (*it)->object, nullptr, 1,
+                            (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
+                    } else{
+                        RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object,
+                                                                           (*it)->extraLists->front(), 1,
+                            (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
+                    }
                 }
                 return;
             }
@@ -1912,6 +1922,7 @@ public:
         handled_already.clear();
 
         // I make the fake containers in player inventory equipped/favorited:
+        logger::info("Equipping and favoriting fake containers in player's inventory");
         auto inventory_changes = player_ref->GetInventoryChanges();
         auto entries = inventory_changes->entryList;
         for (auto it = entries->begin(); it != entries->end(); ++it){
@@ -1920,10 +1931,13 @@ public:
                 bool is_equipped_x = chest_equipped_fav[GetFakeContainerChest(fake_formid)].first;
                 bool is_faved_x = chest_equipped_fav[GetFakeContainerChest((*it)->object->GetFormID())].second;
                 if (is_equipped_x) {
-                    RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object, 
-                        (*it)->extraLists->front(),1,(const RE::BGSEquipSlot*)nullptr,true,false,false,false);
+                    logger::info("Equipping fake container with formid {}", fake_formid);
+                    EquipItem((*it)->object);
+                    /*RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object, 
+                        nullptr,1,(const RE::BGSEquipSlot*)nullptr,true,false,false,false);*/
 				}
                 if (is_faved_x) {
+                    logger::info("Favoriting fake container with formid {}", fake_formid);
                     inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
                 }
 			}
