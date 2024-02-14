@@ -25,8 +25,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     const RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
     RE::TESObjectREFR* unownedChestOG = nullptr;
     
-    const FormID carry_weight_boost_formid = 499956;
-
     //std::unordered_set<RefID> handled_external_conts; // runtime specific
     std::map<FormID,bool> is_equipped; // runtime specific and used by handlecrafting
     std::map<FormID, bool> is_faved;  // runtime specific and used by handlecrafting
@@ -1010,8 +1008,25 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
     }
 
+    void RemoveEnchantment(FormID item_formid, const char* enchantment_name) {
+        auto inventory_player = player_ref->GetInventory();
+        auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
+        auto enchantment = inventory_player.find(item_obj)->second.second->GetEnchantment();
+        if (enchantment) {
+            logger::info("Enchantment: {}", enchantment->GetName());
+            // remove the enchantment from the fake container if it is carry weight boost
+            for (const auto& effect : enchantment->effects) {
+                logger::info("Effect: {}", effect->baseEffect->GetName());
+                if (std::strcmp(effect->baseEffect->GetName(), enchantment_name) == 0) {
+                    effect->effectItem.magnitude = 0;
+                    logger::info("Removed enchantment: {}", enchantment_name);
+                }
+            }
+        }
+    }
+
     void RemoveCarryWeightBoost(FormID item_formid){
-		RemoveEnchantment(item_formid, carry_weight_boost_formid);
+		RemoveEnchantment(item_formid, "Fortify Carry Weight");
 	}
 
 #undef DISABLE_IF_NO_CURR_CONT
