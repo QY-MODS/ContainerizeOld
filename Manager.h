@@ -1498,38 +1498,6 @@ public:
         listen_container_change = true;
     }
 
-    void HandleConsume(FormID fake_formid) {
-        // make sure player && unownedOG does not have it in inventory
-        // make also sure that the real counterpart is still in unowned
-        
-        auto player_inventory = player_ref->GetInventory();
-        auto unownedchestOG_inventory = unownedChestOG->GetInventory();
-        auto chest_ref = GetFakeContainerChest(fake_formid);
-        auto chest_inventory = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref)->GetInventory();
-        
-        auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
-        auto real_obj = FakeToRealContainer(fake_formid);
-        
-        auto player_inventory_item = player_inventory.find(fake_obj);
-        auto unownedchestOG_inventory_item = unownedchestOG_inventory.find(fake_obj);
-        auto chest_inventory_item = chest_inventory.find(real_obj);
-
-        auto player_has_item = player_inventory_item != player_inventory.end();
-        if (player_has_item) logger::info("Player has item."); else logger::info("Player does not have item.");
-        auto unownedchestOG_has_item = unownedchestOG_inventory_item != unownedchestOG_inventory.end();
-        if (unownedchestOG_has_item) logger::info("UnownedchestOG has item."); else logger::info("UnownedchestOG does not have item.");
-        auto chest_has_item = chest_inventory_item != chest_inventory.end();
-        if (chest_has_item) logger::info("Chest has item."); else logger::info("Chest does not have item.");
-        
-        if (!player_has_item && !unownedchestOG_has_item && chest_has_item) {
-			// remove the real counterpart from unownedchestOG and add the fake to the player's inventory
-            logger::info("Item consumed.");
-            DeRegisterChest(chest_ref);
-            // remove the real counterpart from player
-            RemoveItemReverse(player_ref, nullptr, real_obj->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
-		}
-    }
-
     // Register an external container (technically could be another unownedchest of another of our containers) to the source data so that chestrefid of currentcontainer -> external container
     void LinkExternalContainer(const FormID fakecontainer, const RefID externalcontainer) {
         listen_container_change = false;
@@ -1627,29 +1595,13 @@ public:
 
     void RevertEquip(FormID fakeid) {
         ENABLE_IF_NOT_UNINSTALLED
-        logger::info("RE::TESForm::LookupByID");
         auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakeid);
-        logger::info("RE::TESForm::LookupByID___");
         auto unequip = IsEquipped(fake_bound);
         if (unequip) {
 			EquipItem(fake_bound, true);
 		} else {
 			EquipItem(fake_bound);
 		}
-        /*auto inventory = player_ref->GetInventory();
-        auto inventory_entry = inventory.find(fake_bound);
-        logger::info("REsdfkjas");
-        if (inventory_entry == inventory.end())
-            RaiseMngrErr("Fake container not found in player's inventory");
-        if (inventory_entry->second.second->IsWorn()) {
-            logger::info("Fake container is equipped. Unequipping...");
-            RE::ActorEquipManager::GetSingleton()->UnequipObject(player_ref->As<RE::Actor>(), fake_bound, nullptr, 1,
-                                                                 nullptr, true, false, false);
-        } else {
-            logger::info("Fake container is not equipped. Equipping...");
-            RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), fake_bound, nullptr, 1, nullptr, true, false, false,
-                                                               false);
-        }*/
     }
 
     // hopefully this works.

@@ -46,16 +46,12 @@ public:
 
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESEquipEvent* event, RE::BSTEventSource<RE::TESEquipEvent>*) {
-        logger::info("Equip event.");
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (showMenu) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
-        if (event->equipped) {
-	        logger::info("Item {} was equipped. equipped: {}", event->baseObject,equipped);
-        } else {
-            logger::info("Item {} was unequipped. equipped: {}", event->baseObject, equipped);
-        }
+        
+
         fake_id = event->baseObject;
         equipped = true;
         return RE::BSEventNotifyControl::kContinue;
@@ -150,32 +146,16 @@ public:
 
         if ((event->menuName == RE::InventoryMenu::MENU_NAME || event->menuName == RE::FavoritesMenu::MENU_NAME) &&
             !event->opening && showMenu) {
-            logger::info("Inventory menu closed.");
             equipped = false;
-            logger::info("Reverting equip...");
             M->RevertEquip(fake_id);
-            logger::info("Reverted equip.");
             M->ActivateContainer(fake_id,true);
-
-            //auto msgQ = RE::UIMessageQueue::GetSingleton();
-            //msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
-            //if (auto container_menu = RE::UI::GetSingleton()->GetMenu(RE::ContainerMenu::MENU_NAME)) {
-            //    container_menu->depthPriority = 3;
-            //};
-            //if (!RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-            //    //msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
-            //    container_menu->uiMovie->SetVisible(true);
-            //}
-                
 
         }
         else if (event->menuName == RE::ContainerMenu::MENU_NAME && !event->opening && showMenu) {
             logger::info("Container menu closed.");
             showMenu = false;
             M->UnHideReal(fake_id);
-            /*const auto ui = RE::UI::GetSingleton();
-            const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
-            menu->menuFlags.set(RE::UI_MENU_FLAGS::kPausesGame);*/
+
         }
 
 
@@ -264,7 +244,6 @@ public:
 
         // from player inventory ->
         if (event->oldContainer == 20) {
-            logger::info("Something left player inventory.");
             // a fake container left player inventory
             if (M->IsFakeContainer(event->baseObj)) {
                 logger::info("Fake container left player inventory.");
@@ -323,14 +302,6 @@ public:
             // check if container has enough capacity
             else if (M->IsChest(event->newContainer) && listen_weight_limit) M->InspectItemTransfer();
         }
-
-        // consumed
-        /*if (M->IsFakeContainer(event->baseObj) && !event->newContainer){
-            logger::info("new container: {}", event->newContainer);
-            logger::info("old container: {}", event->oldContainer);
-            logger::info("Sending to handle consume.");
-            M->HandleConsume(event->baseObj);
-		}*/
 
 
         return RE::BSEventNotifyControl::kContinue;
