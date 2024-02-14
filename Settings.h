@@ -48,7 +48,7 @@ namespace Settings {
     constexpr std::array<const char*, 3> InISections = {"Containers",
                                                         "Capacities",
                                                         "Other Stuff"};
-    constexpr std::array<const char*, 3> InIDefaultKeys = {"src1", "src1", "INI_changed_msg"};
+    constexpr std::array<const char*, 2> InIDefaultKeys = {"src1", "src1"};
     constexpr std::array<const char*, 2> InIDefaultVals = {"", ""};
 
     const std::array<std::string, 3> section_comments =
@@ -58,11 +58,18 @@ namespace Settings {
         ";",
         };
 
+
+    const std::array<std::string, 2> os_comments =
+		{";Set to false to suppress the 'INI changed between saves' message.",
+		"; Set to true to remove the initial carry weight bonuses on your container items.",
+		};
+
    
     constexpr std::uint32_t kSerializationVersion = 729;
     constexpr std::uint32_t kDataKey = 'CTRZ';
 
-    constexpr std::array<const char*, 1> otherstuffKeys = {"INI_changed_msg"};
+    constexpr std::array<const char*, 2> otherstuffKeys = {"INI_changed_msg", "RemoveCarryBoosts"};
+    constexpr std::array<bool, 2> otherstuffVals = {true, false};
 
     std::vector<Source> LoadINISources() {
         
@@ -100,7 +107,8 @@ namespace Settings {
 
         // Create Sections with defaults if they don't exist
         if (!ini.SectionExists(InISections[2])) {
-            ini.SetBoolValue(InISections[2], InIDefaultKeys[2], true, section_comments[2].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[0], true, os_comments[0].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[1], false, os_comments[1].c_str());
             logger::info("Default values set for section {}", InISections[2]);
         }
 
@@ -176,15 +184,23 @@ namespace Settings {
 
         if (numOthers == 0) {
 			logger::warn("No other settings found in the ini file. Using defaults.");
-			ini.SetBoolValue(InISections[2], InIDefaultKeys[2], true);
-			
+            ini.SetBoolValue(InISections[2], otherstuffKeys[0], true);
+            ini.SetBoolValue(InISections[2], otherstuffKeys[1], false);
+        } else if (numOthers != otherstuffKeys.size()) {
+			logger::warn("Invalid number of other settings found in the ini file. Using defaults.");
+			ini.SetBoolValue(InISections[2], otherstuffKeys[0], true);
+			ini.SetBoolValue(InISections[2], otherstuffKeys[1], false);
 		}
 
         bool val1;
+        bool val2;
         // other stuff section
-        val1 = ini.GetBoolValue(InISections[2], InIDefaultKeys[2]);
-        ini.SetBoolValue(InISections[2], InIDefaultKeys[2], val1, ";Set to false to suppress the 'INI changed between saves' message.");
-        others["INI_changed_msg"] = val1;
+        val1 = ini.GetBoolValue(InISections[2], otherstuffKeys[0]);
+        ini.SetBoolValue(InISections[2], otherstuffKeys[0], val1, os_comments[0].c_str());
+        val2 = ini.GetBoolValue(InISections[2], otherstuffKeys[1]);
+        ini.SetBoolValue(InISections[2], otherstuffKeys[1], val2, os_comments[1].c_str());
+        others[otherstuffKeys[0]] = val1;
+        others[otherstuffKeys[1]] = val2;
 
         ini.SaveFile(path);
 

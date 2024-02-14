@@ -5,16 +5,17 @@
 
 // TODO: handled_external_conts duzgun calisiyo mu test et. save et. barrela fakeplacement yap. save et. roll back save. sonra ilerki save e geri don, bakalim fakeitemlar hala duruyor mu
 
-class Manager : public Utilities::BaseFormRefIDFormRefID {
+class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     // private variables
     std::vector<std::string> buttons = {"Open", "Take", "Cancel", "More..."};
     std::vector<std::string> buttons_more = {"Uninstall", "Back", "Cancel"};
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
-    RE::TESObjectREFR* current_container = nullptr;
     
     //  maybe i dont need this by using uniqueID for new forms
     // runtime specific
     std::map<RefID,FormFormID> ChestToFakeContainer; // chest refid -> {real container formid, fake container formid}
+    RE::TESObjectREFR* current_container = nullptr;
+    RE::TESObjectREFR* hidden_real_ref = nullptr;
 
     // unowned stuff
     RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
@@ -23,7 +24,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
     //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
     RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
     RE::TESObjectREFR* unownedChestOG = nullptr;
+    
     //std::unordered_set<RefID> handled_external_conts; // runtime specific
+    std::map<FormID,bool> is_equipped; // runtime specific and used by handlecrafting
+    std::map<FormID, bool> is_faved;  // runtime specific and used by handlecrafting
 
 
     // private functions
@@ -55,7 +59,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
     };
 
     RE::TESObjectREFR* FindNotMatchedChest() {
-        auto runtimeData = unownedCell->GetRuntimeData();
+        auto& runtimeData = unownedCell->GetRuntimeData();
         for (const auto& ref : runtimeData.references) {
             if (!ref) continue;
             if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
@@ -78,7 +82,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
     };
 
     uint32_t GetNoChests() {
-        auto runtimeData = unownedCell->GetRuntimeData();
+        auto& runtimeData = unownedCell->GetRuntimeData();
         uint32_t no_chests = 0;
         for (const auto& ref : runtimeData.references) {
             if (!ref) continue;
@@ -202,6 +206,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
                 static_cast<RE::ExtraEnchantment*>(copy_from->GetByType(RE::ExtraDataType::kEnchantment));
             if (enchantment) {
                 RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>();
+                // log the associated actor value
+                logger::info("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
                 enchantment_fake->enchantment = enchantment->enchantment;
                 enchantment_fake->charge = enchantment->charge;
                 enchantment_fake->removeOnUnequip = enchantment->removeOnUnequip;
@@ -815,6 +821,20 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
             auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_cont) return RaiseMngrErr("Fake container not found");
             UpdateFakeWV(fake_cont, chest);
+            
+            if (_other_settings[Settings::otherstuffKeys[1]]){
+                auto inventory_player = player_ref->GetInventory();
+                auto enchantment = inventory_player.find(fake_cont)->second.second->GetEnchantment();
+                if (enchantment) {
+                    logger::info("Enchantment: {}", enchantment->GetName());
+                    // remove the enchantment from the fake container if it is carry weight boost
+                    for (const auto& effect : enchantment->effects) {
+                        if (effect->baseEffect->GetFormID() == 499956) {
+                            effect->effectItem.magnitude = 0;
+                        }
+				    }
+                }
+            }
 
 
             current_container = nullptr;
@@ -926,6 +946,53 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
     
     }
 
+    bool IsFaved(RE::TESBoundObject* item) {
+        auto inventory = player_ref->GetInventory();
+        auto it = inventory.find(item);
+        if (it != inventory.end()) return it->second.second->IsFavorited();
+        return false;
+    }
+
+    bool IsEquipped(RE::TESBoundObject* item) {
+		auto inventory = player_ref->GetInventory();
+		auto it = inventory.find(item);
+		if (it != inventory.end()) return it->second.second->IsWorn();
+        return false;
+    }
+
+    void FaveItem(RE::TESBoundObject* item) {
+		if (!item) return RaiseMngrErr("Item is null");
+        auto inventory_changes = player_ref->GetInventoryChanges();
+        auto entries = inventory_changes->entryList;
+        for (auto it = entries->begin(); it != entries->end(); ++it) {
+            auto formid = (*it)->object->GetFormID();
+            if (formid == item->GetFormID()) {
+				inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+				return;
+			}
+        }
+	}
+
+    void EquipItem(RE::TESBoundObject* item, bool unequip=false) {
+        if (!item) return RaiseMngrErr("Item is null");
+        auto inventory_changes = player_ref->GetInventoryChanges();
+        auto entries = inventory_changes->entryList;
+        for (auto it = entries->begin(); it != entries->end(); ++it) {
+            auto formid = (*it)->object->GetFormID();
+            if (formid == item->GetFormID()) {
+                if (unequip) {
+                    RE::ActorEquipManager::GetSingleton()->UnequipObject(player_ref->As<RE::Actor>(), (*it)->object, (*it)->extraLists->front(), 1,
+                        (const RE::BGSEquipSlot*)nullptr, true,
+                                                                         false, false);
+                } else {
+                    RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object,
+                                                                       (*it)->extraLists->front(), 1,
+                        (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
+                }
+                return;
+            }
+        }
+    }
 
 #undef DISABLE_IF_NO_CURR_CONT
 
@@ -982,7 +1049,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
         logger::info("No of chests in cell: {}", GetNoChests());
 
         // Check if unowned chest is in the cell and get its ref
-        auto runtimeData = unownedCell->GetRuntimeData();
+        auto& runtimeData = unownedCell->GetRuntimeData();
         for (const auto& ref : runtimeData.references) {
 			if (!ref) continue;
 			if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID() && !ChestToFakeContainer.count(ref->GetFormID())) {
@@ -1035,7 +1102,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefID {
 		}
 
         // Delete all unowned chests and try to return all items to the player's inventory while doing that
-        auto unownedRuntimeData = unownedCell->GetRuntimeData();
+        auto& unownedRuntimeData = unownedCell->GetRuntimeData();
         for (const auto& ref : unownedRuntimeData.references) {
 			if (!ref) continue;
             if (ref->GetFormID() == unownedChestOG->GetFormID()) continue;
@@ -1223,7 +1290,7 @@ public:
     }
 
     bool IsFakeContainer(const FormID formid) {
-        for (const auto [chest_ref, cont_form] : ChestToFakeContainer) {
+        for (const auto& [chest_ref, cont_form] : ChestToFakeContainer) {
 			if (cont_form.innerKey == formid) return true;
 		}
 		return false;
@@ -1246,6 +1313,27 @@ public:
     bool IsChest(const RefID chest_refid) { return ChestToFakeContainer.count(chest_refid) > 0; }
 
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
+
+    void UnHideReal(FormID fakeid) { 
+        if (!hidden_real_ref) {
+            return RaiseMngrErr("Hidden real ref is null");
+        }
+        
+        auto fake_form = RE::TESForm::LookupByID(fakeid);
+        if (fake_form->formFlags == 13) fake_form->formFlags = 9;
+
+        auto chest_refid = GetFakeContainerChest(fakeid);
+        auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        auto real_formid = ChestToFakeContainer[chest_refid].outerKey;
+        if (hidden_real_ref->GetBaseObject()->GetFormID() != real_formid) {
+            return RaiseMngrErr("Hidden real ref formid does not match the real formid");
+        }
+        player_ref->As<RE::Actor>()->PickUpObject(hidden_real_ref, 1, false, false);
+        auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakeid);
+        RemoveItemReverse(player_ref, chest, real_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+        hidden_real_ref = nullptr;
+        UpdateFakeWV(fake_bound, chest);
+    }
 
     bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake) {
 
@@ -1300,6 +1388,10 @@ public:
                 if (!chest) return RaiseMngrErr("Chest is null");
                 RemoveItemReverse(chest, player_ref, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
                 auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+                auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+                is_equipped[fake_formid] = IsEquipped(fake_bound);
+                is_faved[fake_formid] = IsFaved(fake_bound);
+                if (is_equipped[fake_formid]) EquipItem(fake_bound, true);
                 RemoveItemReverse(player_ref, unownedChestOG, fake_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
             }
 		}
@@ -1329,8 +1421,13 @@ public:
                 RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
                 UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
                 player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
+                auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+                if (is_equipped[fake_formid]) EquipItem(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid));
+                if (is_faved[fake_formid]) FaveItem(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid));
             }
         }
+        is_equipped.clear();
+        is_faved.clear();
         listen_container_change = true;
     }
 
@@ -1350,7 +1447,7 @@ public:
 		if (!external_cont) return RaiseMngrErr("external_cont is null");
         for (auto& src : sources) {
             if (!Utilities::containsValue(src.data,external_cont->GetFormID())) continue;
-            for (const auto [chest_ref,cont_ref] : src.data) {
+            for (const auto& [chest_ref, cont_ref] : src.data) {
 
                 if (external_cont->GetFormID() != cont_ref) continue;
                 // if the fake item is in it then continue
@@ -1364,6 +1461,38 @@ public:
             }
         }
         listen_container_change = true;
+    }
+
+    void HandleConsume(FormID fake_formid) {
+        // make sure player && unownedOG does not have it in inventory
+        // make also sure that the real counterpart is still in unowned
+        
+        auto player_inventory = player_ref->GetInventory();
+        auto unownedchestOG_inventory = unownedChestOG->GetInventory();
+        auto chest_ref = GetFakeContainerChest(fake_formid);
+        auto chest_inventory = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref)->GetInventory();
+        
+        auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+        auto real_obj = FakeToRealContainer(fake_formid);
+        
+        auto player_inventory_item = player_inventory.find(fake_obj);
+        auto unownedchestOG_inventory_item = unownedchestOG_inventory.find(fake_obj);
+        auto chest_inventory_item = chest_inventory.find(real_obj);
+
+        auto player_has_item = player_inventory_item != player_inventory.end();
+        if (player_has_item) logger::info("Player has item."); else logger::info("Player does not have item.");
+        auto unownedchestOG_has_item = unownedchestOG_inventory_item != unownedchestOG_inventory.end();
+        if (unownedchestOG_has_item) logger::info("UnownedchestOG has item."); else logger::info("UnownedchestOG does not have item.");
+        auto chest_has_item = chest_inventory_item != chest_inventory.end();
+        if (chest_has_item) logger::info("Chest has item."); else logger::info("Chest does not have item.");
+        
+        if (!player_has_item && !unownedchestOG_has_item && chest_has_item) {
+			// remove the real counterpart from unownedchestOG and add the fake to the player's inventory
+            logger::info("Item consumed.");
+            DeRegisterChest(chest_ref);
+            // remove the real counterpart from player
+            RemoveItemReverse(player_ref, nullptr, real_obj->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
+		}
     }
 
     // Register an external container (technically could be another unownedchest of another of our containers) to the source data so that chestrefid of currentcontainer -> external container
@@ -1445,14 +1574,48 @@ public:
         return PromptInterface();
     };
 
-    void ActivateContainer(FormID fakeid) {
+    void ActivateContainer(FormID fakeid, bool hide_real=false) {
         ENABLE_IF_NOT_UNINSTALLED
         auto chest_refid = GetFakeContainerChest(fakeid);
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         auto real_container_formid = FakeToRealContainer(fakeid)->GetFormID();
         auto real_container_name = RE::TESForm::LookupByID<RE::TESBoundObject>(real_container_formid)->GetName();
+        if (hide_real) {
+            // if the fake container was equipped, then we need to unequip it vice versa
+            auto fake_form = RE::TESForm::LookupByID(fakeid);
+            if (fake_form->formFlags != 13) fake_form->formFlags = 13;
+			auto real_refhandle = RemoveItemReverse(chest, nullptr, real_container_formid, RE::ITEM_REMOVE_REASON::kDropping);
+            hidden_real_ref = real_refhandle.get().get();
+		}
         ActivateChest(chest, real_container_name);
     };
+
+    void RevertEquip(FormID fakeid) {
+        ENABLE_IF_NOT_UNINSTALLED
+        logger::info("RE::TESForm::LookupByID");
+        auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakeid);
+        logger::info("RE::TESForm::LookupByID___");
+        auto unequip = IsEquipped(fake_bound);
+        if (unequip) {
+			EquipItem(fake_bound, true);
+		} else {
+			EquipItem(fake_bound);
+		}
+        /*auto inventory = player_ref->GetInventory();
+        auto inventory_entry = inventory.find(fake_bound);
+        logger::info("REsdfkjas");
+        if (inventory_entry == inventory.end())
+            RaiseMngrErr("Fake container not found in player's inventory");
+        if (inventory_entry->second.second->IsWorn()) {
+            logger::info("Fake container is equipped. Unequipping...");
+            RE::ActorEquipManager::GetSingleton()->UnequipObject(player_ref->As<RE::Actor>(), fake_bound, nullptr, 1,
+                                                                 nullptr, true, false, false);
+        } else {
+            logger::info("Fake container is not equipped. Equipping...");
+            RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), fake_bound, nullptr, 1, nullptr, true, false, false,
+                                                               false);
+        }*/
+    }
 
     // hopefully this works.
     void DropTake(FormID realcontainer_formid,uint32_t native_handle) { 
@@ -1556,11 +1719,29 @@ public:
         Clear();
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
+                bool is_equipped_x = false;
+                bool is_favorited_x = false;
                 if (!chest_ref) return RaiseMngrErr("Chest refid is null");
-                SetData({src.formid, chest_ref}, {ChestToFakeContainer[chest_ref].innerKey, cont_ref});
+                if (chest_ref == cont_ref) {
+                    auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+                    auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+                    is_equipped_x = IsEquipped(fake_bound);
+                    is_favorited_x = IsFaved(fake_bound);
+                    /*auto inventory_changes = player_ref->GetInventoryChanges();
+                    auto entries = inventory_changes->entryList;
+                    for (auto it = entries->begin(); it != entries->end(); ++it) {
+                        if ((*it)->object->GetFormID() == ChestToFakeContainer[chest_ref].innerKey) {
+                            is_favorited = (*it)->IsFavorited();
+                            is_equipped = (*it)->IsWorn();
+                            break;
+                        }
+                    }*/
+				}
+                FormIDX fake_container_x(ChestToFakeContainer[chest_ref].innerKey, is_equipped_x, is_favorited_x);
+                SetData({src.formid, chest_ref}, {fake_container_x, cont_ref});
 			}
         }
-        
+        logger::info("Data sent.");
     };
 
     void Something(Source& src, const RefID chest_ref) {
@@ -1628,7 +1809,7 @@ public:
     }
 
     void Something2(const RefID chest_ref, std::vector<RefID>& ha) {
-        
+        // ha: handled already
         if (std::find(ha.begin(), ha.end(), chest_ref) != ha.end()) return;
         logger::info("-------------------chest_ref: {} -------------------", chest_ref);
         auto connected_chests = ConnectedChests(chest_ref);
@@ -1650,9 +1831,10 @@ public:
         //std::lock_guard<std::mutex> lock(mutex);
 
         listen_container_change = false;
+        std::map<RefID,std::pair<bool,bool>> chest_equipped_fav;
 
         bool no_match;
-        FormID realcontForm; RefID chestRef; FormID fakecontForm; RefID contRef;
+        FormID realcontForm; RefID chestRef; FormIDX fakecontForm; RefID contRef;
         std::map<RefID, FormFormID> unmathced_chests;
         for (const auto& [realcontForm_chestRef, fakecontForm_contRef] : m_Data) {
             no_match = true;
@@ -1667,17 +1849,20 @@ public:
                             std::format("RefID {} or RefID {} at formid {} already exists in sources data.", chestRef,
                                         contRef, realcontForm));
                     }
-                    if (!ChestToFakeContainer.insert({chestRef, {realcontForm, fakecontForm}}).second) {
+                    if (!ChestToFakeContainer.insert({chestRef, {realcontForm, fakecontForm.id}}).second) {
                         return RaiseMngrErr(
                             std::format("realcontForm {} with fakecontForm {} at chestref {} already exists in "
                                         "ChestToFakeContainer.",
-                                        chestRef, realcontForm, fakecontForm));
+                                        chestRef, realcontForm, fakecontForm.id));
                     }
+                    if (chestRef == contRef) {
+                        chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+					}
                     no_match = false;
                     break;
                 }
             }
-            if (no_match) unmathced_chests[chestRef] = {realcontForm, fakecontForm};
+            if (no_match) unmathced_chests[chestRef] = {realcontForm, fakecontForm.id};
         }
 
         // handle the unmathced chests
@@ -1725,6 +1910,24 @@ public:
 
 
         handled_already.clear();
+
+        // I make the fake containers in player inventory equipped/favorited:
+        auto inventory_changes = player_ref->GetInventoryChanges();
+        auto entries = inventory_changes->entryList;
+        for (auto it = entries->begin(); it != entries->end(); ++it){
+            auto fake_formid = (*it)->object->GetFormID();
+            if (IsFakeContainer(fake_formid)) {
+                bool is_equipped_x = chest_equipped_fav[GetFakeContainerChest(fake_formid)].first;
+                bool is_faved_x = chest_equipped_fav[GetFakeContainerChest((*it)->object->GetFormID())].second;
+                if (is_equipped_x) {
+                    RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object, 
+                        (*it)->extraLists->front(),1,(const RE::BGSEquipSlot*)nullptr,true,false,false,false);
+				}
+                if (is_faved_x) {
+                    inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+                }
+			}
+        }
 
         logger::info("--------Receiving data done---------");
         Print();

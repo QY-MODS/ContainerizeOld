@@ -325,7 +325,7 @@ namespace Utilities {
                     RE::make_smart<MessageBoxResultCallback>(callback);
                 messagebox->callback = messageCallback;
                 messagebox->bodyText = bodyText;
-                for (auto text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
+                for (auto& text : buttonTextValues) messagebox->buttonText.push_back(text.c_str());
                 messagebox->QueueMessage();
             }
         };
@@ -411,12 +411,31 @@ namespace Utilities {
         using FormID = RE::FormID;
         using RefID = std::uint32_t;
 
+        struct FormIDX {
+            FormID id;
+            bool equipped;
+            bool favorited;
+            FormIDX() : id(0), equipped(false), favorited(false) {}
+            FormIDX(FormID id, bool value1, bool value2) : id(id), equipped(value1), favorited(value2) {}
+        };
+
         struct FormRefID {
             FormID outerKey;
             RefID innerKey;
 
             bool operator<(const FormRefID& other) const {
                 return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+            }
+        };
+
+        struct FormRefIDX {
+            FormIDX outerKey;
+            RefID innerKey;
+
+            bool operator<(const FormRefIDX& other) const {
+                // Here, you can access the boolean values via outerKey
+                return outerKey.id < other.outerKey.id ||
+                       (outerKey.id == other.outerKey.id && innerKey < other.innerKey);
             }
         };
 
@@ -578,6 +597,27 @@ namespace Utilities {
 		return 0;
 	}
 
+	// https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
+    RE::TESObjectREFR* GetMenuOwner() {
+        RE::TESObjectREFR* reference = nullptr;
+        const auto ui = RE::UI::GetSingleton();
+        const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
+        const auto movie = menu ? menu->uiMovie : nullptr;
+
+        if (movie) {
+            // Parapets: "Menu_mc" is stored in the class, but it's different in VR and we haven't RE'd it yet
+            RE::GFxValue isViewingContainer;
+            movie->Invoke("Menu_mc.isViewingContainer", &isViewingContainer, nullptr, 0);
+
+            if (isViewingContainer.GetBool()) {
+                auto refHandle = menu->GetTargetRefHandle();
+                RE::TESObjectREFRPtr refr;
+                RE::LookupReferenceByHandle(refHandle, refr);
+                return refr.get();
+            }
+        }
+        return reference;
+	}
     /*int GetBoundObjectValue(RE::TESBoundObject* object) {
         if (!object) {
             Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
@@ -672,6 +712,21 @@ namespace Utilities {
             for (const auto& [formId, value] : m_Data) {
                 logger::info("Dump Row From {} - RealContainerFormID: {} - UnownedRefID: {} - FakeContainerFormID: {} - ContainerRefID: {}", GetType(),
                              formId.outerKey, formId.innerKey, value.outerKey, value.innerKey);
+            }
+            // sakat olabilir
+            logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
+        }
+    };
+
+    class BaseFormRefIDFormRefIDX : public BaseData<Types::FormRefIDX> {
+    public:
+        virtual void DumpToLog() override {
+            Locker locker(m_Lock);
+            for (const auto& [formId, value] : m_Data) {
+                logger::info(
+                    "Dump Row From {} - RealContainerFormID: {} - UnownedRefID: {} - FakeContainerFormID: {} - "
+                    "ContainerRefID: {}",
+                    GetType(), formId.outerKey, formId.innerKey, value.outerKey.id, value.innerKey);
             }
             // sakat olabilir
             logger::info("{} Rows Dumped For Type {}", m_Data.size(), GetType());
