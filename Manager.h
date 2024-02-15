@@ -800,9 +800,23 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
+            
+            // check if unownedChestOG has the fake container
+            logger::info("Checkking if fake container is in unownedChestOG");
+            auto unownedChestOG_inventory_ = unownedChestOG->GetInventory();
+            if (!unownedChestOG_inventory_.count(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id))) {
+				return RaiseMngrErr("Fake container not found in unownedChestOG");
+			}
             RemoveItemReverse(unownedChestOG, player_ref, fake_container_id, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+            logger::info("Checkking if fake container is in player's inventory");
+            auto player_inventory_ = player_ref->GetInventory();
+            if (!player_inventory_.count(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id))) {
+                return RaiseMngrErr("Fake container not found in player's inventory");
+			}
 
             auto fake_refhandle = RemoveItemReverse(player_ref, nullptr, fake_container_id, RE::ITEM_REMOVE_REASON::kDropping);
+            if (!fake_refhandle.get().get())
+                return RaiseMngrErr("Failed to remove fake container from player's inventory");
             logger::info("Updating extras");
             UpdateExtras(current_container, fake_refhandle.get().get());
             
