@@ -121,6 +121,21 @@ public:
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
 
+        // for things like horses or NPCs
+   //     if (event->menuName == RE::ContainerMenu::MENU_NAME && event->opening){
+   //         auto container_owner = Utilities::GetMenuOwner<RE::ContainerMenu>();
+   //         if (container_owner) {
+   //             logger::info("Container owner: {}", container_owner->GetName());
+   //             logger::info("Container owner refid: {}", container_owner->GetFormID());
+   //         } else {
+			//	logger::info("Container owner: unknown");
+			//}
+   //         M->listen_container_change = false;
+   //         listen_crosshair_ref = false;
+   //         M->HandleFakePlacement(container_owner);
+   //         M->listen_container_change = true;
+   //         listen_crosshair_ref = true;
+   //     }
   //      if (event->menuName == RE::ContainerMenu::MENU_NAME && event->opening) {
   //          // https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
   //          RE::TESObjectREFR* container = nullptr;

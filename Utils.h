@@ -600,10 +600,11 @@ namespace Utilities {
 	}
 
 	// https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
+    template <typename T>
     RE::TESObjectREFR* GetMenuOwner() {
         RE::TESObjectREFR* reference = nullptr;
         const auto ui = RE::UI::GetSingleton();
-        const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
+        const auto menu = ui ? ui->GetMenu<T>() : nullptr;
         const auto movie = menu ? menu->uiMovie : nullptr;
 
         if (movie) {

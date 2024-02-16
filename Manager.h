@@ -1007,22 +1007,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
     }
 
-    void RemoveEnchantment(FormID item_formid, FormID enchantment_formid){
-        auto inventory_player = player_ref->GetInventory();
-        auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
-        auto enchantment = inventory_player.find(item_obj)->second.second->GetEnchantment();
-        if (enchantment) {
-            logger::info("Enchantment: {}", enchantment->GetName());
-            // remove the enchantment from the fake container if it is carry weight boost
-            for (const auto& effect : enchantment->effects) {
-                if (effect->baseEffect->GetFormID() == enchantment_formid) {
-                    effect->effectItem.magnitude = 0;
-                }
-            }
-        }
-    }
-
-    void RemoveEnchantment(FormID item_formid, const char* enchantment_name) {
+    void RemoveCarryWeightBoost(FormID item_formid){
         auto inventory_player = player_ref->GetInventory();
         auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
         auto enchantment = inventory_player.find(item_obj)->second.second->GetEnchantment();
@@ -1031,16 +1016,14 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             // remove the enchantment from the fake container if it is carry weight boost
             for (const auto& effect : enchantment->effects) {
                 logger::info("Effect: {}", effect->baseEffect->GetName());
-                if (std::strcmp(effect->baseEffect->GetName(), enchantment_name) == 0) {
-                    effect->effectItem.magnitude = 0;
-                    logger::info("Removed enchantment: {}", enchantment_name);
+                logger::info("PrimaryAV: {}", effect->baseEffect->data.primaryAV);
+                logger::info("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
+                if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
+                    logger::info("Removing enchantment: {}", effect->baseEffect->GetName());
+                    if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
                 }
             }
         }
-    }
-
-    void RemoveCarryWeightBoost(FormID item_formid){
-		RemoveEnchantment(item_formid, "Fortify Carry Weight");
 	}
 
 #undef DISABLE_IF_NO_CURR_CONT
@@ -2011,7 +1994,7 @@ public:
 	}
 
     void Print() {
-        return;
+        
         for (const auto& src : sources) { 
             logger::info("Printing............Source formid: {}", src.formid);
             Utilities::printMap(src.data); 
