@@ -929,7 +929,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             if (!fake_cont || inventory_chest_unownedOG.find(fake_cont) == inventory_chest_unownedOG.end()) {
                 already_in_unownedchest = false;
             } 
-            else if (std::strlen(fake_cont->GetName())) {
+            else if (!std::strlen(fake_cont->GetName())) {
                 fake_cont->Copy(RE::TESForm::LookupByID<RE::TESForm>(src->formid));
                 logger::info("Fake container found in unownedchestOG with name {} and formid {}.", fake_cont->GetName(),
                 fake_cont->GetFormID());
@@ -1485,11 +1485,18 @@ public:
                 // if the fake item is in it then continue
                 auto inventory_external_cont = external_cont->GetInventory();
                 auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer[chest_ref].innerKey);
-                if (inventory_external_cont.find(fake_bound) != inventory_external_cont.end()) continue;
+                if (inventory_external_cont.find(fake_bound) == inventory_external_cont.end()) {
+                    qTRICK__(src, chest_ref, cont_ref, true);
+                    RemoveItemReverse(player_ref, external_cont, ChestToFakeContainer[chest_ref].innerKey,
+                                        RE::ITEM_REMOVE_REASON::kStoreInContainer);
+                } else if (!std::strlen(fake_bound->GetName())) {
+					logger::info("Fake container found in external container but with empty name: {}", fake_bound->GetFormID());
+                    fake_bound->Copy(RE::TESForm::LookupByID<RE::TESForm>(src.formid));
+                    qTRICK__(src, chest_ref, cont_ref);
+                    RemoveItemReverse(player_ref, external_cont, ChestToFakeContainer[chest_ref].innerKey,
+                                      RE::ITEM_REMOVE_REASON::kStoreInContainer);
+				}
 
-                qTRICK__(src, chest_ref, cont_ref, true);
-                RemoveItemReverse(player_ref, external_cont, ChestToFakeContainer[chest_ref].innerKey,
-                                    RE::ITEM_REMOVE_REASON::kStoreInContainer);
             }
         }
         listen_container_change = true;
