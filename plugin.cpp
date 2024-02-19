@@ -49,6 +49,10 @@ public:
         logger::info("Equip event.");
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
+        auto ui_ = RE::UI::GetSingleton();
+        if (!ui_->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && !ui_->IsMenuOpen(RE::FavoritesMenu::MENU_NAME))
+            return RE::BSEventNotifyControl::kContinue;
+        if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
         if (showMenu) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
         if (event->equipped) {
