@@ -28,6 +28,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     //std::unordered_set<RefID> handled_external_conts; // runtime specific
     std::map<FormID,bool> is_equipped; // runtime specific and used by handlecrafting
     std::map<FormID, bool> is_faved;  // runtime specific and used by handlecrafting
+    std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
 
 
     // private functions
@@ -949,12 +950,22 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     
     }
 
-    bool IsFaved(RE::TESBoundObject* item) {
-        auto inventory = player_ref->GetInventory();
+    bool IsFaved(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+        if (!item) {
+            RaiseMngrErr("Item is null");
+            return false;
+        }
+        if (!inventory_owner) {
+            RaiseMngrErr("Inventory owner is null");
+            return false;
+        }
+        auto inventory = inventory_owner->GetInventory();
         auto it = inventory.find(item);
         if (it != inventory.end()) return it->second.second->IsFavorited();
         return false;
     }
+
+    bool IsFaved(RE::TESBoundObject* item) {return IsFaved(item, player_ref);}
 
     bool IsEquipped(RE::TESBoundObject* item) {
 		auto inventory = player_ref->GetInventory();
@@ -963,18 +974,32 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         return false;
     }
 
-    void FaveItem(RE::TESBoundObject* item) {
+    void FaveItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
 		if (!item) return RaiseMngrErr("Item is null");
-        auto inventory_changes = player_ref->GetInventoryChanges();
+        if (!inventory_owner) return RaiseMngrErr("Inventory owner is null");
+        auto inventory_changes = inventory_owner->GetInventoryChanges();
         auto entries = inventory_changes->entryList;
         for (auto it = entries->begin(); it != entries->end(); ++it) {
             auto formid = (*it)->object->GetFormID();
             if (formid == item->GetFormID()) {
-				inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+                logger::info("Favoriting item: {}", item->GetName());
+                bool no_extra_ = (*it)->extraLists->empty();
+                logger::info("asdasd");
+                if (no_extra_) {
+                    logger::info("No extraLists");
+                    inventory_changes->SetFavorite((*it), nullptr);
+                } else {
+                    logger::info("ExtraLists found");
+                    inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+                }
 				return;
 			}
         }
 	}
+
+    void FaveItem(RE::TESBoundObject* item) {
+        FaveItem(item, player_ref);
+    }
 
     void EquipItem(RE::TESBoundObject* item, bool unequip=false) {
         if (!item) return RaiseMngrErr("Item is null");
@@ -1217,9 +1242,15 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         // doing the trick for registering/creating the fake container
         if (execute_trick) {
             src.data[chest_ref] = real_refhandle.get()->GetFormID();
-            
+            auto old_fakeid = ChestToFakeContainer[chest_ref].innerKey; // for external_favs
             HandleRegistration(real_refhandle.get().get());  // sets current_container, creates the fake with the
                                                              // chest link and puts it in unownedchestOG
+            // if old_fakeid is in external_favs, we need to update it with new fakeid
+            auto it = std::find(external_favs.begin(), external_favs.end(), old_fakeid);
+            if (it != external_favs.end()) {
+				external_favs.erase(it);
+				external_favs.push_back(ChestToFakeContainer[chest_ref].innerKey);
+			}
             
         }
         auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // the new one (execute_trick)
@@ -1231,6 +1262,16 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
         UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
         player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
+        // fave it if it is in external_favs
+        logger::info("Fave");
+        auto it = std::find(external_favs.begin(), external_favs.end(), fake_formid);
+        auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+        if (it != external_favs.end()) {
+            logger::info("Faving");
+            FaveItem(fake_bound);
+        }
+        // Remove carry weight boost if it has
+        if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid);
         // I do this bcs I changed it above
         if (execute_trick) src.data[chest_ref] = cont_ref;
     }
@@ -1489,7 +1530,8 @@ public:
                     qTRICK__(src, chest_ref, cont_ref, true);
                     RemoveItemReverse(player_ref, external_cont, ChestToFakeContainer[chest_ref].innerKey,
                                         RE::ITEM_REMOVE_REASON::kStoreInContainer);
-                } else if (!std::strlen(fake_bound->GetName())) {
+                } 
+                else if (!std::strlen(fake_bound->GetName())) {
 					logger::info("Fake container found in external container but with empty name: {}", fake_bound->GetFormID());
                     fake_bound->Copy(RE::TESForm::LookupByID<RE::TESForm>(src.formid));
                     qTRICK__(src, chest_ref, cont_ref);
@@ -1563,6 +1605,12 @@ public:
         // add it to handled_external_conts
         //handled_external_conts.insert(externalcontainer);
 
+        // if successfully transferred to the external container, check if the fake container is faved
+        if (src->data[chest_refid] != chest_refid &&
+            IsFaved(RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontainer), external_ref))
+            logger::info("Faved item successfully transferred to external container.");
+            external_favs.push_back(fakecontainer);
+
 
         listen_container_change = true;
 
@@ -1582,6 +1630,10 @@ public:
 
         // remove it from handled_external_conts
         //handled_external_conts.erase(externalcontainer);
+
+        // remove it from external_favs
+        auto it = std::find(external_favs.begin(), external_favs.end(), fake_container_formid);
+        if (it != external_favs.end()) external_favs.erase(it);
 
         logger::info("Unlinked external container.");
     }
@@ -1740,6 +1792,7 @@ public:
 			src.data.clear();
 		}
         ChestToFakeContainer.clear(); // we will update this in ReceiveData
+        external_favs.clear(); // we will update this in ReceiveData
         Clear();
         //handled_external_conts.clear();
         current_container = nullptr;
@@ -1775,7 +1828,13 @@ public:
                             break;
                         }
                     }*/
-				}
+                } 
+                // check if the fake container is faved in an external container
+                else {
+                    auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;
+                    auto it = std::find(external_favs.begin(), external_favs.end(), fake_formid);
+                    if (it != external_favs.end()) is_favorited_x = true;
+                }
                 FormIDX fake_container_x(ChestToFakeContainer[chest_ref].innerKey, is_equipped_x, is_favorited_x, "");
                 SetData({src.formid, chest_ref}, {fake_container_x, cont_ref});
 			}
@@ -1894,9 +1953,8 @@ public:
                                         "ChestToFakeContainer.",
                                         chestRef, realcontForm, fakecontForm.id));
                     }
-                    if (chestRef == contRef) {
-                        chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
-					}
+                    if (chestRef == contRef) chest_equipped_fav[chestRef] = {fakecontForm.equipped, fakecontForm.favorited};
+                    else if (fakecontForm.favorited) external_favs.push_back(fakecontForm.id);
                     no_match = false;
                     break;
                 }
@@ -1957,7 +2015,6 @@ public:
         for (auto it = entries->begin(); it != entries->end(); ++it){
             auto fake_formid = (*it)->object->GetFormID();
             if (IsFakeContainer(fake_formid)) {
-                if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid);
                 bool is_equipped_x = chest_equipped_fav[GetFakeContainerChest(fake_formid)].first;
                 bool is_faved_x = chest_equipped_fav[GetFakeContainerChest((*it)->object->GetFormID())].second;
                 if (is_equipped_x) {
@@ -1968,7 +2025,8 @@ public:
 				}
                 if (is_faved_x) {
                     logger::info("Favoriting fake container with formid {}", fake_formid);
-                    inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+                    FaveItem((*it)->object);
+                    //inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
                 }
 			}
         }
@@ -2003,8 +2061,10 @@ public:
     void Print() {
         
         for (const auto& src : sources) { 
-            logger::info("Printing............Source formid: {}", src.formid);
-            Utilities::printMap(src.data); 
+            if (!src.data.empty()) {
+                logger::info("Printing............Source formid: {}", src.formid);
+                Utilities::printMap(src.data); 
+            }
         }
         for (const auto& [chest_ref, cont_ref] : ChestToFakeContainer) {
 			logger::info("Chest refid: {}, Real container formid: {}, Fake container formid: {}", chest_ref, cont_ref.outerKey, cont_ref.innerKey);
