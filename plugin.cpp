@@ -47,13 +47,13 @@ public:
 
 
     RE::BSEventNotifyControl ProcessEvent(const RE::TESEquipEvent* event, RE::BSTEventSource<RE::TESEquipEvent>*) {
-        logger::info("Equip event.");
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
         
         if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
-        fake_equipped_id = event->baseObject;
+        if (event->equipped) fake_equipped_id = event->baseObject;
+        else fake_equipped_id = 0;
 
         if (showMenu) return RE::BSEventNotifyControl::kContinue;
         
@@ -289,12 +289,12 @@ public:
 
         // from player inventory ->
         if (event->oldContainer == 20) {
-            logger::info("Something left player inventory.");
             // a fake container left player inventory
             if (M->IsFakeContainer(event->baseObj)) {
                 logger::info("Fake container left player inventory.");
                 // drop event
                 if (!event->newContainer) {
+                    auto swapped = false;
                     logger::info("Dropped fake container.");
                     RE::TESObjectREFR* ref =
                         RE::TESForm::LookupByID<RE::TESObjectREFR>(event->reference.native_handle());
@@ -310,7 +310,11 @@ public:
                                 if (!M->SwapDroppedFakeContainer(ref_.get())) {
 						            logger::error("Failed to swap fake container.");
                                     return RE::BSEventNotifyControl::kContinue;
-					            } else logger::info("Swapped fake container.");
+                                } 
+                                else {
+                                    logger::info("Swapped fake container.");
+                                    swapped = true;
+                                }
                                 break;
                             }
 			            }
@@ -321,7 +325,17 @@ public:
                     } 
                     else {
                         logger::info("Swapped fake container.");
+                        swapped = true;
                         M->Print();
+                    }
+                    // consumed
+                    if (!swapped && event->baseObj==fake_equipped_id) {
+                        logger::info("new container: {}", event->newContainer);
+                        logger::info("old container: {}", event->oldContainer);
+                        logger::info("Sending to handle consume.");
+                        fake_equipped_id = 0;
+                        equipped = false;
+                        M->HandleConsume(event->baseObj);
                     }
                 }
                 // Barter transfer
@@ -349,15 +363,6 @@ public:
             else if (M->IsChest(event->newContainer) && listen_weight_limit) M->InspectItemTransfer();
         }
 
-        // consumed
-        if (M->IsFakeContainer(event->baseObj) && event->baseObj==fake_equipped_id && !event->newContainer) {
-            logger::info("new container: {}", event->newContainer);
-            logger::info("old container: {}", event->oldContainer);
-            logger::info("Sending to handle consume.");
-            fake_equipped_id = 0;
-            equipped = false;
-            M->HandleConsume(event->baseObj);
-        }
 
 
         return RE::BSEventNotifyControl::kContinue;
