@@ -280,7 +280,6 @@ public:
                     M->Print();
                 }
             } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
-                logger::info("Unlinking external container.");
                 M->UnLinkExternalContainer(event->baseObj, event->oldContainer);
                 M->Print();
             }
@@ -291,14 +290,11 @@ public:
         if (event->oldContainer == 20) {
             // a fake container left player inventory
             if (M->IsFakeContainer(event->baseObj)) {
-                logger::info("Fake container left player inventory.");
                 // drop event
                 if (!event->newContainer) {
                     auto swapped = false;
-                    logger::info("Dropped fake container.");
                     RE::TESObjectREFR* ref =
                         RE::TESForm::LookupByID<RE::TESObjectREFR>(event->reference.native_handle());
-                    if (ref) logger::info("Dropped ref name: {}", ref->GetBaseObject()->GetName());
                     if (!M->IsFakeContainer(ref)) {
                         // iterate through all objects in the cell................
                         logger::info("Iterating through all references in the cell.");
@@ -306,13 +302,11 @@ public:
                         auto cell_runtime_data = player_cell->GetRuntimeData();
                         for (auto& ref_ : cell_runtime_data.references) {
                             if (M->IsFakeContainer(ref_.get()) && ref_.get()->GetBaseObject()->GetFormID()==event->baseObj) {
-                                logger::info("Dropped fake container with ref id {}.", ref_->GetFormID());
                                 if (!M->SwapDroppedFakeContainer(ref_.get())) {
 						            logger::error("Failed to swap fake container.");
                                     return RE::BSEventNotifyControl::kContinue;
                                 } 
                                 else {
-                                    logger::info("Swapped fake container.");
                                     swapped = true;
                                 }
                                 break;
@@ -330,8 +324,6 @@ public:
                     }
                     // consumed
                     if (!swapped && event->baseObj==fake_equipped_id) {
-                        logger::info("new container: {}", event->newContainer);
-                        logger::info("old container: {}", event->oldContainer);
                         logger::info("Sending to handle consume.");
                         fake_equipped_id = 0;
                         equipped = false;
@@ -350,7 +342,6 @@ public:
                 else if (RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
                     logger::info("Container transfer.");
             	    // need to register the container: chestrefid -> thiscontainerrefid
-                    logger::info("Container menu is open.");
                     M->LinkExternalContainer(event->baseObj, event->newContainer);
                     M->Print();
                 }

@@ -749,7 +749,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     void PromptInterface() {
         DISABLE_IF_NO_CURR_CONT
         // get the source corresponding to the container that we are activating
-        logger::info("Getting container source");
         auto src = GetContainerSource(current_container->GetBaseObject()->GetFormID());
         if (!src) return RaiseMngrErr("Could not find source for container");
         
@@ -796,20 +795,17 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
             // if we already had created a fake container for this chest, then we just add it to the player's inventory
             if (!ChestToFakeContainer.count(chest_refid)) return RaiseMngrErr("Chest refid not found in ChestToFakeContainer, i.e. sth must have gone wrong during new form creation.");
-            logger::info("Fake container formid found in ChestToFakeContainer");
             // it must be in the unownedchestOG
             if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
             
             // check if unownedChestOG has the fake container
-            logger::info("Checkking if fake container is in unownedChestOG");
             auto unownedChestOG_inventory_ = unownedChestOG->GetInventory();
             if (!unownedChestOG_inventory_.count(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id))) {
 				return RaiseMngrErr("Fake container not found in unownedChestOG");
 			}
             RemoveItemReverse(unownedChestOG, player_ref, fake_container_id, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-            logger::info("Checkking if fake container is in player's inventory");
             auto player_inventory_ = player_ref->GetInventory();
             if (!player_inventory_.count(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id))) {
                 return RaiseMngrErr("Fake container not found in player's inventory");
@@ -894,7 +890,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         current_container = a_container;
 
         // get the source corresponding to the container that we are activating
-        logger::info("Getting container source");
         auto src = GetContainerSource(a_container->GetBaseObject()->GetFormID());
         if (!src) return RaiseMngrErr("Could not find source for container");
 
@@ -939,12 +934,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 logger::info("Fake container NOT found in unownedchestOG");
                 auto real_container_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(src->formid);
                 auto fakeid = CreateFakeContainer(real_container_obj, nullptr);
-                // load game den dolayi
-                logger::info("ChestToFakeContainer (chest refid: {}) before: {}", chest_ref,
-                             ChestToFakeContainer[chest_ref].innerKey);
                 ChestToFakeContainer[chest_ref].innerKey = fakeid;
-                logger::info("ChestToFakeContainer (chest refid: {}) after: {}", chest_ref,
-                    							 ChestToFakeContainer[chest_ref].innerKey);
             }
 		}
     
@@ -982,14 +972,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         for (auto it = entries->begin(); it != entries->end(); ++it) {
             auto formid = (*it)->object->GetFormID();
             if (formid == item->GetFormID()) {
-                logger::info("Favoriting item: {}", item->GetName());
                 bool no_extra_ = (*it)->extraLists->empty();
-                logger::info("asdasd");
                 if (no_extra_) {
-                    logger::info("No extraLists");
                     inventory_changes->SetFavorite((*it), nullptr);
                 } else {
-                    logger::info("ExtraLists found");
                     inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
                 }
 				return;
@@ -1040,9 +1026,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             logger::info("Enchantment: {}", enchantment->GetName());
             // remove the enchantment from the fake container if it is carry weight boost
             for (const auto& effect : enchantment->effects) {
-                logger::info("Effect: {}", effect->baseEffect->GetName());
-                logger::info("PrimaryAV: {}", effect->baseEffect->data.primaryAV);
-                logger::info("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
                 if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
                     logger::info("Removing enchantment: {}", effect->baseEffect->GetName());
                     if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
@@ -1263,11 +1246,9 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         UpdateFakeWV(fake_refhandle.get()->GetObjectReference(), chest);
         player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, false);
         // fave it if it is in external_favs
-        logger::info("Fave");
         auto it = std::find(external_favs.begin(), external_favs.end(), fake_formid);
         auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
         if (it != external_favs.end()) {
-            logger::info("Faving");
             FaveItem(fake_bound);
         }
         // Remove carry weight boost if it has
@@ -1641,8 +1622,6 @@ public:
         // remove it from external_favs
         auto it = std::find(external_favs.begin(), external_favs.end(), fake_container_formid);
         if (it != external_favs.end()) external_favs.erase(it);
-
-        logger::info("Unlinked external container.");
     }
 
     void HandleSell(const FormID fake_container, const RefID sell_refid) {
