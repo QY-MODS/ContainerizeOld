@@ -12,7 +12,8 @@ bool block_droptake = false;
 bool tus_basili = false;
 bool equipped = false;
 bool showMenu = false;
-FormID fake_id;
+FormID fake_id; // set in equip event
+FormID fake_equipped_id; // set in equip event and used in container event (consume)
 
 RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
 
@@ -49,12 +50,17 @@ public:
         logger::info("Equip event.");
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
+        if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
+        
+        if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
+        fake_equipped_id = event->baseObject;
+
+        if (showMenu) return RE::BSEventNotifyControl::kContinue;
+        
         auto ui_ = RE::UI::GetSingleton();
         if (!ui_->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && !ui_->IsMenuOpen(RE::FavoritesMenu::MENU_NAME))
             return RE::BSEventNotifyControl::kContinue;
-        if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
-        if (showMenu) return RE::BSEventNotifyControl::kContinue;
-        if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
+        
         if (event->equipped) {
 	        logger::info("Item {} was equipped. equipped: {}", event->baseObject,equipped);
         } else {
@@ -344,12 +350,14 @@ public:
         }
 
         // consumed
-        /*if (M->IsFakeContainer(event->baseObj) && !event->newContainer){
+        if (M->IsFakeContainer(event->baseObj) && event->baseObj==fake_equipped_id && !event->newContainer) {
             logger::info("new container: {}", event->newContainer);
             logger::info("old container: {}", event->oldContainer);
             logger::info("Sending to handle consume.");
+            fake_equipped_id = 0;
+            equipped = false;
             M->HandleConsume(event->baseObj);
-		}*/
+        }
 
 
         return RE::BSEventNotifyControl::kContinue;
