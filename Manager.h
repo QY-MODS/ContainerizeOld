@@ -529,7 +529,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         UpdateExtras(copy_from_extralist, copy_to_extralist);
     }
 
-    void UpdateExtras(RE::InventoryEntryData* copy_from, RE::InventoryEntryData* copy_to) {
+    /*void UpdateExtras(RE::InventoryEntryData* copy_from, RE::InventoryEntryData* copy_to) {
         auto extralists_from = copy_from->extraLists;
         if (extralists_from->empty()) return;
         auto extralists_to = copy_to->extraLists;
@@ -537,8 +537,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             auto empty_extralist = new RE::ExtraDataList();
             copy_to->AddExtraList(empty_extralist);
         }
-        
-    }
+    }*/
 
     int GetChestValue(RE::TESObjectREFR* a_chest) {
 		auto chest_inventory = a_chest->GetInventory();
@@ -691,12 +690,9 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         
         ref->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
 
-        listen_container_change = false;
-        player_ref->As<RE::Actor>()->PickUpObject(ref, 1, false, false);
+        if (!PickUpItem(ref)) return RaiseMngrErr("RemoveObject:Failed to pick up item.");
         RemoveItemReverse(player_ref, move2container, ref->GetBaseObject()->GetFormID(),
                           RE::ITEM_REMOVE_REASON::kStoreInContainer);
-
-        listen_container_change = true;
     }
 
     void RemoveAllItemsFromChest(RE::TESObjectREFR* chest, bool transfer2player = true) {
@@ -818,29 +814,17 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
-            
-            // check if unownedChestOG has the fake container
-            logger::info("Checkking if fake container is in unownedChestOG");
-            auto unownedChestOG_inventory_ = unownedChestOG->GetInventory();
-            if (!unownedChestOG_inventory_.count(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id))) {
-				return RaiseMngrErr("Fake container not found in unownedChestOG");
-			}
-            RemoveItemReverse(unownedChestOG, player_ref, fake_container_id, RE::ITEM_REMOVE_REASON::kStoreInContainer);
-            logger::info("Checkking if fake container is in player's inventory");
-            auto player_inventory_ = player_ref->GetInventory();
-            if (!player_inventory_.count(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id))) {
-                return RaiseMngrErr("Fake container not found in player's inventory");
-			}
 
-            auto fake_refhandle = RemoveItemReverse(player_ref, nullptr, fake_container_id, RE::ITEM_REMOVE_REASON::kDropping);
-            if (!fake_refhandle.get().get())
-                return RaiseMngrErr("Failed to remove fake container from player's inventory");
+            auto fake_refhandle = RemoveItemReverse(unownedChestOG, nullptr, fake_container_id, RE::ITEM_REMOVE_REASON::kDropping);
+            if (!fake_refhandle.get().get()) return RaiseMngrErr("Failed to remove fake container from unownedChestOG");
             logger::info("Updating extras");
             UpdateExtras(current_container, fake_refhandle.get().get());
+            // update weight and value
+            auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
+            if (!fake_cont) return RaiseMngrErr("Fake container not found");
+            UpdateFakeWV(fake_cont, chest);
             
-            listen_container_change = false;
-            player_ref->As<RE::Actor>()->PickUpObject(fake_refhandle.get().get(), 1, false, true);
-            listen_container_change = true;
+            if (!PickUpItem(fake_refhandle.get().get())) return RaiseMngrErr("Failed to pick up fake container");
 
             // Update chest link (container is in inventory now so we replace the old refid with the chest refid -> {chestrefid:chestrefid})
             auto src = GetContainerSource(curr_container_base->GetFormID());
@@ -849,10 +833,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             // Send the original container from the world to the linked chest
             RemoveObject(current_container, chest);
 
-            // update weight and value
-            auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
-            if (!fake_cont) return RaiseMngrErr("Fake container not found");
-            UpdateFakeWV(fake_cont, chest);
 
 
             if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id);
@@ -1049,6 +1029,38 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 return;
             }
         }
+    }
+
+    [[nodiscard]] bool PickUpItem(RE::TESObjectREFR* item, unsigned int max_try = 3,
+                    RE::Actor* actor = RE::PlayerCharacter::GetSingleton()->As<RE::Actor>()) {
+        listen_container_change = false;
+        RE::TESObjectREFR::InventoryItemMap actor_inventory;
+        unsigned int i = 0;
+        auto item_bound = item->GetBaseObject();
+        if (!item_bound) {
+            logger::warn("Item bound is null");
+            return false;
+        }
+        while (i < max_try) {
+            if (!item) {
+                logger::warn("Item is null");
+				return false;
+            }
+            if (!actor) {
+                logger::warn("Actor is null");
+                return false;
+            }
+			actor->PickUpObject(item, 1, false, false);
+            actor_inventory = actor->GetInventory();
+            if (actor_inventory.find(item_bound) != actor_inventory.end()) {
+            	logger::info("Item picked up. Took {} tries.", i);
+                listen_container_change = true;
+                return true;
+            }
+			i++;
+		}
+        listen_container_change = true;
+        return false;
     }
 
     void RemoveCarryWeightBoost(FormID item_formid){
@@ -1265,7 +1277,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         if (!real_bound) return RaiseMngrErr("Real bound not found");
 
         auto real_refhandle = RemoveItemReverse(chest, nullptr, src.formid, RE::ITEM_REMOVE_REASON::kDropping);
-        if (!real_refhandle.get()) return RaiseMngrErr("Real refhandle is null.");
+        if (!real_refhandle) return RaiseMngrErr("Real refhandle is null.");
         // doing the trick for registering/creating the fake container
         if (execute_trick) {
             logger::info("Executing trick");
@@ -1298,25 +1310,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         logger::info("Updating FakeWV");
         UpdateFakeWV(fake_bound, chest);
         
-        player_actor->PickUpObject(real_refhandle.get().get(), 1, false, false);
-        logger::info("Possibly problematic pickup");
-        if (!fake_refhandle.get().get()) return RaiseMngrErr("Fake refhandle is null.");
-        player_actor->PickUpObject(fake_ref, 1, false, false);
-        logger::info("Didnt cause crash...");
-
-        auto player_inventory = player_ref->GetInventory();
-        logger::info("Checking if fake container is in player's inventory");
-        if (player_inventory.find(real_bound) == player_inventory.end()) return RaiseMngrErr("Real container not found in player's inventory");
-        if (!fake_bound) return RaiseMngrErr("Fake bound not found");
-        if (fake_bound->GetFormID() != fake_formid) return RaiseMngrErr("Fake bound formid does not match");
-        /*if (player_inventory.find(fake_bound) == player_inventory.end()) return RaiseMngrErr("Fake container not found in player's inventory");*/
-        if (player_inventory.find(fake_bound) == player_inventory.end()) {
-            logger::info("Fake container not found in player's inventory. Picking up again...");
-            player_actor->PickUpObject(fake_ref, 1, false, false);
-            player_inventory = player_ref->GetInventory();
-            if (player_inventory.find(fake_bound) == player_inventory.end()) return RaiseMngrErr("Fake container not found in player's inventory");
-        }
-            
+        logger::info("Picking up real");
+        if (!PickUpItem(real_refhandle.get().get())) return RaiseMngrErr("Failed to pick up real container");
+        logger::info("Picking up fake");
+        if (!PickUpItem(fake_ref)) return RaiseMngrErr("Failed to pick up fake container");
         
         RemoveItemReverse(player_ref, chest, src.formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
         auto chest_inventory = chest->GetInventory();
