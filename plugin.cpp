@@ -12,7 +12,7 @@ bool block_droptake = false;
 bool tus_basili = false;
 bool equipped = false;
 bool showMenu = false;
-FormID fake_id; // set in equip event
+FormID fake_id_; // set in equip event
 FormID fake_equipped_id; // set in equip event and used in container event (consume)
 
 RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
@@ -66,7 +66,7 @@ public:
         } else {
             logger::info("Item {} was unequipped. equipped: {}", event->baseObject, equipped);
         }
-        fake_id = event->baseObject;
+        fake_id_ = event->baseObject;
         equipped = true;
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -178,9 +178,9 @@ public:
             logger::info("Inventory menu closed.");
             equipped = false;
             logger::info("Reverting equip...");
-            M->RevertEquip(fake_id);
+            M->RevertEquip(fake_id_);
             logger::info("Reverted equip.");
-            M->ActivateContainer(fake_id,true);
+            M->ActivateContainer(fake_id_, true);
 
             //auto msgQ = RE::UIMessageQueue::GetSingleton();
             //msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
@@ -197,7 +197,7 @@ public:
         else if (event->menuName == RE::ContainerMenu::MENU_NAME && !event->opening && showMenu) {
             logger::info("Container menu closed.");
             showMenu = false;
-            M->UnHideReal(fake_id);
+            M->UnHideReal(fake_id_);
             /*const auto ui = RE::UI::GetSingleton();
             const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
             menu->menuFlags.set(RE::UI_MENU_FLAGS::kPausesGame);*/
