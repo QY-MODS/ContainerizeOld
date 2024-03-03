@@ -855,7 +855,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     void MsgBoxCallbackMore(int result) {
-        logger::info("More");
+        logger::info("More. Result: {}", result);
 
         if (result != 0 && result != 1 && result != 2) return;
 
