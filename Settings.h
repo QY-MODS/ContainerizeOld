@@ -59,17 +59,18 @@ namespace Settings {
         };
 
 
-    const std::array<std::string, 2> os_comments =
+    const std::array<std::string, 3> os_comments =
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
+        "; Set to true to return to the the initial menu after closing your container's menu (which you had opened by holding equip).",
 		};
 
    
     constexpr std::uint32_t kSerializationVersion = 729;
     constexpr std::uint32_t kDataKey = 'CTRZ';
 
-    constexpr std::array<const char*, 2> otherstuffKeys = {"INI_changed_msg", "RemoveCarryBoosts"};
-    constexpr std::array<bool, 2> otherstuffVals = {true, false};
+    constexpr std::array<const char*, 3> otherstuffKeys = {"INI_changed_msg", "RemoveCarryBoosts", "ReturnToInitialMenu"};
+    constexpr std::array<bool, 3> otherstuffVals = {true, false,false};
 
     std::vector<Source> LoadINISources() {
         
@@ -109,6 +110,7 @@ namespace Settings {
         if (!ini.SectionExists(InISections[2])) {
             ini.SetBoolValue(InISections[2], otherstuffKeys[0], true, os_comments[0].c_str());
             ini.SetBoolValue(InISections[2], otherstuffKeys[1], false, os_comments[1].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[2], false, os_comments[2].c_str());
             logger::info("Default values set for section {}", InISections[2]);
         }
 
@@ -186,21 +188,27 @@ namespace Settings {
 			logger::warn("No other settings found in the ini file. Using defaults.");
             ini.SetBoolValue(InISections[2], otherstuffKeys[0], true);
             ini.SetBoolValue(InISections[2], otherstuffKeys[1], false);
+            ini.SetBoolValue(InISections[2], otherstuffKeys[2], false);
         } else if (numOthers != otherstuffKeys.size()) {
 			logger::warn("Invalid number of other settings found in the ini file. Using defaults.");
 			ini.SetBoolValue(InISections[2], otherstuffKeys[0], true);
 			ini.SetBoolValue(InISections[2], otherstuffKeys[1], false);
+            ini.SetBoolValue(InISections[2], otherstuffKeys[2], false);
 		}
 
         bool val1;
         bool val2;
+        bool val3;
         // other stuff section
         val1 = ini.GetBoolValue(InISections[2], otherstuffKeys[0]);
         ini.SetBoolValue(InISections[2], otherstuffKeys[0], val1, os_comments[0].c_str());
         val2 = ini.GetBoolValue(InISections[2], otherstuffKeys[1]);
         ini.SetBoolValue(InISections[2], otherstuffKeys[1], val2, os_comments[1].c_str());
+        val3 = ini.GetBoolValue(InISections[2], otherstuffKeys[2]);
+        ini.SetBoolValue(InISections[2], otherstuffKeys[2], val3, os_comments[2].c_str());
         others[otherstuffKeys[0]] = val1;
         others[otherstuffKeys[1]] = val2;
+        others[otherstuffKeys[2]] = val3;
 
         ini.SaveFile(path);
 

@@ -9,14 +9,16 @@ bool furniture_entered = false;
 bool block_eventsinks = false;
 bool block_droptake = false;
 
-bool tus_basili = false;
+// 1) Enables input event check
 bool equipped = false;
-bool showMenu = false;
+// 2) set in input event if equip is held
+RE::BSFixedString ReShowMenu = "";
+
 FormID fake_id_; // set in equip event
-FormID fake_equipped_id; // set in equip event and used in container event (consume)
+FormID fake_equipped_id; // set in equip event only when equipped and used in container event (consume)
+RefID external_container_refid = 0;  // set in input event
 
 RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
-
 
 //enum class MenuFlagEx : std::uint32_t {
 //    kUnpaused = 1 << 28,
@@ -52,14 +54,15 @@ public:
         if (!event->actor->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
         
         if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
-        if (event->equipped) fake_equipped_id = event->baseObject;
-        else fake_equipped_id = 0;
 
-        if (showMenu) return RE::BSEventNotifyControl::kContinue;
+        fake_equipped_id = event->equipped ? event->baseObject : 0;
+        logger::info("Fake container equipped: {}", fake_equipped_id);
+
+        if (!ReShowMenu.empty()) return RE::BSEventNotifyControl::kContinue;
         
         auto ui_ = RE::UI::GetSingleton();
-        if (!ui_->IsMenuOpen(RE::InventoryMenu::MENU_NAME) && !ui_->IsMenuOpen(RE::FavoritesMenu::MENU_NAME))
-            return RE::BSEventNotifyControl::kContinue;
+        if (!(ui_->IsMenuOpen(RE::InventoryMenu::MENU_NAME) || ui_->IsMenuOpen(RE::FavoritesMenu::MENU_NAME) ||
+              ui_->IsMenuOpen(RE::ContainerMenu::MENU_NAME))) return RE::BSEventNotifyControl::kContinue;
         
         if (event->equipped) {
 	        logger::info("Item {} was equipped. equipped: {}", event->baseObject,equipped);
@@ -99,6 +102,9 @@ public:
         if (!event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
         if (event->crosshairRef->extraList.GetCount()>1) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
+
+        // prevent player to catch it in the air
+        if (M->IsFakeContainer(event->crosshairRef.get())) event->crosshairRef->SetActivationBlocked(1);
 
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             
@@ -173,8 +179,7 @@ public:
   //          }
 		//}
 
-        if ((event->menuName == RE::InventoryMenu::MENU_NAME || event->menuName == RE::FavoritesMenu::MENU_NAME) &&
-            !event->opening && showMenu) {
+        if (equipped && event->menuName == ReShowMenu && !event->opening) {
             logger::info("Inventory menu closed.");
             equipped = false;
             logger::info("Reverting equip...");
@@ -182,37 +187,57 @@ public:
             logger::info("Reverted equip.");
             M->ActivateContainer(fake_id_, true);
 
-            //auto msgQ = RE::UIMessageQueue::GetSingleton();
-            //msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
-            //if (auto container_menu = RE::UI::GetSingleton()->GetMenu(RE::ContainerMenu::MENU_NAME)) {
+            // auto msgQ = RE::UIMessageQueue::GetSingleton();
+            // msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
+            // if (auto container_menu = RE::UI::GetSingleton()->GetMenu(RE::ContainerMenu::MENU_NAME)) {
             //    container_menu->depthPriority = 3;
             //};
-            //if (!RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+
+            // if (!RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
             //    //msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
             //    container_menu->uiMovie->SetVisible(true);
             //}
-                
-
         }
-        else if (event->menuName == RE::ContainerMenu::MENU_NAME && !event->opening && showMenu) {
+
+        else if(event->menuName == RE::ContainerMenu::MENU_NAME && !event->opening && !ReShowMenu.empty()) {
             logger::info("Container menu closed.");
-            showMenu = false;
             M->UnHideReal(fake_id_);
+            if (ReShowMenu == RE::ContainerMenu::MENU_NAME && !external_container_refid) {
+                logger::warn("External container refid is 0.");
+            }
+            if (ReShowMenu != RE::ContainerMenu::MENU_NAME && external_container_refid) {
+			    logger::warn("ReShowMenu is not ContainerMenu.");
+            }
+            if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
+                M->RevertEquip(fake_id_, external_container_refid);
+            }
+            if (M->_other_settings[Settings::otherstuffKeys[2]]) {
+                if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
+                    if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
+                        auto a_objref = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_refid);
+                        auto a_obj = a_objref ? a_objref->GetBaseObject()->As<RE::TESObjectCONT>() : nullptr;
+                        if (a_obj) a_obj->Activate(a_objref, RE::PlayerCharacter::GetSingleton(), 0, a_obj, 1);
+                    
+                    } 
+                    else queue->AddMessage(ReShowMenu, RE::UI_MESSAGE_TYPE::kShow, nullptr);
+			    }
+            }
+            external_container_refid = 0;
+            ReShowMenu = "";
             /*const auto ui = RE::UI::GetSingleton();
             const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
             menu->menuFlags.set(RE::UI_MENU_FLAGS::kPausesGame);*/
         }
 
 
-
         if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
         if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
-
         if (event->opening) {
             listen_weight_limit = true;
         } else {
             listen_weight_limit = false;
 			M->listen_menuclose = false;
+            logger::info("listen_menuclose: {}", M->listen_menuclose);
         }
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -265,17 +290,18 @@ public:
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
         if (furniture_entered) return RE::BSEventNotifyControl::kContinue;
-        if (!event->itemCount || event->itemCount > 1) return RE::BSEventNotifyControl::kContinue;
+        if (!event->itemCount) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
 
         // to player inventory <-
         if (event->newContainer == 20) {
-
-            if (M->IsRealContainer(event->baseObj) && M->RealContainerHasRegistry(event->baseObj)) {
+            if (event->itemCount == 1 && M->IsRealContainer(event->baseObj) &&
+                M->RealContainerHasRegistry(event->baseObj)) {
                 auto reference_ = event->reference;
                 if (!block_droptake && M->IsARegistry(reference_.native_handle())) {
                     // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
                     logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
+                    logger::info("Dropped item native_handle: {}", reference_.native_handle());
                     M->DropTake(event->baseObj, reference_.native_handle());
                     M->Print();
                 }
@@ -360,7 +386,7 @@ public:
                 }
 		    }
             // check if container has enough capacity
-            else if (M->IsChest(event->newContainer) && listen_weight_limit) M->InspectItemTransfer();
+            else if (M->IsChest(event->newContainer) && listen_weight_limit) M->InspectItemTransfer(event->newContainer);
         }
 
 
@@ -371,8 +397,7 @@ public:
     RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* evns, RE::BSTEventSource<RE::InputEvent*>*) {
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!*evns) return RE::BSEventNotifyControl::kContinue;
-        if (!equipped) return RE::BSEventNotifyControl::kContinue;
-        if (showMenu) return RE::BSEventNotifyControl::kContinue;
+        if (!equipped) return RE::BSEventNotifyControl::kContinue; // this also ensures that we have only the menus we want
 
         for (RE::InputEvent* e = *evns; e; e = e->next) {
             if (e->eventType.get() == RE::INPUT_EVENT_TYPE::kButton) {
@@ -390,24 +415,29 @@ public:
                                 logger::info("User event not accepted.");
                                 continue;
                             }
-                        if (RE::UI::GetSingleton()->IsMenuOpen(RE::InventoryMenu::MENU_NAME)) {
                             if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
-                                showMenu = true;
-                                queue->AddMessage(RE::TweenMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
-                                queue->AddMessage(RE::InventoryMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+                                auto ui = RE::UI::GetSingleton();
+                                RefID refHandle = 0;
+                                if (ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)) {
+                                    ReShowMenu = RE::InventoryMenu::MENU_NAME;
+                                    queue->AddMessage(RE::TweenMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+                                } 
+                                else if (ui->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) ReShowMenu = RE::FavoritesMenu::MENU_NAME;
+                                else if (ui->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
+                                    ReShowMenu = RE::ContainerMenu::MENU_NAME;
+                                    const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
+                                    refHandle = menu ? menu->GetTargetRefHandle() : 0;
+                                    RE::TESObjectREFRPtr ref;
+                                    RE::LookupReferenceByHandle(refHandle, ref);
+                                    if (ref) external_container_refid = ref->GetFormID();
+                                    else logger::warn("Failed to get ref from handle.");
+                                }
+                                else continue;
+                                queue->AddMessage(ReShowMenu, RE::UI_MESSAGE_TYPE::kHide, nullptr);
                                 return RE::BSEventNotifyControl::kContinue;
                             }
-					        
-                        }
-                        else if (RE::UI::GetSingleton()->IsMenuOpen(RE::FavoritesMenu::MENU_NAME)) {
-                            if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
-                                showMenu = true;
-                                queue->AddMessage(RE::FavoritesMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide,nullptr);
-                                return RE::BSEventNotifyControl::kContinue;
-                            }
-                        }
                     }
-                } else if (a_event->IsUp() && equipped) equipped = false;
+                } else if (a_event->IsUp()) equipped = false;
             }
         }
         return RE::BSEventNotifyControl::kContinue;
