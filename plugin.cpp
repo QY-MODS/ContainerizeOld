@@ -27,6 +27,27 @@ RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
 //};
 
 
+// Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
+class ConversationCallbackFunctor : public RE::BSScript::IStackCallbackFunctor {
+
+    std::string rename = "";
+
+    virtual inline void operator()(RE::BSScript::Variable a_result) override {
+        if (a_result.IsNoneObject()) {
+            logger::info("Result: None");
+        } else if (a_result.IsString()) {
+            rename = a_result.GetString();
+            logger::info("Result: {}", rename);
+            if (!rename.empty()) {
+				M->RenameContainer(rename);
+			}
+        }
+    }
+
+    virtual inline void SetObject(const RE::BSTSmartPointer<RE::BSScript::Object>&){};
+};
+
+
 class OurEventSink : public RE::BSTEventSink<RE::TESEquipEvent>,
                      public RE::BSTEventSink<RE::TESActivateEvent>,
                      public RE::BSTEventSink<SKSE::CrosshairRefEvent>,
@@ -136,6 +157,19 @@ public:
         
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
+        
+        if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->listen_menuclose) {
+			logger::info("Rename menu closed.");
+            M->listen_menuclose = false;
+            const auto skyrimVM = RE::SkyrimVM::GetSingleton();
+            auto vm = skyrimVM ? skyrimVM->impl : nullptr;
+            if (!vm) return RE::BSEventNotifyControl::kContinue;
+            const char* menuID = "UITextEntryMenu";
+            RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback(new ConversationCallbackFunctor());
+            auto args = RE::MakeFunctionArguments(std::move(menuID));
+            vm->DispatchStaticCall("UIExtensions", "GetMenuResultString", args, callback);
+            return RE::BSEventNotifyControl::kContinue;
+		}
 
         // for things like horses or NPCs
    //     if (event->menuName == RE::ContainerMenu::MENU_NAME && event->opening){
