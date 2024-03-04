@@ -882,10 +882,6 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             
             listen_activate = false;
 
-            if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
-            // it must be in the unownedchestOG
-            const auto curr_container_base = current_container->GetBaseObject();
-            if (!HasItem(curr_container_base,unownedChestOG)) return RaiseMngrErr("Current container is not in unownedChestOG");
             
             // Add fake container to player
             const auto chest_refid = GetRealContainerChest(current_container->GetFormID());
@@ -896,10 +892,13 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             const FormID fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
+            if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
+            // fake must be in the unownedchestOG
+            if (!HasItem(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id), unownedChestOG)) return RaiseMngrErr("Fake container not found in unownedChestOG");
             FetchStoredFake(unownedChestOG,fake_container_id,chest_refid,current_container);
             
             // Update chest link (fake container is in inventory now so we replace the old refid with the chest refid -> {chestrefid:chestrefid})
-            auto src = GetContainerSource(curr_container_base->GetFormID());
+            auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
             if (!src) {return RaiseMngrErr("Could not find source for container");}
             src->data[chest_refid] = chest_refid;
 
