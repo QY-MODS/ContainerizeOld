@@ -621,6 +621,14 @@ namespace Utilities {
         }
         return reference;
 	}
+
+    // credits to Qudix on xSE RE Discord for this
+    void OpenContainer(RE::TESObjectREFR* a_this, std::uint32_t a_openType) {
+        // a_openType is probably in alignment with RE::ContainerMenu::ContainerMode enum
+        using func_t = decltype(&OpenContainer);
+        REL::Relocation<func_t> func{RELOCATION_ID(50211, 51140)};
+        func(a_this, a_openType);
+    }
     /*int GetBoundObjectValue(RE::TESBoundObject* object) {
         if (!object) {
             Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});

@@ -1122,8 +1122,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 listen_container_change = true;
                 return true;
             }
-            else
-                logger::info("item count: {}", actor->GetInventory().count(item_bound));
+            else logger::info("item count: {}", GetItemCount(item_bound, actor));
 			i++;
 		}
         listen_container_change = true;

@@ -157,6 +157,8 @@ public:
         
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
+
+        //logger::info("Menu event: {} {}", event->menuName, event->opening ? "opened" : "closed");
         
         if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->listen_menuclose) {
 			logger::info("Rename menu closed.");
@@ -171,96 +173,15 @@ public:
             return RE::BSEventNotifyControl::kContinue;
 		}
 
-        // for things like horses or NPCs
-   //     if (event->menuName == RE::ContainerMenu::MENU_NAME && event->opening){
-   //         auto container_owner = Utilities::GetMenuOwner<RE::ContainerMenu>();
-   //         if (container_owner) {
-   //             logger::info("Container owner: {}", container_owner->GetName());
-   //             logger::info("Container owner refid: {}", container_owner->GetFormID());
-   //         } else {
-			//	logger::info("Container owner: unknown");
-			//}
-   //         M->listen_container_change = false;
-   //         listen_crosshair_ref = false;
-   //         M->HandleFakePlacement(container_owner);
-   //         M->listen_container_change = true;
-   //         listen_crosshair_ref = true;
-   //     }
-  //      if (event->menuName == RE::ContainerMenu::MENU_NAME && event->opening) {
-  //          // https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
-  //          RE::TESObjectREFR* container = nullptr;
-  //          const auto ui = RE::UI::GetSingleton();
-  //          const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
-  //          const auto movie = menu ? menu->uiMovie : nullptr;
-
-  //          if (movie) {
-  //              // "Menu_mc" is stored in the class, but it's different in VR and we haven't RE'd it yet
-  //              RE::GFxValue isViewingContainer;
-  //              movie->Invoke("Menu_mc.isViewingContainer", &isViewingContainer, nullptr, 0);
-
-  //              if (isViewingContainer.GetBool()) {
-  //                  auto refHandle = menu->GetTargetRefHandle();
-  //                  RE::TESObjectREFRPtr refr;
-  //                  RE::LookupReferenceByHandle(refHandle, refr);
-
-  //                  container = refr.get();
-  //                  if (M->IsChest(container->GetFormID())) {
-		//				logger::info("Chest opened.");
-  //                      menu->menuFlags.reset(static_cast<RE::IMenu::Flag>(MenuFlagEx::kUnpaused));
-
-		//			}
-  //              }
-  //          }
-		//}
 
         if (equipped && event->menuName == ReShowMenu && !event->opening) {
-            logger::info("Inventory menu closed.");
+            logger::info("menu closed: {}", event->menuName);
             equipped = false;
             logger::info("Reverting equip...");
             M->RevertEquip(fake_id_);
             logger::info("Reverted equip.");
             M->ActivateContainer(fake_id_, true);
-
-            // auto msgQ = RE::UIMessageQueue::GetSingleton();
-            // msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
-            // if (auto container_menu = RE::UI::GetSingleton()->GetMenu(RE::ContainerMenu::MENU_NAME)) {
-            //    container_menu->depthPriority = 3;
-            //};
-
-            // if (!RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-            //    //msgQ->AddMessage(RE::ContainerMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
-            //    container_menu->uiMovie->SetVisible(true);
-            //}
-        }
-
-        else if(event->menuName == RE::ContainerMenu::MENU_NAME && !event->opening && !ReShowMenu.empty()) {
-            logger::info("Container menu closed.");
-            M->UnHideReal(fake_id_);
-            if (ReShowMenu == RE::ContainerMenu::MENU_NAME && !external_container_refid) {
-                logger::warn("External container refid is 0.");
-            }
-            if (ReShowMenu != RE::ContainerMenu::MENU_NAME && external_container_refid) {
-			    logger::warn("ReShowMenu is not ContainerMenu.");
-            }
-            if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
-                M->RevertEquip(fake_id_, external_container_refid);
-            }
-            if (M->_other_settings[Settings::otherstuffKeys[2]]) {
-                if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
-                    if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
-                        auto a_objref = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_refid);
-                        auto a_obj = a_objref ? a_objref->GetBaseObject()->As<RE::TESObjectCONT>() : nullptr;
-                        if (a_obj) a_obj->Activate(a_objref, RE::PlayerCharacter::GetSingleton(), 0, a_obj, 1);
-                    
-                    } 
-                    else queue->AddMessage(ReShowMenu, RE::UI_MESSAGE_TYPE::kShow, nullptr);
-			    }
-            }
-            external_container_refid = 0;
-            ReShowMenu = "";
-            /*const auto ui = RE::UI::GetSingleton();
-            const auto menu = ui ? ui->GetMenu<RE::ContainerMenu>() : nullptr;
-            menu->menuFlags.set(RE::UI_MENU_FLAGS::kPausesGame);*/
+            return RE::BSEventNotifyControl::kContinue;
         }
 
 
@@ -268,10 +189,53 @@ public:
         if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
         if (event->opening) {
             listen_weight_limit = true;
-        } else {
+        } 
+        else {
+            logger::info("Our Container menu closed.");
             listen_weight_limit = false;
 			M->listen_menuclose = false;
             logger::info("listen_menuclose: {}", M->listen_menuclose);
+            if (!ReShowMenu.empty()){
+                M->UnHideReal(fake_id_);
+                if (ReShowMenu == RE::ContainerMenu::MENU_NAME && !external_container_refid) {
+                    logger::warn("External container refid is 0.");
+                }
+                if (ReShowMenu != RE::ContainerMenu::MENU_NAME && external_container_refid) {
+                    logger::warn("ReShowMenu is not ContainerMenu.");
+                }
+                if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
+                    M->RevertEquip(fake_id_, external_container_refid);
+                }
+                if (M->_other_settings[Settings::otherstuffKeys[2]]) {
+                    logger::info("Returning to initial menu: {}", ReShowMenu);
+                    if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
+                        if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
+                            if (auto a_objref = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_refid)) {
+                                auto player_ref = RE::PlayerCharacter::GetSingleton();
+                                if (auto has_container = a_objref->HasContainer()) {
+                                    logger::info("HasContainer: {}", has_container);
+                                    if (auto container = a_objref->As<RE::TESObjectCONT>()) {
+                                        Utilities::OpenContainer(a_objref, 0);
+                                        //container->Activate(a_objref, player_ref, 0, container, 1);
+                                    } 
+                                    else if (auto container_ = a_objref->GetBaseObject()->As<RE::TESObjectCONT>()) {
+                                        Utilities::OpenContainer(a_objref, 0);
+                                        //container_->Activate(a_objref, player_ref, 0, container_, 1);
+                                    } 
+                                    else {
+                                        logger::info("has container but could not activate.");
+                                        Utilities::OpenContainer(a_objref, 3);
+                                    }
+                                } else a_objref->ActivateRef(player_ref, 0, a_objref->GetBaseObject(), 1, 0);
+                            }
+                        } 
+                        else queue->AddMessage(ReShowMenu, RE::UI_MESSAGE_TYPE::kShow, nullptr);
+                    }
+                    else logger::warn("Failed to return to initial menu.");
+                }
+                external_container_refid = 0;
+                ReShowMenu = "";
+            }
         }
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -465,6 +429,7 @@ public:
                                     RE::LookupReferenceByHandle(refHandle, ref);
                                     if (ref) external_container_refid = ref->GetFormID();
                                     else logger::warn("Failed to get ref from handle.");
+                                    logger::info("External container refid: {}", external_container_refid);
                                 }
                                 else continue;
                                 queue->AddMessage(ReShowMenu, RE::UI_MESSAGE_TYPE::kHide, nullptr);
