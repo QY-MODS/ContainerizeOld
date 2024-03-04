@@ -125,7 +125,7 @@ public:
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
 
         // prevent player to catch it in the air
-        if (M->IsFakeContainer(event->crosshairRef.get())) event->crosshairRef->SetActivationBlocked(1);
+        if (M->IsFakeContainer(event->crosshairRef.get()->GetBaseObject()->GetFormID())) event->crosshairRef->SetActivationBlocked(1);
 
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             
@@ -215,16 +215,16 @@ public:
                                 if (auto has_container = a_objref->HasContainer()) {
                                     logger::info("HasContainer: {}", has_container);
                                     if (auto container = a_objref->As<RE::TESObjectCONT>()) {
-                                        Utilities::OpenContainer(a_objref, 0);
+                                        OpenContainer(a_objref, 0);
                                         //container->Activate(a_objref, player_ref, 0, container, 1);
                                     } 
                                     else if (auto container_ = a_objref->GetBaseObject()->As<RE::TESObjectCONT>()) {
-                                        Utilities::OpenContainer(a_objref, 0);
+                                        OpenContainer(a_objref, 0);
                                         //container_->Activate(a_objref, player_ref, 0, container_, 1);
                                     } 
                                     else {
                                         logger::info("has container but could not activate.");
-                                        Utilities::OpenContainer(a_objref, 3);
+                                        OpenContainer(a_objref, 3);
                                     }
                                 } else a_objref->ActivateRef(player_ref, 0, a_objref->GetBaseObject(), 1, 0);
                             }
@@ -323,13 +323,14 @@ public:
                     RE::TESObjectREFR* ref =
                         RE::TESForm::LookupByID<RE::TESObjectREFR>(event->reference.native_handle());
                     if (ref) logger::info("Dropped ref name: {}", ref->GetBaseObject()->GetName());
-                    if (!M->IsFakeContainer(ref)) {
+                    if (ref->GetBaseObject()->GetFormID() != event->baseObj) {
                         // iterate through all objects in the cell................
                         logger::info("Iterating through all references in the cell.");
                         auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
                         auto cell_runtime_data = player_cell->GetRuntimeData();
                         for (auto& ref_ : cell_runtime_data.references) {
-                            if (M->IsFakeContainer(ref_.get()) && ref_.get()->GetBaseObject()->GetFormID()==event->baseObj) {
+                            if (!ref_) continue;
+                            if (ref_.get()->GetBaseObject()->GetFormID()==event->baseObj) {
                                 logger::info("Dropped fake container with ref id {}.", ref_->GetFormID());
                                 if (!M->SwapDroppedFakeContainer(ref_.get())) {
 						            logger::error("Failed to swap fake container.");

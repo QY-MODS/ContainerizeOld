@@ -458,194 +458,275 @@ namespace Utilities {
     }
     
     // Get ID stuff
-    template <class T = RE::TESForm>
-    static T* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
-        T* form = RE::TESForm::LookupByID<T>(id);
-        if (form)
-            return form;
-        else if (!editor_id.empty()) {
-            form = RE::TESForm::LookupByEditorID<T>(editor_id);
-            if (form) return form;
-        }
-        return nullptr;
-    };
-
     // Utility functions
+    namespace Functions {
 
-
-    std::size_t GetExtraDataListLength(const RE::ExtraDataList* dataList) {
-        std::size_t length = 0;
-
-        for (auto it = dataList->begin(); it != dataList->end(); ++it) {
-            // Increment the length for each element in the list
-            ++length;
-        }
-
-        return length;
-    }
-    template <class T>
-    uint32_t GetLength(T list) {
-        logger::info("Getting length of list");
-        uint32_t length = 0;
-        for (auto _ : list) {
-            ++length;
-            logger::info("Length: {}", length);
-        }
-        return length;
-    }
-
-    template <class T>
-    unsigned int GetListLength(RE::BSSimpleList<T>* list) {
-        unsigned int count = 0;
-        for (const auto& _ : *list) {
-            ++count;
-        }
-        return count;
-    }
-
-
-    template <typename Key, typename Value>
-    bool containsValue(const std::map<Key, Value>& myMap, const Value& valueToFind) {
-        for (const auto& pair : myMap) {
-            if (pair.second == valueToFind) {
-                return true;
+        template <typename Key, typename Value>
+        bool containsValue(const std::map<Key, Value>& myMap, const Value& valueToFind) {
+            for (const auto& pair : myMap) {
+                if (pair.second == valueToFind) {
+                    return true;
+                }
             }
-        }
-        return false;
-    }
-
-    bool FormIsOfType(RE::TESForm* form, RE::FormType type) {
-		return form->GetFormType() == type;
-	}
-
-    template <typename T>
-    struct FormTraits {
-        static float GetWeight(T* form) {
-            // Default implementation, assuming T has a member variable 'weight'
-            return form->weight;
+            return false;
         }
 
-        static void SetWeight(T* form, float weight) {
-            // Default implementation, set the weight if T has a member variable 'weight'
-            form->weight = weight;
-        }
+    };
+
+    namespace FunctionsSkyrim {
     
-        static int GetValue(T* form) {
-			// Default implementation, assuming T has a member variable 'value'
-			return form->value;
-		}
-
-        static void SetValue(T* form, int value) {
-            form->value = value;
-        }
-    };
-
-    // Specialization for TESAmmo
-    template <>
-    struct FormTraits<RE::TESAmmo> {
-        static float GetWeight(RE::TESAmmo*) {
-            // Handle TESAmmo case where 'weight' is not a member
-            // You might return a default value or calculate it based on other factors
-            return 0.0f;  // For example, returning 0 as a default value
-        }
-
-        static void SetWeight(RE::TESAmmo*, float) {
-            // Handle setting the weight for TESAmmo
-            // (implementation based on your requirements)
-            // For example, if TESAmmo had a SetWeight method, you would call it here
-        }
-
-        static int GetValue(RE::TESAmmo* form) {
-			return form->value;
-		}
-        static void SetValue(RE::TESAmmo* form, int value) {
-			form->value = value;
-		}
-    };
-
-    template <>
-    struct FormTraits<RE::AlchemyItem> {
-        static float GetWeight(RE::AlchemyItem* form) { 
-            return form->weight;
-        }
-
-        static void SetWeight(RE::AlchemyItem* form, float weight) { 
-            form->weight = weight;
-        }
-
-              static int GetValue(RE::AlchemyItem* form) {
-        	return form->GetGoldValue();
-        }
-        static void SetValue(RE::AlchemyItem*, int) { return; }
-    };
-
-    float GetBoundObjectWeight(RE::TESBoundObject* object) {
-        if (!object) {
-            Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
-            return 0;
-        }
-        std::string formtype(RE::FormTypeToString(object->GetFormType()));
-        if (formtype == "ARMO") return FormTraits<RE::TESObjectARMO>::GetWeight(object->As<RE::TESObjectARMO>());
-        if (formtype == "WEAP") return FormTraits<RE::TESObjectWEAP>::GetWeight(object->As<RE::TESObjectWEAP>());
-        if (formtype == "MISC") return FormTraits<RE::TESObjectMISC>::GetWeight(object->As<RE::TESObjectMISC>());
-        if (formtype == "BOOK") return FormTraits<RE::TESObjectBOOK>::GetWeight(object->As<RE::TESObjectBOOK>());
-        if (formtype == "AMMO") return FormTraits<RE::TESAmmo>::GetWeight(object->As<RE::TESAmmo>());
-        if (formtype == "KEYM") return FormTraits<RE::TESKey>::GetWeight(object->As<RE::TESKey>());
-        if (formtype == "SLGM") return FormTraits<RE::TESSoulGem>::GetWeight(object->As<RE::TESSoulGem>());
-        if (formtype == "SCRL") return FormTraits<RE::ScrollItem>::GetWeight(object->As<RE::ScrollItem>());
-        if (formtype == "LIGH") return FormTraits<RE::TESObjectLIGH>::GetWeight(object->As<RE::TESObjectLIGH>());
-        if (formtype == "ALCH") return FormTraits<RE::AlchemyItem>::GetWeight(object->As<RE::AlchemyItem>());
-
-		return 0;
-	}
-
-	// https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
-    template <typename T>
-    RE::TESObjectREFR* GetMenuOwner() {
-        RE::TESObjectREFR* reference = nullptr;
-        const auto ui = RE::UI::GetSingleton();
-        const auto menu = ui ? ui->GetMenu<T>() : nullptr;
-        const auto movie = menu ? menu->uiMovie : nullptr;
-
-        if (movie) {
-            // Parapets: "Menu_mc" is stored in the class, but it's different in VR and we haven't RE'd it yet
-            RE::GFxValue isViewingContainer;
-            movie->Invoke("Menu_mc.isViewingContainer", &isViewingContainer, nullptr, 0);
-
-            if (isViewingContainer.GetBool()) {
-                auto refHandle = menu->GetTargetRefHandle();
-                RE::TESObjectREFRPtr refr;
-                RE::LookupReferenceByHandle(refHandle, refr);
-                return refr.get();
+        template <class T = RE::TESForm>
+        static T* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
+            T* form = RE::TESForm::LookupByID<T>(id);
+            if (form)
+                return form;
+            else if (!editor_id.empty()) {
+                form = RE::TESForm::LookupByEditorID<T>(editor_id);
+                if (form) return form;
             }
-        }
-        return reference;
-	}
+            return nullptr;
+        };
 
-    // credits to Qudix on xSE RE Discord for this
-    void OpenContainer(RE::TESObjectREFR* a_this, std::uint32_t a_openType) {
-        // a_openType is probably in alignment with RE::ContainerMenu::ContainerMode enum
-        using func_t = decltype(&OpenContainer);
-        REL::Relocation<func_t> func{RELOCATION_ID(50211, 51140)};
-        func(a_this, a_openType);
-    }
-    /*int GetBoundObjectValue(RE::TESBoundObject* object) {
-        if (!object) {
-            Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
+        std::size_t GetExtraDataListLength(const RE::ExtraDataList* dataList) {
+            std::size_t length = 0;
+
+            for (auto it = dataList->begin(); it != dataList->end(); ++it) {
+                // Increment the length for each element in the list
+                ++length;
+            }
+
+            return length;
+        }
+        template <class T>
+        uint32_t GetLength(T list) {
+            logger::info("Getting length of list");
+            uint32_t length = 0;
+            for (auto _ : list) {
+                ++length;
+                logger::info("Length: {}", length);
+            }
+            return length;
+        }
+
+        template <class T>
+        unsigned int GetListLength(RE::BSSimpleList<T>* list) {
+            unsigned int count = 0;
+            for (const auto& _ : *list) {
+                ++count;
+            }
+            return count;
+        }
+
+
+        bool FormIsOfType(RE::TESForm* form, RE::FormType type) {
+		    return form->GetFormType() == type;
+	    }
+
+        template <typename T>
+        struct FormTraits {
+            static float GetWeight(T* form) {
+                // Default implementation, assuming T has a member variable 'weight'
+                return form->weight;
+            }
+
+            static void SetWeight(T* form, float weight) {
+                // Default implementation, set the weight if T has a member variable 'weight'
+                form->weight = weight;
+            }
+    
+            static int GetValue(T* form) {
+			    // Default implementation, assuming T has a member variable 'value'
+			    return form->value;
+		    }
+
+            static void SetValue(T* form, int value) {
+                form->value = value;
+            }
+        };
+
+        // Specialization for TESAmmo
+        template <>
+        struct FormTraits<RE::TESAmmo> {
+            static float GetWeight(RE::TESAmmo*) {
+                // Handle TESAmmo case where 'weight' is not a member
+                // You might return a default value or calculate it based on other factors
+                return 0.0f;  // For example, returning 0 as a default value
+            }
+
+            static void SetWeight(RE::TESAmmo*, float) {
+                // Handle setting the weight for TESAmmo
+                // (implementation based on your requirements)
+                // For example, if TESAmmo had a SetWeight method, you would call it here
+            }
+
+            static int GetValue(RE::TESAmmo* form) {
+			    return form->value;
+		    }
+            static void SetValue(RE::TESAmmo* form, int value) {
+			    form->value = value;
+		    }
+        };
+
+        template <>
+        struct FormTraits<RE::AlchemyItem> {
+            static float GetWeight(RE::AlchemyItem* form) { 
+                return form->weight;
+            }
+
+            static void SetWeight(RE::AlchemyItem* form, float weight) { 
+                form->weight = weight;
+            }
+
+                  static int GetValue(RE::AlchemyItem* form) {
+        	    return form->GetGoldValue();
+            }
+            static void SetValue(RE::AlchemyItem*, int) { return; }
+        };
+
+        float GetBoundObjectWeight(RE::TESBoundObject* object) {
+            if (!object) {
+                Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
+                return 0;
+            }
+            std::string formtype(RE::FormTypeToString(object->GetFormType()));
+            if (formtype == "ARMO") return FormTraits<RE::TESObjectARMO>::GetWeight(object->As<RE::TESObjectARMO>());
+            if (formtype == "WEAP") return FormTraits<RE::TESObjectWEAP>::GetWeight(object->As<RE::TESObjectWEAP>());
+            if (formtype == "MISC") return FormTraits<RE::TESObjectMISC>::GetWeight(object->As<RE::TESObjectMISC>());
+            if (formtype == "BOOK") return FormTraits<RE::TESObjectBOOK>::GetWeight(object->As<RE::TESObjectBOOK>());
+            if (formtype == "AMMO") return FormTraits<RE::TESAmmo>::GetWeight(object->As<RE::TESAmmo>());
+            if (formtype == "KEYM") return FormTraits<RE::TESKey>::GetWeight(object->As<RE::TESKey>());
+            if (formtype == "SLGM") return FormTraits<RE::TESSoulGem>::GetWeight(object->As<RE::TESSoulGem>());
+            if (formtype == "SCRL") return FormTraits<RE::ScrollItem>::GetWeight(object->As<RE::ScrollItem>());
+            if (formtype == "LIGH") return FormTraits<RE::TESObjectLIGH>::GetWeight(object->As<RE::TESObjectLIGH>());
+            if (formtype == "ALCH") return FormTraits<RE::AlchemyItem>::GetWeight(object->As<RE::AlchemyItem>());
+
+		    return 0;
+	    }
+
+	    // https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
+        template <typename T>
+        RE::TESObjectREFR* GetMenuOwner() {
+            RE::TESObjectREFR* reference = nullptr;
+            const auto ui = RE::UI::GetSingleton();
+            const auto menu = ui ? ui->GetMenu<T>() : nullptr;
+            const auto movie = menu ? menu->uiMovie : nullptr;
+
+            if (movie) {
+                // Parapets: "Menu_mc" is stored in the class, but it's different in VR and we haven't RE'd it yet
+                RE::GFxValue isViewingContainer;
+                movie->Invoke("Menu_mc.isViewingContainer", &isViewingContainer, nullptr, 0);
+
+                if (isViewingContainer.GetBool()) {
+                    auto refHandle = menu->GetTargetRefHandle();
+                    RE::TESObjectREFRPtr refr;
+                    RE::LookupReferenceByHandle(refHandle, refr);
+                    return refr.get();
+                }
+            }
+            return reference;
+	    }
+
+        // credits to Qudix on xSE RE Discord for this
+        void OpenContainer(RE::TESObjectREFR* a_this, std::uint32_t a_openType) {
+            // a_openType is probably in alignment with RE::ContainerMenu::ContainerMode enum
+            using func_t = decltype(&OpenContainer);
+            REL::Relocation<func_t> func{RELOCATION_ID(50211, 51140)};
+            func(a_this, a_openType);
+        }
+
+        const bool HasItemEntry(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner, bool nonzero_entry_check=false) {
+            if (!item) {
+                logger::warn("Item is null");
+                return 0;
+            }
+            if (!inventory_owner) {
+                logger::warn("Inventory owner is null");
+                return 0;
+            }
+            auto inventory = inventory_owner->GetInventory();
+            auto it = inventory.find(item);
+            bool has_entry = it != inventory.end();
+            if (nonzero_entry_check) return has_entry && it->second.first > 0;
+            return has_entry;
+		}
+
+        const std::int32_t GetItemCount(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+            if (HasItemEntry(item, inventory_owner, true)) {
+				auto inventory = inventory_owner->GetInventory();
+				auto it = inventory.find(item);
+				return it->second.first;
+			}
             return 0;
         }
-        std::string formtype(RE::FormTypeToString(object->GetFormType()));
-        if (formtype == "ARMO") FormTraits<RE::TESObjectARMO>::GetValue(object->As<RE::TESObjectARMO>());
-        if (formtype == "WEAP") FormTraits<RE::TESObjectWEAP>::GetValue(object->As<RE::TESObjectWEAP>());
-        if (formtype == "MISC") FormTraits<RE::TESObjectMISC>::GetValue(object->As<RE::TESObjectMISC>());
-        if (formtype == "BOOK") FormTraits<RE::TESObjectBOOK>::GetValue(object->As<RE::TESObjectBOOK>());
-        if (formtype == "AMMO") FormTraits<RE::TESAmmo>::GetValue(object->As<RE::TESAmmo>());
-        if (formtype == "KEYM") FormTraits<RE::TESKey>::GetValue(object->As<RE::TESKey>());
-        if (formtype == "SLGM") FormTraits<RE::TESSoulGem>::GetValue(object->As<RE::TESSoulGem>());
-        if (formtype == "SCRL") FormTraits<RE::ScrollItem>::GetValue(object->As<RE::ScrollItem>());
-        if (formtype == "LIGH") FormTraits<RE::TESObjectLIGH>::GetValue(object->As<RE::TESObjectLIGH>());
-        return 0;
-    }*/
+
+        const bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
+            if (HasItemEntry(item, item_owner, true)) return true;
+            return false;
+        }
+
+        void FavoriteItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+            if (!item) return;
+            if (!inventory_owner) return;
+            auto inventory_changes = inventory_owner->GetInventoryChanges();
+            auto entries = inventory_changes->entryList;
+            for (auto it = entries->begin(); it != entries->end(); ++it) {
+                auto formid = (*it)->object->GetFormID();
+                if (!formid) logger::critical("Formid is null");
+                if (formid == item->GetFormID()) {
+                    logger::info("Favoriting item: {}", item->GetName());
+                    bool no_extra_ = (*it)->extraLists->empty();
+                    logger::info("asdasd");
+                    if (no_extra_) {
+                        logger::info("No extraLists");
+                        inventory_changes->SetFavorite((*it), nullptr);
+                    } else {
+                        logger::info("ExtraLists found");
+                        inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+                    }
+                    return;
+                }
+            }
+            logger::error("Item not found in inventory");
+        }
+
+        
+    [[nodiscard]] const bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+            if (!item) {
+                logger::warn("Item is null");
+                return false;
+            }
+            if (!inventory_owner) {
+                logger::warn("Inventory owner is null");
+                return false;
+            }
+            auto inventory = inventory_owner->GetInventory();
+            auto it = inventory.find(item);
+            if (it != inventory.end()) {
+                if (it->second.first <= 0) logger::warn("Item count is 0");
+                return it->second.second->IsFavorited();
+            }
+            return false;
+        }
+
+        /*int GetBoundObjectValue(RE::TESBoundObject* object) {
+            if (!object) {
+                Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
+                return 0;
+            }
+            std::string formtype(RE::FormTypeToString(object->GetFormType()));
+            if (formtype == "ARMO") FormTraits<RE::TESObjectARMO>::GetValue(object->As<RE::TESObjectARMO>());
+            if (formtype == "WEAP") FormTraits<RE::TESObjectWEAP>::GetValue(object->As<RE::TESObjectWEAP>());
+            if (formtype == "MISC") FormTraits<RE::TESObjectMISC>::GetValue(object->As<RE::TESObjectMISC>());
+            if (formtype == "BOOK") FormTraits<RE::TESObjectBOOK>::GetValue(object->As<RE::TESObjectBOOK>());
+            if (formtype == "AMMO") FormTraits<RE::TESAmmo>::GetValue(object->As<RE::TESAmmo>());
+            if (formtype == "KEYM") FormTraits<RE::TESKey>::GetValue(object->As<RE::TESKey>());
+            if (formtype == "SLGM") FormTraits<RE::TESSoulGem>::GetValue(object->As<RE::TESSoulGem>());
+            if (formtype == "SCRL") FormTraits<RE::ScrollItem>::GetValue(object->As<RE::ScrollItem>());
+            if (formtype == "LIGH") FormTraits<RE::TESObjectLIGH>::GetValue(object->As<RE::TESObjectLIGH>());
+            return 0;
+        }*/
+    };
+
 
     /*void SetBoundObjectValue(RE::TESBoundObject* object, int value) {
         if (!object) {

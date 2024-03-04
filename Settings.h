@@ -26,14 +26,16 @@ struct Source {
     };
     
     std::string_view GetName() {
-        auto form = Utilities::GetFormByID(formid, editorid);
+        auto form = Utilities::FunctionsSkyrim::GetFormByID(formid, editorid);
         if (form)
             return form->GetName();
         else
             return "";
     };
 
-    RE::TESBoundObject* GetBoundObject() { return Utilities::GetFormByID<RE::TESBoundObject>(formid, editorid); };
+    RE::TESBoundObject* GetBoundObject() {
+        return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);
+    };
 };
 
 
