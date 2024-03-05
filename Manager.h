@@ -568,8 +568,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 		}
         
         logger::info("Setting weight and value for fake form");
-        auto realcontainer_val = real_container->GetGoldValue();
-        FormTraits<T>::SetValue(fake_form, realcontainer_val);
+        FormTraits<T>::SetValue(fake_form, FormTraits<T>::GetValue(real_container->As<T>()));
         FormTraits<T>::SetWeight(fake_form, chest_linked->GetWeightInContainer());
     }
 
