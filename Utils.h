@@ -11,6 +11,7 @@
 #include <string>
 #include <codecvt>
 #include <mutex>  // for std::mutex
+#include <algorithm>
 
 
 
@@ -583,7 +584,7 @@ namespace Utilities {
             static void SetValue(RE::AlchemyItem*, int) { return; }
         };
 
-        float GetBoundObjectWeight(RE::TESBoundObject* object) {
+        /*float GetBoundObjectWeight(RE::TESBoundObject* object) {
             if (!object) {
                 Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
                 return 0;
@@ -601,7 +602,7 @@ namespace Utilities {
             if (formtype == "ALCH") return FormTraits<RE::AlchemyItem>::GetWeight(object->As<RE::AlchemyItem>());
 
 		    return 0;
-	    }
+	    }*/
 
 	    // https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
         template <typename T>
@@ -632,6 +633,33 @@ namespace Utilities {
             using func_t = decltype(&OpenContainer);
             REL::Relocation<func_t> func{RELOCATION_ID(50211, 51140)};
             func(a_this, a_openType);
+        }
+
+        const unsigned int GetValueInContainer(RE::TESObjectCONT* container) {
+			if (!container) {
+				logger::warn("Container is null");
+				return 0;
+			}
+            unsigned int total_value = 0;
+            for (std::uint32_t i = 0; i < container->numContainerObjects; ++i) {
+                auto entry = container->containerObjects[i];
+                if (entry) total_value += entry->obj->GetGoldValue();
+                else logger::warn("Entry is null");
+            }
+            return total_value;
+		}
+
+        const unsigned int GetValueInContainer(RE::TESObjectREFR* container) {
+            if (!container) {
+                logger::warn("Container is null");
+                return 0;
+            }
+            unsigned int total_value = 0;
+            auto inventory = container->GetInventory();
+            for (auto it = inventory.begin(); it != inventory.end(); ++it) {
+                total_value += it->second.second->GetValue() * it->second.first;
+			}
+            return total_value;
         }
 
         const bool HasItemEntry(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner, bool nonzero_entry_check=false) {

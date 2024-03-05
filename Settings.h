@@ -57,22 +57,24 @@ namespace Settings {
         {";Make sure to use unique keys, e.g. src1=... NOTsrc1=...",
          std::format(";Make sure to use matching keys with the ones provided in section {}.",
                      static_cast<std::string>(InISections[0])),
-        ";",
+        ";Other gameplay related settings",
         };
 
 
-    const std::array<std::string, 3> os_comments =
+    const std::array<std::string, 4> os_comments =
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
         "; Set to true to return to the the initial menu after closing your container's menu (which you had opened by holding equip).",
+        "; Set to true to sell your container to vendors together with the items inside it.",
 		};
 
    
     constexpr std::uint32_t kSerializationVersion = 729;
     constexpr std::uint32_t kDataKey = 'CTRZ';
 
-    constexpr std::array<const char*, 3> otherstuffKeys = {"INI_changed_msg", "RemoveCarryBoosts", "ReturnToInitialMenu"};
-    constexpr std::array<bool, 3> otherstuffVals = {true, false,false};
+    constexpr std::array<const char*, 4> otherstuffKeys = 
+    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell"};
+    constexpr std::array<bool, 4> otherstuffVals = {true, true, true, true};
 
     std::vector<Source> LoadINISources() {
         
@@ -97,7 +99,7 @@ namespace Settings {
         ini.LoadFile(path);
 
         // Create Sections with defaults if they don't exist
-        for (int i = 0; i < InISections.size()-1; ++i) {
+        for (int i = 0; i < 2; ++i) {
             logger::info("Checking section {}", InISections[i]);
             if (!ini.SectionExists(InISections[i])) {
                 logger::info("Section {} does not exist. Creating it.", InISections[i]);
@@ -163,7 +165,7 @@ namespace Settings {
         return sources;
     }
 
-    std::unordered_map<std::string,bool> LoadOtherSettings() {
+    const std::unordered_map<std::string,bool> LoadOtherSettings() {
     
         logger::info("Loading ini settings: OtherStuff");
 
@@ -186,21 +188,18 @@ namespace Settings {
         auto numOthers = otherkeys.size();
         logger::info("otherkeys size {}", numOthers);
 
-        if (numOthers == 0) {
-			logger::warn("No other settings found in the ini file. Using defaults.");
-            ini.SetBoolValue(InISections[2], otherstuffKeys[0], true);
-            ini.SetBoolValue(InISections[2], otherstuffKeys[1], false);
-            ini.SetBoolValue(InISections[2], otherstuffKeys[2], false);
-        } else if (numOthers != otherstuffKeys.size()) {
-			logger::warn("Invalid number of other settings found in the ini file. Using defaults.");
-			ini.SetBoolValue(InISections[2], otherstuffKeys[0], true);
-			ini.SetBoolValue(InISections[2], otherstuffKeys[1], false);
-            ini.SetBoolValue(InISections[2], otherstuffKeys[2], false);
-		}
+        if (numOthers == 0 || numOthers != otherstuffKeys.size()) {
+			logger::warn("No other settings found in the ini file or Invalid number of other settings . Using defaults.");
+            ini.SetBoolValue(InISections[2], otherstuffKeys[0], otherstuffVals[0]);
+            ini.SetBoolValue(InISections[2], otherstuffKeys[1], otherstuffVals[1]);
+            ini.SetBoolValue(InISections[2], otherstuffKeys[2], otherstuffVals[2]);
+            ini.SetBoolValue(InISections[2], otherstuffKeys[3], otherstuffVals[3]);
+        }
 
         bool val1;
         bool val2;
         bool val3;
+        bool val4;
         // other stuff section
         val1 = ini.GetBoolValue(InISections[2], otherstuffKeys[0]);
         ini.SetBoolValue(InISections[2], otherstuffKeys[0], val1, os_comments[0].c_str());
@@ -208,16 +207,19 @@ namespace Settings {
         ini.SetBoolValue(InISections[2], otherstuffKeys[1], val2, os_comments[1].c_str());
         val3 = ini.GetBoolValue(InISections[2], otherstuffKeys[2]);
         ini.SetBoolValue(InISections[2], otherstuffKeys[2], val3, os_comments[2].c_str());
+        val4 = ini.GetBoolValue(InISections[2], otherstuffKeys[3]);
+		ini.SetBoolValue(InISections[2], otherstuffKeys[3], val4, os_comments[3].c_str());
         others[otherstuffKeys[0]] = val1;
         others[otherstuffKeys[1]] = val2;
         others[otherstuffKeys[2]] = val3;
+        others[otherstuffKeys[3]] = val4;
 
         ini.SaveFile(path);
 
         return others;
     }
 
-    std::unordered_set<std::string> AllowedFormTypes{ 
+    const std::unordered_set<std::string> AllowedFormTypes{ 
         "SCRL",  //	17 SCRL	ScrollItem
         "ARMO",  //	1A ARMO	TESObjectARMO
         "BOOK",  //	1B BOOK	TESObjectBOOK
