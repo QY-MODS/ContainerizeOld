@@ -9,8 +9,8 @@ using namespace Utilities::FunctionsSkyrim;
 
 class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     // private variables
-    const std::vector<std::string> buttons = {"Open", "Take", "More...", "Cancel"};
-    const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Cancel"};
+    const std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
+    const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
     bool uiextensions_is_present = false;
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
     
@@ -32,6 +32,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     std::map<FormID,bool> is_equipped; // runtime specific and used by handlecrafting
     std::map<FormID, bool> is_faved;  // runtime specific and used by handlecrafting
     std::vector<FormID> external_favs; // runtime specific, FormIDs of fake containers if faved
+    std::vector<RefID> handled_external_conts; // runtime specific to prevent unnecessary checks in HandleFakePlacement
     std::map<FormID,std::string> renames;  // runtime specific, custom names for fake containers
 
 
@@ -874,7 +875,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                                                              [this](const int res) { this->MsgBoxCallbackMore(res); });
         }
 
-        // Cancel
+        // Close
         if (result == 3) return;
         
         // Take
@@ -955,7 +956,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             return;
 		}
 
-        // Cancel
+        // Close
         if (result == 3) return;
 
         // Back
@@ -1684,11 +1685,13 @@ public:
         listen_container_change = true;
     }
 
-    // places fake objects in external containers
+    // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont) {
         ENABLE_IF_NOT_UNINSTALLED
-        // if the external container is already handled (handled_external_containers) return
-        //if (handled_external_conts.find(external_cont->GetFormID()) != handled_external_conts.end()) return;
+        // if the external container is already handled (handled_external_conts) return
+        auto it = std::find(handled_external_conts.begin(), handled_external_conts.end(), external_cont->GetFormID());
+        if (it != handled_external_conts.end()) return;
+        
         if (!external_cont) return RaiseMngrErr("external_cont is null");
         if (IsRealContainer(external_cont)) return;
         if (!external_cont->HasContainer()) return;
@@ -1706,6 +1709,7 @@ public:
                 // break yok cunku baska fakeler de external_cont un icinde olabilir
             }
         }
+        handled_external_conts.push_back(external_cont->GetFormID());
         listen_container_change = true;
     }
 
@@ -1984,6 +1988,7 @@ public:
         ChestToFakeContainer.clear(); // we will update this in ReceiveData
         external_favs.clear(); // we will update this in ReceiveData
         renames.clear(); // we will update this in ReceiveData
+        handled_external_conts.clear();
         Clear();
         //handled_external_conts.clear();
         current_container = nullptr;
@@ -2045,11 +2050,14 @@ public:
         auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // dont use this again bcs it can change
         auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
 
+
+        if (fake_cont && fake_cont->IsDeleted()) {
+            logger::warn("Fake container with formid {} is deleted. Removing it from inventory/external_container...",
+                         fake_formid);
+            RemoveItemReverse(cont_of_fakecont, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+        }
+
         if (!fake_cont || !HasItemPlusCleanUp(fake_cont, cont_of_fakecont)) {
-            /*if (fake_cont->IsDeleted()){
-                logger::warn("Fake container with formid {} is deleted. Removing it from inventory/external_container...", fake_formid);
-                RemoveItemReverse(cont_of_fakecont, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
-            }*/
             // here cont_ref becomes unused bcs execute_trick is true
             qTRICK__(src, chest_ref, cont_ref, true);
         }

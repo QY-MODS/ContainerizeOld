@@ -125,7 +125,7 @@ public:
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
 
         // prevent player to catch it in the air
-        if (M->IsFakeContainer(event->crosshairRef.get()->GetBaseObject()->GetFormID())) event->crosshairRef->SetActivationBlocked(1);
+        //if (M->IsFakeContainer(event->crosshairRef.get()->GetBaseObject()->GetFormID())) event->crosshairRef->SetActivationBlocked(1);
 
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             
@@ -323,7 +323,7 @@ public:
                     RE::TESObjectREFR* ref =
                         RE::TESForm::LookupByID<RE::TESObjectREFR>(event->reference.native_handle());
                     if (ref) logger::info("Dropped ref name: {}", ref->GetBaseObject()->GetName());
-                    if (ref->GetBaseObject()->GetFormID() != event->baseObj) {
+                    if (!ref || ref->GetBaseObject()->GetFormID() != event->baseObj) {
                         // iterate through all objects in the cell................
                         logger::info("Iterating through all references in the cell.");
                         auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
