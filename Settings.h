@@ -64,7 +64,7 @@ namespace Settings {
     const std::array<std::string, 4> os_comments =
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
-        "; Set to true to return to the the initial menu after closing your container's menu (which you had opened by holding equip).",
+        "; Set to true to return to the initial menu after closing your container's menu (which you had opened by holding equip).",
         "; Set to true to sell your container to vendors together with the items inside it.",
 		};
 
