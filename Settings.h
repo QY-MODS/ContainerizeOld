@@ -50,7 +50,7 @@ namespace Settings {
     constexpr std::array<const char*, 3> InISections = {"Containers",
                                                         "Capacities",
                                                         "Other Stuff"};
-    constexpr std::array<const char*, 2> InIDefaultKeys = {"src1", "src1"};
+    constexpr std::array<const char*, 2> InIDefaultKeys = {"container1", "container1"};
     constexpr std::array<const char*, 2> InIDefaultVals = {"", ""};
 
     const std::array<std::string, 3> section_comments =
@@ -94,6 +94,7 @@ namespace Settings {
 
         CSimpleIniA ini;
         CSimpleIniA::TNamesDepend source_names;
+        CSimpleIniA::TNamesDepend otherkeys;
 
         ini.SetUnicode();
         ini.LoadFile(path);
@@ -112,10 +113,21 @@ namespace Settings {
 
         // Create Sections with defaults if they don't exist
         if (!ini.SectionExists(InISections[2])) {
-            ini.SetBoolValue(InISections[2], otherstuffKeys[0], true, os_comments[0].c_str());
-            ini.SetBoolValue(InISections[2], otherstuffKeys[1], false, os_comments[1].c_str());
-            ini.SetBoolValue(InISections[2], otherstuffKeys[2], false, os_comments[2].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[0], otherstuffVals[0], section_comments[2].c_str());
             logger::info("Default values set for section {}", InISections[2]);
+        }
+
+        ini.GetAllKeys(InISections[2], otherkeys);
+        auto numOthers = otherkeys.size();
+        logger::info("otherkeys size {}", numOthers);
+
+        if (numOthers == 0 || numOthers != otherstuffKeys.size()) {
+            logger::warn(
+                "No other settings found in the ini file or Invalid number of other settings . Using defaults.");
+            ini.SetBoolValue(InISections[2], otherstuffKeys[0], otherstuffVals[0], os_comments[0].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[1], otherstuffVals[1], os_comments[1].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[2], otherstuffVals[2], os_comments[2].c_str());
+            ini.SetBoolValue(InISections[2], otherstuffKeys[3], otherstuffVals[3], os_comments[3].c_str());
         }
 
 
@@ -177,44 +189,22 @@ namespace Settings {
         ini.SetUnicode();
         ini.LoadFile(path);
 
-        // Create Sections with defaults if they don't exist
-        if (!ini.SectionExists(InISections[2])) {
-            ini.SetBoolValue(InISections[2], InIDefaultKeys[2], true, section_comments[2].c_str());
-            logger::info("Default values set for section {}", InISections[2]);
-        }
 
-
-        ini.GetAllKeys(InISections[2], otherkeys);
-        auto numOthers = otherkeys.size();
-        logger::info("otherkeys size {}", numOthers);
-
-        if (numOthers == 0 || numOthers != otherstuffKeys.size()) {
-			logger::warn("No other settings found in the ini file or Invalid number of other settings . Using defaults.");
-            ini.SetBoolValue(InISections[2], otherstuffKeys[0], otherstuffVals[0]);
-            ini.SetBoolValue(InISections[2], otherstuffKeys[1], otherstuffVals[1]);
-            ini.SetBoolValue(InISections[2], otherstuffKeys[2], otherstuffVals[2]);
-            ini.SetBoolValue(InISections[2], otherstuffKeys[3], otherstuffVals[3]);
-        }
-
-        bool val1;
-        bool val2;
-        bool val3;
-        bool val4;
         // other stuff section
-        val1 = ini.GetBoolValue(InISections[2], otherstuffKeys[0]);
-        ini.SetBoolValue(InISections[2], otherstuffKeys[0], val1, os_comments[0].c_str());
-        val2 = ini.GetBoolValue(InISections[2], otherstuffKeys[1]);
-        ini.SetBoolValue(InISections[2], otherstuffKeys[1], val2, os_comments[1].c_str());
-        val3 = ini.GetBoolValue(InISections[2], otherstuffKeys[2]);
-        ini.SetBoolValue(InISections[2], otherstuffKeys[2], val3, os_comments[2].c_str());
-        val4 = ini.GetBoolValue(InISections[2], otherstuffKeys[3]);
-		ini.SetBoolValue(InISections[2], otherstuffKeys[3], val4, os_comments[3].c_str());
+        bool val1 = ini.GetBoolValue(InISections[2], otherstuffKeys[0]);
+        bool val2 = ini.GetBoolValue(InISections[2], otherstuffKeys[1]);
+        bool val3 = ini.GetBoolValue(InISections[2], otherstuffKeys[2]);
+        bool val4 = ini.GetBoolValue(InISections[2], otherstuffKeys[3]);
         others[otherstuffKeys[0]] = val1;
         others[otherstuffKeys[1]] = val2;
         others[otherstuffKeys[2]] = val3;
         others[otherstuffKeys[3]] = val4;
 
-        ini.SaveFile(path);
+        // log the values
+        logger::info("INI_changed_msg: {}", val1);
+        logger::info("RemoveCarryBoosts: {}", val2);
+        logger::info("ReturnToInitialMenu: {}", val3);
+        logger::info("BatchSell: {}", val4);
 
         return others;
     }
