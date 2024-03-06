@@ -578,10 +578,13 @@ namespace Utilities {
                 form->weight = weight;
             }
 
-                  static int GetValue(RE::AlchemyItem* form) {
+            static int GetValue(RE::AlchemyItem* form) {
         	    return form->GetGoldValue();
             }
-            static void SetValue(RE::AlchemyItem*, int) { return; }
+            static void SetValue(RE::AlchemyItem* form, int value) { 
+                logger::info("CostOverride: {}", form->data.costOverride);
+                form->data.costOverride = value;
+            }
         };
 
         /*float GetBoundObjectWeight(RE::TESBoundObject* object) {
@@ -684,6 +687,13 @@ namespace Utilities {
 				auto it = inventory.find(item);
 				return it->second.first;
 			}
+            return 0;
+        }
+
+        const std::int32_t GetItemValue(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+            if (HasItemEntry(item, inventory_owner, true)) {
+                return inventory_owner->GetInventory().find(item)->second.second->GetValue();
+            }
             return 0;
         }
 

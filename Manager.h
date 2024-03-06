@@ -585,14 +585,14 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         // we also need to have that the actual value in the inventory can only be larger than we we have set
         logger::info("Player has the fake form, try to correct the value");
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
-        int value_in_inventory = player_ref->GetInventory().find(fake_bound)->second.second->GetValue();
-        const int original_value_in_inventory = value_in_inventory;
+        int value_in_inventory = GetItemValue(fake_bound,player_ref);
+        const int original_value_in_inventory = value_in_inventory; // value of fake item in the inventory after the first SetValue
         const int target_value = GetValueInContainer(chest_linked);
-        if (value_in_inventory <= target_value) return;
+        if (original_value_in_inventory <= target_value) return;
+
         // do binary search to find the correct value up to a tolerance
         const float tolerance = 0.005f; // 0.5%
-        float tolerance_val = std::floor(tolerance * target_value) + 1;
-        tolerance_val = std::max(5.0f, tolerance_val); // at least 5 
+        const float tolerance_val = std::max(5.0f, std::floor(tolerance * target_value) + 1);  // at least 5 
         int max_iter = 2000;
         const int max_iter_ = max_iter;
         int value__ = value_;
@@ -608,18 +608,20 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 			}
             if (value__ < 0) return FormTraits<T>::SetValue(fake_form, value_);
             FormTraits<T>::SetValue(fake_form, value__);
-            value_in_inventory = player_ref->GetInventory().find(fake_bound)->second.second->GetValue();
+            value_in_inventory = GetItemValue(fake_bound, player_ref);
             if (value_in_inventory < value__) return FormTraits<T>::SetValue(fake_form, value_);
 			max_iter--;
 		}
+
         logger::info("iter: {}", max_iter_ - max_iter);
+
         if (max_iter == 0) {
-            logger::warn("Max iterations reached. Could not find correct value for fake form");
+            logger::warn("Max iterations reached.");
             if (std::abs(value_in_inventory - target_value) > std::abs(original_value_in_inventory - target_value)){
+                logger::warn("Could not find a better value for fake form");
                 return FormTraits<T>::SetValue(fake_form, value_);
             }
-        } else FormTraits<T>::SetValue(fake_form, value__);
-
+        } 
     }
 
     // Updates weight and value of fake container and uses Copy and applies renaming
