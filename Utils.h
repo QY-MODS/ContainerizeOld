@@ -116,7 +116,7 @@ namespace Utilities {
     template <typename Key, typename Value>
     void printMap(const std::map<Key, Value>& myMap) {
         for (const auto& pair : myMap) {
-			logger::info("Key: {}, Value: {}", pair.first, pair.second);
+			logger::trace("Key: {}, Value: {}", pair.first, pair.second);
 		}
 	}
 
@@ -212,9 +212,9 @@ namespace Utilities {
             }
 
             // Update the maps
-            logger::info("updateValue: Key {}, oldValue {}, newValue {}", key, oldValue, newValue);
-            logger::info("keyToValue[{}] = {}", key, keyToValue[key]);
-            logger::info("valueToKey[{}] = {}", oldValue, valueToKey[oldValue]);
+            logger::trace("updateValue: Key {}, oldValue {}, newValue {}", key, oldValue, newValue);
+            logger::trace("keyToValue[{}] = {}", key, keyToValue[key]);
+            logger::trace("valueToKey[{}] = {}", oldValue, valueToKey[oldValue]);
             keyIt->second = newValue;
             valueToKey.erase(valueIt);
             valueToKey[newValue] = key;
@@ -281,13 +281,13 @@ namespace Utilities {
 
         void printValueToKey() {
             for (const auto& pair : valueToKey) {
-                logger::info("Key: {}, Value: {}", pair.first, pair.second);
+                logger::trace("Key: {}, Value: {}", pair.first, pair.second);
             }
         }
 
         void printKeyToValue() {
             for (const auto& pair : keyToValue) {
-				logger::info("Key: {}, Value: {}", pair.first, pair.second);
+				logger::trace("Key: {}, Value: {}", pair.first, pair.second);
 			}
 		}
 
@@ -500,11 +500,11 @@ namespace Utilities {
         }
         template <class T>
         uint32_t GetLength(T list) {
-            logger::info("Getting length of list");
+            logger::trace("Getting length of list");
             uint32_t length = 0;
             for (auto _ : list) {
                 ++length;
-                logger::info("Length: {}", length);
+                logger::trace("Length: {}", length);
             }
             return length;
         }
@@ -582,7 +582,7 @@ namespace Utilities {
         	    return form->GetGoldValue();
             }
             static void SetValue(RE::AlchemyItem* form, int value) { 
-                logger::info("CostOverride: {}", form->data.costOverride);
+                logger::trace("CostOverride: {}", form->data.costOverride);
                 form->data.costOverride = value;
             }
         };
@@ -711,14 +711,14 @@ namespace Utilities {
                 auto formid = (*it)->object->GetFormID();
                 if (!formid) logger::critical("Formid is null");
                 if (formid == item->GetFormID()) {
-                    logger::info("Favoriting item: {}", item->GetName());
+                    logger::trace("Favoriting item: {}", item->GetName());
                     bool no_extra_ = (*it)->extraLists->empty();
-                    logger::info("asdasd");
+                    logger::trace("asdasd");
                     if (no_extra_) {
-                        logger::info("No extraLists");
+                        logger::trace("No extraLists");
                         inventory_changes->SetFavorite((*it), nullptr);
                     } else {
-                        logger::info("ExtraLists found");
+                        logger::trace("ExtraLists found");
                         inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
                     }
                     return;

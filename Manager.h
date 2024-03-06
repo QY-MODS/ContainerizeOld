@@ -205,13 +205,13 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         if (!copy_from || !copy_to) return RaiseMngrErr("copy_from or copy_to is null");
         // Enchantment
         if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
-            logger::info("Enchantment found");
+            logger::trace("Enchantment found");
             auto enchantment =
                 static_cast<RE::ExtraEnchantment*>(copy_from->GetByType(RE::ExtraDataType::kEnchantment));
             if (enchantment) {
                 RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>();
                 // log the associated actor value
-                logger::info("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
+                logger::trace("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
                 enchantment_fake->enchantment = enchantment->enchantment;
                 enchantment_fake->charge = enchantment->charge;
                 enchantment_fake->removeOnUnequip = enchantment->removeOnUnequip;
@@ -221,7 +221,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Health
         if (copy_from->HasType(RE::ExtraDataType::kHealth)) {
-            logger::info("Health found");
+            logger::trace("Health found");
             auto health = static_cast<RE::ExtraHealth*>(copy_from->GetByType(RE::ExtraDataType::kHealth));
             if (health) {
                 RE::ExtraHealth* health_fake = RE::BSExtraData::Create<RE::ExtraHealth>();
@@ -232,7 +232,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Rank
         if (copy_from->HasType(RE::ExtraDataType::kRank)) {
-            logger::info("Rank found");
+            logger::trace("Rank found");
             auto rank = static_cast<RE::ExtraRank*>(copy_from->GetByType(RE::ExtraDataType::kRank));
             if (rank) {
                 RE::ExtraRank* rank_fake = RE::BSExtraData::Create<RE::ExtraRank>();
@@ -243,7 +243,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // TimeLeft
         if (copy_from->HasType(RE::ExtraDataType::kTimeLeft)) {
-            logger::info("TimeLeft found");
+            logger::trace("TimeLeft found");
             auto timeleft = static_cast<RE::ExtraTimeLeft*>(copy_from->GetByType(RE::ExtraDataType::kTimeLeft));
             if (timeleft) {
                 RE::ExtraTimeLeft* timeleft_fake = RE::BSExtraData::Create<RE::ExtraTimeLeft>();
@@ -254,7 +254,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Charge
         if (copy_from->HasType(RE::ExtraDataType::kCharge)) {
-            logger::info("Charge found");
+            logger::trace("Charge found");
             auto charge = static_cast<RE::ExtraCharge*>(copy_from->GetByType(RE::ExtraDataType::kCharge));
             if (charge) {
                 RE::ExtraCharge* charge_fake = RE::BSExtraData::Create<RE::ExtraCharge>();
@@ -265,7 +265,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Scale
         if (copy_from->HasType(RE::ExtraDataType::kScale)) {
-            logger::info("Scale found");
+            logger::trace("Scale found");
             auto scale = static_cast<RE::ExtraScale*>(copy_from->GetByType(RE::ExtraDataType::kScale));
             if (scale) {
                 RE::ExtraScale* scale_fake = RE::BSExtraData::Create<RE::ExtraScale>();
@@ -276,7 +276,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // UniqueID
         if (copy_from->HasType(RE::ExtraDataType::kUniqueID)) {
-            logger::info("UniqueID found");
+            logger::trace("UniqueID found");
             auto uniqueid = static_cast<RE::ExtraUniqueID*>(copy_from->GetByType(RE::ExtraDataType::kUniqueID));
             if (uniqueid) {
                 RE::ExtraUniqueID* uniqueid_fake = RE::BSExtraData::Create<RE::ExtraUniqueID>();
@@ -288,7 +288,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Poison
         if (copy_from->HasType(RE::ExtraDataType::kPoison)) {
-            logger::info("Poison found");
+            logger::trace("Poison found");
             auto poison = static_cast<RE::ExtraPoison*>(copy_from->GetByType(RE::ExtraDataType::kPoison));
             if (poison) {
                 RE::ExtraPoison* poison_fake = RE::BSExtraData::Create<RE::ExtraPoison>();
@@ -300,7 +300,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // ObjectHealth
         if (copy_from->HasType(RE::ExtraDataType::kObjectHealth)) {
-            logger::info("ObjectHealth found");
+            logger::trace("ObjectHealth found");
             auto objhealth =
                 static_cast<RE::ExtraObjectHealth*>(copy_from->GetByType(RE::ExtraDataType::kObjectHealth));
             if (objhealth) {
@@ -312,7 +312,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Light
         if (copy_from->HasType(RE::ExtraDataType::kLight)) {
-            logger::info("Light found");
+            logger::trace("Light found");
             auto light = static_cast<RE::ExtraLight*>(copy_from->GetByType(RE::ExtraDataType::kLight));
             if (light) {
                 RE::ExtraLight* light_fake = RE::BSExtraData::Create<RE::ExtraLight>();
@@ -323,7 +323,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Radius
         if (copy_from->HasType(RE::ExtraDataType::kRadius)) {
-            logger::info("Radius found");
+            logger::trace("Radius found");
             auto radius = static_cast<RE::ExtraRadius*>(copy_from->GetByType(RE::ExtraDataType::kRadius));
             if (radius) {
                 RE::ExtraRadius* radius_fake = RE::BSExtraData::Create<RE::ExtraRadius>();
@@ -334,7 +334,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Sound (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kSound)) {
-            logger::info("Sound found");
+            logger::trace("Sound found");
             auto sound = static_cast<RE::ExtraSound*>(copy_from->GetByType(RE::ExtraDataType::kSound));
             if (sound) {
                 RE::ExtraSound* sound_fake = RE::BSExtraData::Create<RE::ExtraSound>();
@@ -345,7 +345,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // LinkedRef (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kLinkedRef)) {
-            logger::info("LinkedRef found");
+            logger::trace("LinkedRef found");
             auto linkedref =
                 static_cast<RE::ExtraLinkedRef*>(copy_from->GetByType(RE::ExtraDataType::kLinkedRef));
             if (linkedref) {
@@ -357,7 +357,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // Horse
         if (copy_from->HasType(RE::ExtraDataType::kHorse)) {
-            logger::info("Horse found");
+            logger::trace("Horse found");
             auto horse = static_cast<RE::ExtraHorse*>(copy_from->GetByType(RE::ExtraDataType::kHorse));
             if (horse) {
                 RE::ExtraHorse* horse_fake = RE::BSExtraData::Create<RE::ExtraHorse>();
@@ -368,7 +368,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Hotkey
         if (copy_from->HasType(RE::ExtraDataType::kHotkey)) {
-            logger::info("Hotkey found");
+            logger::trace("Hotkey found");
             auto hotkey = static_cast<RE::ExtraHotkey*>(copy_from->GetByType(RE::ExtraDataType::kHotkey));
             if (hotkey) {
                 RE::ExtraHotkey* hotkey_fake = RE::BSExtraData::Create<RE::ExtraHotkey>();
@@ -379,7 +379,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Weapon Attack Sound (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kWeaponAttackSound)) {
-            logger::info("WeaponAttackSound found");
+            logger::trace("WeaponAttackSound found");
             auto weaponattacksound = static_cast<RE::ExtraWeaponAttackSound*>(
                 copy_from->GetByType(RE::ExtraDataType::kWeaponAttackSound));
             if (weaponattacksound) {
@@ -392,7 +392,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // Activate Ref (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kActivateRef)) {
-            logger::info("ActivateRef found");
+            logger::trace("ActivateRef found");
             auto activateref =
                 static_cast<RE::ExtraActivateRef*>(copy_from->GetByType(RE::ExtraDataType::kActivateRef));
             if (activateref) {
@@ -404,7 +404,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // TextDisplayData
         if (copy_from->HasType(RE::ExtraDataType::kTextDisplayData)) {
-            logger::info("TextDisplayData found");
+            logger::trace("TextDisplayData found");
             auto textdisplaydata =
                 static_cast<RE::ExtraTextDisplayData*>(copy_from->GetByType(RE::ExtraDataType::kTextDisplayData));
             if (textdisplaydata) {
@@ -421,7 +421,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Soul
         if (copy_from->HasType(RE::ExtraDataType::kSoul)) {
-            logger::info("Soul found");
+            logger::trace("Soul found");
             auto soul = static_cast<RE::ExtraSoul*>(copy_from->GetByType(RE::ExtraDataType::kSoul));
             if (soul) {
                 RE::ExtraSoul* soul_fake = RE::BSExtraData::Create<RE::ExtraSoul>();
@@ -432,7 +432,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Flags (OK)
         if (copy_from->HasType(RE::ExtraDataType::kFlags)) {
-            logger::info("Flags found");
+            logger::trace("Flags found");
             auto flags = static_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags));
             if (flags) {
                 SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
@@ -454,7 +454,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         // Lock (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kLock)) {
-            logger::info("Lock found");
+            logger::trace("Lock found");
             auto lock = static_cast<RE::ExtraLock*>(copy_from->GetByType(RE::ExtraDataType::kLock));
             if (lock) {
                 RE::ExtraLock* lock_fake = RE::BSExtraData::Create<RE::ExtraLock>();
@@ -465,7 +465,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // Teleport (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kTeleport)) {
-            logger::info("Teleport found");
+            logger::trace("Teleport found");
             auto teleport =
                 static_cast<RE::ExtraTeleport*>(copy_from->GetByType(RE::ExtraDataType::kTeleport));
             if (teleport) {
@@ -477,7 +477,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // LockList (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kLockList)) {
-            logger::info("LockList found");
+            logger::trace("LockList found");
             auto locklist =
                 static_cast<RE::ExtraLockList*>(copy_from->GetByType(RE::ExtraDataType::kLockList));
             if (locklist) {
@@ -489,7 +489,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // OutfitItem (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kOutfitItem)) {
-            logger::info("OutfitItem found");
+            logger::trace("OutfitItem found");
             auto outfititem =
                 static_cast<RE::ExtraOutfitItem*>(copy_from->GetByType(RE::ExtraDataType::kOutfitItem));
             if (outfititem) {
@@ -501,7 +501,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // CannotWear (Disabled)
         /*if (copy_from->HasType(RE::ExtraDataType::kCannotWear)) {
-            logger::info("CannotWear found");
+            logger::trace("CannotWear found");
             auto cannotwear =
                 static_cast<RE::ExtraCannotWear*>(copy_from->GetByType(RE::ExtraDataType::kCannotWear));
             if (cannotwear) {
@@ -512,14 +512,14 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }*/
         // Ownership (OK)
         if (copy_from->HasType(RE::ExtraDataType::kOwnership)) {
-            logger::info("Ownership found");
+            logger::trace("Ownership found");
             auto ownership = static_cast<RE::ExtraOwnership*>(copy_from->GetByType(RE::ExtraDataType::kOwnership));
             if (ownership) {
-                logger::info("length of fake extradatalist: {}", copy_to->GetCount());
+                logger::trace("length of fake extradatalist: {}", copy_to->GetCount());
                 RE::ExtraOwnership* ownership_fake = RE::BSExtraData::Create<RE::ExtraOwnership>();
                 ownership_fake->owner = ownership->owner;
                 copy_to->Add(ownership_fake);
-                logger::info("length of fake extradatalist: {}", copy_to->GetCount());
+                logger::trace("length of fake extradatalist: {}", copy_to->GetCount());
             } else
                 RaiseMngrErr("Failed to get ownership from copy_from");
         }
@@ -559,7 +559,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         // assumes base container is already in the chest
         if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
         auto real_container = FakeToRealContainer(fake_form->GetFormID());
-        logger::info("Copying from real container to fake container. Real container: {}, Fake container: {}",
+        logger::trace("Copying from real container to fake container. Real container: {}, Fake container: {}",
 					 real_container->GetFormID(), fake_form->GetFormID());
         fake_form->Copy(real_container->As<T>());
         // if it was renamed, rename it back
@@ -569,21 +569,21 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
         int value_ = FormTraits<T>::GetValue(real_container->As<T>());
         if (_other_settings[Settings::otherstuffKeys[3]]) {
-            logger::info("VALUE BEFORE {}", value_);
-            logger::info("VALUE OFFSET {}", value_offset);
+            logger::trace("VALUE BEFORE {}", value_);
+            logger::trace("VALUE OFFSET {}", value_offset);
             value_ += GetValueInContainer(chest_linked) - value_offset;
-            logger::info("VALUE AFTER {}",value_);
+            logger::trace("VALUE AFTER {}",value_);
         }
         if (value_ < 0) value_ = 0;
 
-        logger::info("Setting weight and value for fake form");
+        logger::trace("Setting weight and value for fake form");
         FormTraits<T>::SetValue(fake_form, value_);
-        logger::info("ACTUAL VALUE {}", FormTraits<T>::GetValue(fake_form));
+        logger::trace("ACTUAL VALUE {}", FormTraits<T>::GetValue(fake_form));
         
         if (!HasItem(fake_form, player_ref) || value_ == 0) return;
         // if the fake is in player inventory, we try to adjust the value to be correct
         // we also need to have that the actual value in the inventory can only be larger than we we have set
-        logger::info("Player has the fake form, try to correct the value");
+        logger::trace("Player has the fake form, try to correct the value");
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
         int value_in_inventory = GetItemValue(fake_bound,player_ref);
         const int original_value_in_inventory = value_in_inventory; // value of fake item in the inventory after the first SetValue
@@ -597,8 +597,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         const int max_iter_ = max_iter;
         int value__ = value_;
         // value_in_inventory needs to be equal to value_ within tolerance_val
-        logger::info("Value in inventory: {}", value_in_inventory);
-        logger::info("value_: {}", value_);
+        logger::trace("Value in inventory: {}", value_in_inventory);
+        logger::trace("value_: {}", value_);
 
         while (std::abs(value_in_inventory - target_value) > tolerance_val && max_iter > 0) {
             if (value_in_inventory > target_value) {
@@ -613,7 +613,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 			max_iter--;
 		}
 
-        logger::info("iter: {}", max_iter_ - max_iter);
+        logger::trace("iter: {}", max_iter_ - max_iter);
 
         if (max_iter == 0) {
             logger::warn("Max iterations reached.");
@@ -718,17 +718,17 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         int value_offset = GetValueInContainer(chest);
 
         // realla isimiz bitti
-        logger::info("Sending dropped real in unownedcell to its unownedchest (chest_linked)");
+        logger::trace("Sending dropped real in unownedcell to its unownedchest (chest_linked)");
         if (!RemoveObject(real_ref, chest, false)) return RaiseMngrErr("Failed to send dropped real in unownedcell to its unownedchest");
         value_offset = GetValueInContainer(chest) - value_offset;
         if (value_offset < 0) {
             logger::error("Value offset is negative. Setting it to 0");
 			value_offset = 0;
         }
-        logger::info("Picking up fake");
+        logger::trace("Picking up fake");
         if (!PickUpItem(fake_ref)) return RaiseMngrErr("Failed to pick up fake container");
 
-        logger::info("Updating FakeWV");
+        logger::trace("Updating FakeWV");
         UpdateFakeWV(fake_bound,chest,value_offset);
 
     }
@@ -775,7 +775,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             RaiseMngrErr("moveFrom and moveTo are both null!");
             return ref_handle;
         }
-        logger::info("Removing item reverse");
+        logger::trace("Removing item reverse");
         listen_container_change = false;
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
@@ -895,8 +895,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         if (!chest) return RaiseMngrErr("Chest is null");
         listen_menuclose = true;
         unownedChest->fullName = chest_name;
-        logger::info("Activating chest with name: {}", chest_name);
-        logger::info("listenclose: {}", listen_menuclose);
+        logger::trace("Activating chest with name: {}", chest_name);
+        logger::trace("listenclose: {}", listen_menuclose);
         Activate(chest);
     };
 
@@ -926,7 +926,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     void MsgBoxCallback(const int result) {
         DISABLE_IF_NO_CURR_CONT
-        logger::info("Result: {}", result);
+        logger::trace("Result: {}", result);
 
         if (result != 0 && result != 1 && result != 2 && result != 3) return;
 
@@ -947,10 +947,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             
             // Add fake container to player
             const auto chest_refid = GetRealContainerChest(current_container->GetFormID());
-            logger::info("Chest refid: {}", chest_refid);
+            logger::trace("Chest refid: {}", chest_refid);
             // if we already had created a fake container for this chest, then we just add it to the player's inventory
             if (!ChestToFakeContainer.count(chest_refid)) return RaiseMngrErr("Chest refid not found in ChestToFakeContainer, i.e. sth must have gone wrong during new form creation.");
-            logger::info("Fake container formid found in ChestToFakeContainer");
+            logger::trace("Fake container formid found in ChestToFakeContainer");
             
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             const FormID fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
@@ -985,7 +985,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     void MsgBoxCallbackMore(const int result) {
-        logger::info("More. Result: {}", result);
+        logger::trace("More. Result: {}", result);
 
         if (result != 0 && result != 1 && result != 2 && result != 3) return;
 
@@ -1026,10 +1026,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 		//// Deregister
   //      if (result == 1) {
   //          if (!current_container) return RaiseMngrErr("current_container is null!");
-  //          logger::info("Deregistering real container with name {} and form id {}", current_container->GetName(), current_container->GetBaseObject()->GetFormID());
+  //          logger::trace("Deregistering real container with name {} and form id {}", current_container->GetName(), current_container->GetBaseObject()->GetFormID());
   //          auto chest = GetContainerChest(current_container);
   //          DeRegisterChest(chest->GetFormID());
-  //          logger::info("Deregistered source with name {} and form id {}", current_container->GetName(), current_container->GetBaseObject()->GetFormID());
+  //          logger::trace("Deregistered source with name {} and form id {}", current_container->GetName(), current_container->GetBaseObject()->GetFormID());
   //          return;
 		//}
 
@@ -1060,7 +1060,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         if (!container_refid) return RaiseMngrErr("Container refid is null");
         if (!Utilities::Functions::containsValue(src->data,container_refid)) {
             // Not registered. lets find a chest to register it to
-            logger::info("Not registered");
+            logger::trace("Not registered");
             const auto ChestObjRef = FindNotMatchedChest();
             const auto ChestRefID = ChestObjRef->GetFormID();
             logger::info("Matched chest with refid: {} with container with refid: {}", ChestRefID, container_refid);
@@ -1088,10 +1088,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 const auto real_container_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(src->formid);
                 const auto fakeid = CreateFakeContainer(real_container_obj, nullptr);
                 // load game den dolayi
-                logger::info("ChestToFakeContainer (chest refid: {}) before: {}", chest_refid,
+                logger::trace("ChestToFakeContainer (chest refid: {}) before: {}", chest_refid,
                              ChestToFakeContainer[chest_refid].innerKey);
                 ChestToFakeContainer[chest_refid].innerKey = fakeid;
-                logger::info("ChestToFakeContainer (chest refid: {}) after: {}", chest_refid,
+                logger::trace("ChestToFakeContainer (chest refid: {}) after: {}", chest_refid,
                              ChestToFakeContainer[chest_refid].innerKey);
             }
             // we dont care about updating other stuff at this stage since we will do it in "Take" button
@@ -1158,7 +1158,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         listen_container_change = false;
         auto item_bound = item->GetBaseObject();
         const auto item_count = GetItemCount(item_bound, actor);
-        logger::info("Item count: {}", item_count);
+        logger::trace("Item count: {}", item_count);
         unsigned int i = 0;
         if (!item_bound) {
             logger::warn("Item bound is null");
@@ -1175,11 +1175,11 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             }
 			actor->PickUpObject(item, 1, false, false);
             if (GetItemCount(item_bound, actor) > item_count) {
-            	logger::info("Item picked up. Took {} extra tries.", i);
+            	logger::trace("Item picked up. Took {} extra tries.", i);
                 listen_container_change = true;
                 return true;
             }
-            else logger::info("item count: {}", GetItemCount(item_bound, actor));
+            else logger::trace("item count: {}", GetItemCount(item_bound, actor));
 			i++;
 		}
         listen_container_change = true;
@@ -1195,14 +1195,14 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         }
         auto inventory_player = player_ref->GetInventory();
         if (auto enchantment = inventory_player.find(item_obj)->second.second->GetEnchantment()) {
-            logger::info("Enchantment: {}", enchantment->GetName());
+            logger::trace("Enchantment: {}", enchantment->GetName());
             // remove the enchantment from the fake container if it is carry weight boost
             for (const auto& effect : enchantment->effects) {
-                logger::info("Effect: {}", effect->baseEffect->GetName());
-                logger::info("PrimaryAV: {}", effect->baseEffect->data.primaryAV);
-                logger::info("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
+                logger::trace("Effect: {}", effect->baseEffect->GetName());
+                logger::trace("PrimaryAV: {}", effect->baseEffect->data.primaryAV);
+                logger::trace("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
                 if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
-                    logger::info("Removing enchantment: {}", effect->baseEffect->GetName());
+                    logger::trace("Removing enchantment: {}", effect->baseEffect->GetName());
                     if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
                 }
             }
@@ -1331,7 +1331,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 RemoveAllItemsFromChest(ref.get(), player_ref);
                 if (ref->GetInventory().size()) {
                     uninstall_successful = false;
-                    logger::info("Chest with refid {} is not empty.", ref->GetFormID());
+                    logger::error("Chest with refid {} is not empty.", ref->GetFormID());
                     break;
                 }
 				ref->Disable();
@@ -1417,7 +1417,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     // DOES NOT UPDATE THE SOURCE DATA and CHESTTOFAKECONTAINER !!!
     void qTRICK__(Source& src, const SourceDataKey chest_ref, const SourceDataVal cont_ref,bool execute_trick = false) {
         
-        logger::info("qTrick before execute_trick");
+        logger::trace("qTrick before execute_trick");
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
         auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
         auto player_actor = player_ref->As<RE::Actor>();
@@ -1432,20 +1432,20 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         if (!real_refhandle) return RaiseMngrErr("Real refhandle is null.");
         // doing the trick for registering/creating the fake container
         if (execute_trick) {
-            logger::info("Executing trick");
+            logger::trace("Executing trick");
             TRICK(src, real_refhandle, chest_ref);
         }
-        logger::info("qTrick after execute_trick");
+        logger::trace("qTrick after execute_trick");
         auto fake_formid = ChestToFakeContainer[chest_ref].innerKey;  // the new one (execute_trick)
         auto chest_of_fake = execute_trick ? unownedChestOG : chest_cont_ref; // at the beginnning different, at the end same
 
         FetchStoredFake(chest_of_fake, fake_formid, chest_ref, real_refhandle.get().get());
 
         // fave it if it is in external_favs
-        logger::info("Fave");
+        logger::trace("Fave");
         auto it = std::find(external_favs.begin(), external_favs.end(), fake_formid);
         if (it != external_favs.end()) {
-            logger::info("Faving");
+            logger::trace("Faving");
             FaveItem(fake_formid);
         }
         // Remove carry weight boost if it has
@@ -1459,7 +1459,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         if (HasItem(item, item_owner)) return true;
         if (HasItemEntry(item, item_owner)) {
             RemoveItemReverse(item_owner, nullptr, item->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
-            logger::info("Item with zero count removed from player.");
+            logger::trace("Item with zero count removed from player.");
         }
         return false;
     }
@@ -1604,9 +1604,9 @@ public:
     [[nodiscard]] const bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake) {
         
         // print gold value
-        logger::info("Gold value: {}", ref_fake->GetGoldValue());
+        logger::trace("Gold value: {}", ref_fake->GetGoldValue());
         // print gold value with base object
-        logger::info("Gold value with base object: {}", ref_fake->GetBaseObject()->GetGoldValue());
+        logger::trace("Gold value with base object: {}", ref_fake->GetBaseObject()->GetGoldValue());
 
         // need the linked chest for updating source data
         if (!ref_fake) {
@@ -1655,7 +1655,7 @@ public:
         // yes terrible naming scheme. i am tired
         const auto position = ref_fake->GetPosition();
         auto player_pos = player_ref->GetPosition();
-        logger::info("Player's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
+        logger::trace("Player's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
         // distance in the xy-plane
         const auto distance = std::sqrt(std::pow(position.x - player_pos.x, 2) + std::pow(position.y - player_pos.y, 2));
         if (distance < 60 || distance > 160) {
@@ -1667,7 +1667,7 @@ public:
         //auto unit_vector = RE::NiPoint3{position.x - player_pos.x, position.y - player_pos.y, 0} / distance;
         // add it to the player's position with a distance of 100
         /*player_pos += {unit_vector.x * multiplier, unit_vector.y * multiplier, 70};*/
-        logger::info("New position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
+        logger::trace("New position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
         real_cont->SetParentCell(player_ref->GetParentCell());
         real_cont->SetPosition(player_pos);
 
@@ -1698,7 +1698,7 @@ public:
             return false;
         }   
 
-        logger::info("Swapped real container has refid: {}", real_cont->GetFormID());
+        logger::trace("Swapped real container has refid: {}", real_cont->GetFormID());
         return true;
     }
 
@@ -1706,7 +1706,7 @@ public:
     void HandleCraftingEnter() { 
         ENABLE_IF_NOT_UNINSTALLED
         listen_container_change = false;
-        logger::info("Crafting menu opened");
+        logger::trace("Crafting menu opened");
         // this might be problematic since we dont update source data and chesttofakecontainer
         // trusting that the player will leave the crafting menu at some point and everything will be reverted
         for (const auto& src : sources) {
@@ -1729,7 +1729,7 @@ public:
     void HandleCraftingExit() { 
         ENABLE_IF_NOT_UNINSTALLED
         listen_container_change = false;
-        logger::info("Crafting menu closed");
+        logger::trace("Crafting menu closed");
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 // we trust that the player will leave the crafting menu at some point and everything will be reverted
@@ -1819,7 +1819,7 @@ public:
             return RaiseMngrErr("External container does not have a container.");
         }
 
-        logger::info("Linking external container.");
+        logger::trace("Linking external container.");
         const auto external_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(externalcontainer);
         const auto chest_refid = GetFakeContainerChest(fakecontainer);
         const auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
@@ -1843,7 +1843,7 @@ public:
         // if successfully transferred to the external container, check if the fake container is faved
         if (src->data[chest_refid] != chest_refid &&
             IsFavorited(RE::TESForm::LookupByID<RE::TESBoundObject>(fakecontainer), external_ref)) {
-            logger::info("Faved item successfully transferred to external container.");
+            logger::trace("Faved item successfully transferred to external container.");
             external_favs.push_back(fakecontainer);
         }
 
@@ -1872,17 +1872,17 @@ public:
         const auto it = std::find(external_favs.begin(), external_favs.end(), fake_container_formid);
         if (it != external_favs.end()) external_favs.erase(it);
 
-        logger::info("Unlinked external container.");
+        logger::trace("Unlinked external container.");
     }
 
     void HandleSell(const FormID fake_container, const RefID sell_refid) {
         // assumes the sell_refid is a container
         ENABLE_IF_NOT_UNINSTALLED
         const auto sell_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(sell_refid);
-        logger::info("sell ref name: {}", sell_ref->GetName());
+        logger::trace("sell ref name: {}", sell_ref->GetName());
         if (!sell_ref) return RaiseMngrErr("Sell ref not found");
         // remove the fake container from vendor
-        logger::info("Removed fake container from vendor");
+        logger::trace("Removed fake container from vendor");
         // add the real container to the vendor from the unownedchest
         const auto chest_refid = GetFakeContainerChest(fake_container);
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
@@ -1891,29 +1891,29 @@ public:
         if (_other_settings[Settings::otherstuffKeys[3]]) RemoveAllItemsFromChest(chest, sell_ref);
         else RemoveItemReverse(chest, sell_ref, FakeToRealContainer(fake_container)->GetFormID(),
                    RE::ITEM_REMOVE_REASON::kStoreInContainer);
-        logger::info("Added real container to vendor chest");
+        logger::trace("Added real container to vendor chest");
         // remove all items from the chest to the player's inventory and deregister this chest
         DeRegisterChest(chest_refid);
-        logger::info("Sell handled.");
+        logger::trace("Sell handled.");
     }
 
     void ActivateContainer(RE::TESObjectREFR* a_container) {
         ENABLE_IF_NOT_UNINSTALLED
-        logger::info("ActivateContainer 1 arg");
+        logger::trace("ActivateContainer 1 arg");
         HandleRegistration(a_container);
         return PromptInterface();
     };
 
     void ActivateContainer(const FormID fakeid, bool hide_real = false) {
         ENABLE_IF_NOT_UNINSTALLED
-        logger::info("ActivateContainer 2 args");
+        logger::trace("ActivateContainer 2 args");
         const auto chest_refid = GetFakeContainerChest(fakeid);
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         const auto real_container_formid = FakeToRealContainer(fakeid)->GetFormID();
         const auto real_container_name = RE::TESForm::LookupByID<RE::TESBoundObject>(real_container_formid)->GetName();
         if (hide_real) {
             // if the fake container was equipped, then we need to unequip it vice versa
-            logger::info("Hiding real container");
+            logger::trace("Hiding real container");
             const auto fake_form = RE::TESForm::LookupByID(fakeid);
             if (fake_form->formFlags != 13) fake_form->formFlags = 13;
             const auto real_refhandle =
@@ -1921,7 +1921,7 @@ public:
             hidden_real_ref = real_refhandle.get().get();
 		}
         
-        logger::info("Activating chest");
+        logger::trace("Activating chest");
         const auto chest_rename = renames.count(fakeid) ? renames[fakeid].c_str() : real_container_name;
         ActivateChest(chest, chest_rename);
     };
@@ -1953,9 +1953,9 @@ public:
     // reverts inside the samw inventory
     void RevertEquip(const FormID fakeid) {
         ENABLE_IF_NOT_UNINSTALLED
-        logger::info("RE::TESForm::LookupByID");
+        logger::trace("RE::TESForm::LookupByID");
         auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakeid);
-        logger::info("RE::TESForm::LookupByID___");
+        logger::trace("RE::TESForm::LookupByID___");
         auto unequip = IsEquipped(fake_bound);
         if (unequip) {
 			EquipItem(fake_bound, true);
@@ -1998,9 +1998,9 @@ public:
         if (!src) return RaiseMngrErr("Could not find source for container");
         const auto refhandle = RemoveItemReverse(player_ref, nullptr, realcontainer_formid, RE::ITEM_REMOVE_REASON::kDropping);
         if (refhandle.get()->GetFormID() == native_handle) {
-            logger::info("Native handle is the same as the refhandle refid");
+            logger::trace("Native handle is the same as the refhandle refid");
         }
-        else logger::info("Native handle is NOT the same as the refhandle refid");
+        else logger::trace("Native handle is NOT the same as the refhandle refid");
         // lets make sure that the refid of the real container is still the same and exist in our data
         // if not I wouldnt know which fake form belongs to it?
   //      for (const auto& [chest_ref, cont_ref] : src->data) {
@@ -2140,7 +2140,7 @@ public:
             if (fake_formid != fake_cont->GetFormID()) {
                 logger::warn("Fake container formid changed from {} to {}", fake_formid, fake_cont->GetFormID());
             }
-            logger::info("Fake container found in {} with name {} and formid {}.",
+            logger::trace("Fake container found in {} with name {} and formid {}.",
                          cont_of_fakecont->GetDisplayFullName(), fake_cont->GetName(), fake_cont->GetFormID());
             qTRICK__(src, chest_ref, cont_ref);
         }
@@ -2257,7 +2257,7 @@ public:
         handled_already.clear();
 
         // I make the fake containers in player inventory equipped/favorited:
-        logger::info("Equipping and favoriting fake containers in player's inventory");
+        logger::trace("Equipping and favoriting fake containers in player's inventory");
         auto inventory_changes = player_ref->GetInventoryChanges();
         auto entries = inventory_changes->entryList;
         for (auto it = entries->begin(); it != entries->end(); ++it){
@@ -2266,13 +2266,13 @@ public:
                 bool is_equipped_x = chest_equipped_fav[GetFakeContainerChest(fake_formid)].first;
                 bool is_faved_x = chest_equipped_fav[GetFakeContainerChest((*it)->object->GetFormID())].second;
                 if (is_equipped_x) {
-                    logger::info("Equipping fake container with formid {}", fake_formid);
+                    logger::trace("Equipping fake container with formid {}", fake_formid);
                     EquipItem((*it)->object);
                     /*RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref->As<RE::Actor>(), (*it)->object, 
                         nullptr,1,(const RE::BGSEquipSlot*)nullptr,true,false,false,false);*/
 				}
                 if (is_faved_x) {
-                    logger::info("Favoriting fake container with formid {}", fake_formid);
+                    logger::trace("Favoriting fake container with formid {}", fake_formid);
                     FaveItem((*it)->object);
                     //inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
                 }
@@ -2314,12 +2314,12 @@ public:
         
         for (const auto& src : sources) { 
             if (!src.data.empty()) {
-                logger::info("Printing............Source formid: {}", src.formid);
+                logger::trace("Printing............Source formid: {}", src.formid);
                 Utilities::printMap(src.data); 
             }
         }
         for (const auto& [chest_ref, cont_ref] : ChestToFakeContainer) {
-			logger::info("Chest refid: {}, Real container formid: {}, Fake container formid: {}", chest_ref, cont_ref.outerKey, cont_ref.innerKey);
+			logger::trace("Chest refid: {}, Real container formid: {}, Fake container formid: {}", chest_ref, cont_ref.outerKey, cont_ref.innerKey);
         }
         //Utilities::printMap(ChestToFakeContainer);
     }

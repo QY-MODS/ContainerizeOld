@@ -18,7 +18,7 @@ struct Source {
         if (!formid) {
             auto form = RE::TESForm::LookupByEditorID<RE::TESForm>(editorid);
             if (form) {
-                logger::info("Found formid for editorid {}", editorid);
+                logger::trace("Found formid for editorid {}", editorid);
                 formid = form->GetFormID();
             } else
                 logger::info("Could not find formid for editorid {}", editorid);

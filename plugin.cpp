@@ -34,10 +34,10 @@ class ConversationCallbackFunctor : public RE::BSScript::IStackCallbackFunctor {
 
     virtual inline void operator()(RE::BSScript::Variable a_result) override {
         if (a_result.IsNoneObject()) {
-            logger::info("Result: None");
+            logger::trace("Result: None");
         } else if (a_result.IsString()) {
             rename = a_result.GetString();
-            logger::info("Result: {}", rename);
+            logger::trace("Result: {}", rename);
             if (!rename.empty()) {
 				M->RenameContainer(rename);
 			}
@@ -77,7 +77,7 @@ public:
         if (!M->IsFakeContainer(event->baseObject)) return RE::BSEventNotifyControl::kContinue;
 
         fake_equipped_id = event->equipped ? event->baseObject : 0;
-        logger::info("Fake container equipped: {}", fake_equipped_id);
+        logger::trace("Fake container equipped: {}", fake_equipped_id);
 
         if (!ReShowMenu.empty()) return RE::BSEventNotifyControl::kContinue;
         
@@ -86,9 +86,9 @@ public:
               ui_->IsMenuOpen(RE::ContainerMenu::MENU_NAME))) return RE::BSEventNotifyControl::kContinue;
         
         if (event->equipped) {
-	        logger::info("Item {} was equipped. equipped: {}", event->baseObject,equipped);
+	        logger::trace("Item {} was equipped. equipped: {}", event->baseObject,equipped);
         } else {
-            logger::info("Item {} was unequipped. equipped: {}", event->baseObject, equipped);
+            logger::trace("Item {} was unequipped. equipped: {}", event->baseObject, equipped);
         }
         fake_id_ = event->baseObject;
         equipped = true;
@@ -158,10 +158,10 @@ public:
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
 
-        //logger::info("Menu event: {} {}", event->menuName, event->opening ? "opened" : "closed");
+        //logger::trace("Menu event: {} {}", event->menuName, event->opening ? "opened" : "closed");
         
         if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->listen_menuclose) {
-			logger::info("Rename menu closed.");
+			logger::trace("Rename menu closed.");
             M->listen_menuclose = false;
             const auto skyrimVM = RE::SkyrimVM::GetSingleton();
             auto vm = skyrimVM ? skyrimVM->impl : nullptr;
@@ -175,11 +175,11 @@ public:
 
 
         if (equipped && event->menuName == ReShowMenu && !event->opening) {
-            logger::info("menu closed: {}", event->menuName);
+            logger::trace("menu closed: {}", event->menuName);
             equipped = false;
-            logger::info("Reverting equip...");
+            logger::trace("Reverting equip...");
             M->RevertEquip(fake_id_);
-            logger::info("Reverted equip.");
+            logger::trace("Reverted equip.");
             M->ActivateContainer(fake_id_, true);
             return RE::BSEventNotifyControl::kContinue;
         }
@@ -191,10 +191,10 @@ public:
             listen_weight_limit = true;
         } 
         else {
-            logger::info("Our Container menu closed.");
+            logger::trace("Our Container menu closed.");
             listen_weight_limit = false;
 			M->listen_menuclose = false;
-            logger::info("listen_menuclose: {}", M->listen_menuclose);
+            logger::trace("listen_menuclose: {}", M->listen_menuclose);
             if (!ReShowMenu.empty()){
                 M->UnHideReal(fake_id_);
                 if (ReShowMenu == RE::ContainerMenu::MENU_NAME && !external_container_refid) {
@@ -207,13 +207,13 @@ public:
                     M->RevertEquip(fake_id_, external_container_refid);
                 }
                 if (M->_other_settings[Settings::otherstuffKeys[2]]) {
-                    logger::info("Returning to initial menu: {}", ReShowMenu);
+                    logger::trace("Returning to initial menu: {}", ReShowMenu);
                     if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
                         if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
                             if (auto a_objref = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_refid)) {
                                 auto player_ref = RE::PlayerCharacter::GetSingleton();
                                 if (auto has_container = a_objref->HasContainer()) {
-                                    logger::info("HasContainer: {}", has_container);
+                                    logger::trace("HasContainer: {}", has_container);
                                     if (auto container = a_objref->As<RE::TESObjectCONT>()) {
                                         OpenContainer(a_objref, 0);
                                         //container->Activate(a_objref, player_ref, 0, container, 1);
@@ -223,7 +223,7 @@ public:
                                         //container_->Activate(a_objref, player_ref, 0, container_, 1);
                                     } 
                                     else {
-                                        logger::info("has container but could not activate.");
+                                        logger::trace("has container but could not activate.");
                                         OpenContainer(a_objref, 3);
                                     }
                                 } else a_objref->ActivateRef(player_ref, 0, a_objref->GetBaseObject(), 1, 0);
@@ -259,13 +259,13 @@ public:
         if (bench_type != 2 && bench_type != 3 && bench_type != 7) return RE::BSEventNotifyControl::kContinue;
 
         if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kEnter) {
-            logger::info("Furniture event: Enter {}", event->targetFurniture->GetName());
+            logger::trace("Furniture event: Enter {}", event->targetFurniture->GetName());
             furniture_entered = true;
             furniture = event->targetFurniture;
             M->HandleCraftingEnter();
         }
         else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
-            logger::info("Furniture event: Exit {}", event->targetFurniture->GetName());
+            logger::trace("Furniture event: Exit {}", event->targetFurniture->GetName());
             if (event->targetFurniture == furniture) {
                 M->HandleCraftingExit();
                 furniture_entered = false;
@@ -273,7 +273,7 @@ public:
             }
         }
         else {
-			logger::info("Furniture event: Unknown");
+			logger::trace("Furniture event: Unknown");
 		}
 
 
@@ -299,12 +299,12 @@ public:
                 if (!block_droptake && M->IsARegistry(reference_.native_handle())) {
                     // somehow, including ref=0 bcs that happens sometimes when NPCs give you your dropped items back...
                     logger::info("Item {} went into player inventory from unknown container.", event->baseObj);
-                    logger::info("Dropped item native_handle: {}", reference_.native_handle());
+                    logger::trace("Dropped item native_handle: {}", reference_.native_handle());
                     M->DropTake(event->baseObj, reference_.native_handle());
                     M->Print();
                 }
             } else if (M->IsFakeContainer(event->baseObj) && M->ExternalContainerIsRegistered(event->baseObj,event->oldContainer)) {
-                logger::info("Unlinking external container.");
+                logger::trace("Unlinking external container.");
                 M->UnLinkExternalContainer(event->baseObj, event->oldContainer);
                 M->Print();
             }
@@ -315,14 +315,14 @@ public:
         if (event->oldContainer == 20) {
             // a fake container left player inventory
             if (M->IsFakeContainer(event->baseObj)) {
-                logger::info("Fake container left player inventory.");
+                logger::trace("Fake container left player inventory.");
                 // drop event
                 if (!event->newContainer) {
                     auto swapped = false;
-                    logger::info("Dropped fake container.");
+                    logger::trace("Dropped fake container.");
                     RE::TESObjectREFR* ref =
                         RE::TESForm::LookupByID<RE::TESObjectREFR>(event->reference.native_handle());
-                    if (ref) logger::info("Dropped ref name: {}", ref->GetBaseObject()->GetName());
+                    if (ref) logger::trace("Dropped ref name: {}", ref->GetBaseObject()->GetName());
                     if (!ref || ref->GetBaseObject()->GetFormID() != event->baseObj) {
                         // iterate through all objects in the cell................
                         logger::info("Iterating through all references in the cell.");
@@ -331,13 +331,13 @@ public:
                         for (auto& ref_ : cell_runtime_data.references) {
                             if (!ref_) continue;
                             if (ref_.get()->GetBaseObject()->GetFormID()==event->baseObj) {
-                                logger::info("Dropped fake container with ref id {}.", ref_->GetFormID());
+                                logger::trace("Dropped fake container with ref id {}.", ref_->GetFormID());
                                 if (!M->SwapDroppedFakeContainer(ref_.get())) {
 						            logger::error("Failed to swap fake container.");
                                     return RE::BSEventNotifyControl::kContinue;
                                 } 
                                 else {
-                                    logger::info("Swapped fake container.");
+                                    logger::trace("Swapped fake container.");
                                     swapped = true;
                                 }
                                 break;
@@ -349,15 +349,15 @@ public:
                         return RE::BSEventNotifyControl::kContinue;
                     } 
                     else {
-                        logger::info("Swapped fake container.");
+                        logger::trace("Swapped fake container.");
                         swapped = true;
                         M->Print();
                     }
                     // consumed
                     if (!swapped && event->baseObj==fake_equipped_id) {
-                        logger::info("new container: {}", event->newContainer);
-                        logger::info("old container: {}", event->oldContainer);
-                        logger::info("Sending to handle consume.");
+                        logger::trace("new container: {}", event->newContainer);
+                        logger::trace("old container: {}", event->oldContainer);
+                        logger::trace("Sending to handle consume.");
                         fake_equipped_id = 0;
                         equipped = false;
                         M->HandleConsume(event->baseObj);
@@ -373,9 +373,9 @@ public:
 			    }
                 // container transfer
                 else if (RE::UI::GetSingleton()->IsMenuOpen(RE::ContainerMenu::MENU_NAME)) {
-                    logger::info("Container transfer.");
+                    logger::trace("Container transfer.");
             	    // need to register the container: chestrefid -> thiscontainerrefid
-                    logger::info("Container menu is open.");
+                    logger::trace("Container menu is open.");
                     M->LinkExternalContainer(event->baseObj, event->newContainer);
                     M->Print();
                 }
@@ -406,12 +406,12 @@ public:
 
                 if (a_event->IsPressed()) {
                     if (a_event->IsRepeating() && a_event->HeldDuration() > .3f && a_event->HeldDuration() < .32f){
-                            logger::info("User event: {}", userEvent.c_str());
+                            logger::trace("User event: {}", userEvent.c_str());
                             // we accept : "accept","RightEquip", "LeftEquip", "equip", "toggleFavorite"
                             auto userevents = RE::UserEvents::GetSingleton();
                             if (!(userEvent == userevents->accept || userEvent == userevents->rightEquip ||
                                   userEvent == userevents->leftEquip || userEvent == userevents->equip)) {
-                                logger::info("User event not accepted.");
+                                logger::trace("User event not accepted.");
                                 continue;
                             }
                             if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
@@ -430,7 +430,7 @@ public:
                                     RE::LookupReferenceByHandle(refHandle, ref);
                                     if (ref) external_container_refid = ref->GetFormID();
                                     else logger::warn("Failed to get ref from handle.");
-                                    logger::info("External container refid: {}", external_container_refid);
+                                    logger::trace("External container refid: {}", external_container_refid);
                                 }
                                 else continue;
                                 queue->AddMessage(ReShowMenu, RE::UI_MESSAGE_TYPE::kHide, nullptr);

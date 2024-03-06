@@ -12,7 +12,12 @@ void SetupLog() {
     auto fileLoggerPtr = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.string(), true);
     auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
     spdlog::set_default_logger(std::move(loggerPtr));
-    spdlog::set_level(spdlog::level::trace);
+    //spdlog::set_level(spdlog::level::trace);
+    #ifndef NDEBUG
+        spdlog::set_level(spdlog::level::trace);
+    #else
+        spdlog::set_level(spdlog::level::info);
+    #endif
     spdlog::flush_on(spdlog::level::trace);
     logger::info("Name of the plugin is {}.", pluginName);
 }
