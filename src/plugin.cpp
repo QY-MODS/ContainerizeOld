@@ -447,15 +447,27 @@ public:
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
+#ifndef NDEBUG
+#else
         auto sources = Settings::LoadINISources();
         if (sources.empty()) {
             logger::critical("Failed to load INI sources.");
             return;
         }
         M = Manager::GetSingleton(sources);
+#endif
+
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
+#ifndef NDEBUG
+        auto sources = Settings::LoadINISources();
+        if (sources.empty()) {
+            logger::critical("Failed to load INI sources.");
+            return;
+        }
+        M = Manager::GetSingleton(sources);
+#endif
         if (!M) return;
         // EventSink
         auto* eventSink = OurEventSink::GetSingleton();

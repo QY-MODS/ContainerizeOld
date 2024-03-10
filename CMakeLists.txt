@@ -8,6 +8,15 @@ cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 project(Containerize VERSION 0.7 LANGUAGES CXX)
 
+include(cmake/headerlist.cmake)
+include(cmake/sourcelist.cmake)
+source_group(
+	TREE
+	${CMAKE_CURRENT_SOURCE_DIR}
+	FILES
+	${headers}
+	${sources}
+)
 # #
 # YOU DO NOT NEED TO EDIT ANYTHING BELOW HERE
 # #
