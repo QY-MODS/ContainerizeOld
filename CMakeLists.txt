@@ -1,12 +1,12 @@
-set(wildlander_output false)
+set(wildlander_output true)
 set(steam_owrt_output false)
-set(steam_mods_output true)
+set(steam_mods_output false)
 # It's recommended to set a minimum CMake version.
 # If you use CMake features from higher versions, update this to match.
 cmake_minimum_required(VERSION 3.21)
 
 # Set your project name. This will be the name of your SKSE .dll file.
-project(Containerize VERSION 0.6 LANGUAGES CXX)
+project(Containerize VERSION 0.7 LANGUAGES CXX)
 
 # #
 # YOU DO NOT NEED TO EDIT ANYTHING BELOW HERE
@@ -37,11 +37,32 @@ endif()
 # Otherwise, you can set OUTPUT_FOLDER to any place you'd like :)
 # set(OUTPUT_FOLDER "C:/path/to/any/folder")
 
+
+# Drew W — 18.01.2024 02:44: Here is my CMakeLists.txt that uses FetchContent for NG
+include(FetchContent)
+FetchContent_Declare(
+    CommonLibNG
+    GIT_REPOSITORY https://github.com/W-Drew/CommonLibSSE-NG.git
+    GIT_TAG 7a1e15eb68836efb86b60e26f953f7930500dd95
+)
+
+set(ENABLE_SKYRIM_SE ON CACHE BOOL " " FORCE)
+set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
+set(ENABLE_SKYRIM_VR ON CACHE BOOL " " FORCE)
+set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
+
+#FetchContent_MakeAvailable(CommonLibNG)
+add_subdirectory("C:/Users/Quant/GitHub/CommonLibSSE-NG" ${CMAKE_BINARY_DIR}/_deps/clib-build)
+
+get_target_property(commonlib_src_dir CommonLibSSE SOURCE_DIR)
+include(${commonlib_src_dir}/cmake/CommonLibSSE.cmake) 
+
 # Setup your SKSE plugin as an SKSE plugin!
-find_package(CommonLibSSE CONFIG REQUIRED)
+#find_package(CommonLibSSE CONFIG REQUIRED)
 add_commonlibsse_plugin(${PROJECT_NAME} SOURCES plugin.cpp) # <--- specifies plugin.cpp
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23) # <--- use C++23 standard
 target_precompile_headers(${PROJECT_NAME} PRIVATE PCH.h) # <--- PCH.h is required!
+
 
 # When your SKSE .dll is compiled, this will automatically copy the .dll into your mods folder.
 # Only works if you configure DEPLOY_ROOT above (or set the SKYRIM_MODS_FOLDER environment variable)

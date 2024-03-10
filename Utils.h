@@ -906,6 +906,7 @@ namespace Utilities {
 
         std::size_t recordDataSize;
         serializationInterface->ReadRecordData(recordDataSize);
+        logger::trace("Loading data from serialization interface with size: {}", recordDataSize);
 
         Locker locker(m_Lock);
         m_Data.clear();
@@ -914,15 +915,21 @@ namespace Utilities {
         T value;
 
         for (auto i = 0; i < recordDataSize; i++) {
-            serializationInterface->ReadRecordData(formId);
+            logger::trace("Loading data from serialization interface.");
+            auto asdasdf = serializationInterface->ReadRecordData(formId);
+            logger::trace("FormID: ({},{}) serializationInterface->ReadRecordData:{}", formId.outerKey, formId.innerKey,
+                          asdasdf);
 
             if (!serializationInterface->ResolveFormID(formId.outerKey, formId.outerKey)) {
                 logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
                 continue;
             }
 
-            serializationInterface->ReadRecordData(value);
+            logger::trace("Reading value...");
+            auto sdddasd = serializationInterface->ReadRecordData(value);
+            logger::trace("ReadRecordData: {}", sdddasd);
             m_Data[formId] = value;
+            logger::trace("Loaded data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
         }
         return true;
     }

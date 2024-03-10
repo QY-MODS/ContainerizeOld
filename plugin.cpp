@@ -175,7 +175,7 @@ public:
 
 
         if (equipped && event->menuName == ReShowMenu && !event->opening) {
-            logger::trace("menu closed: {}", event->menuName);
+            logger::trace("menu closed: {}", event->menuName.c_str());
             equipped = false;
             logger::trace("Reverting equip...");
             M->RevertEquip(fake_id_);
@@ -207,7 +207,7 @@ public:
                     M->RevertEquip(fake_id_, external_container_refid);
                 }
                 if (M->_other_settings[Settings::otherstuffKeys[2]]) {
-                    logger::trace("Returning to initial menu: {}", ReShowMenu);
+                    logger::trace("Returning to initial menu: {}", ReShowMenu.c_str());
                     if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
                         if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
                             if (auto a_objref = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_refid)) {
@@ -504,6 +504,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         }
         switch (type) {
             case Settings::kDataKey: {
+                logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
                 if (!M->Load(serializationInterface)) {
                     logger::critical("Failed to Load Data");
                 }
