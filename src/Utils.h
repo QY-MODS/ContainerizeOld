@@ -12,8 +12,7 @@
 #include <codecvt>
 #include <mutex>  // for std::mutex
 #include <algorithm>
-
-
+#include <ClibUtil/editorID.hpp>
 
 
 namespace Utilities {
@@ -94,15 +93,16 @@ namespace Utilities {
     };
 
     bool isValidHexWithLength7or8(const char* input) {
+        logger::trace("Checking if {} is a valid hex with length 7 or 8", input);
         std::string inputStr(input);
         std::regex hexRegex("^[0-9A-Fa-f]{7,8}$");  // Allow 7 to 8 characters
         bool isValid = std::regex_match(inputStr, hexRegex);
+        logger::trace("isValid: {}", isValid);
         return isValid;
     }
 
     float Round(float number, int decimalPlaces) {
-        auto rounded_number =
-            static_cast<float>(std::round(number * std::pow(10, decimalPlaces))) / std::pow(10, decimalPlaces);
+        float rounded_number = std::round(number * std::pow(10, decimalPlaces)) / std::pow(10, decimalPlaces);
         return rounded_number;
     }
 
@@ -476,6 +476,17 @@ namespace Utilities {
 
     namespace FunctionsSkyrim {
     
+        RE::TESForm* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
+            auto form = RE::TESForm::LookupByID(id);
+            if (form)
+                return form;
+            else if (!editor_id.empty()) {
+                form = RE::TESForm::LookupByEditorID(editor_id);
+                if (form) return form;
+            }
+            return nullptr;
+        };
+
         template <class T = RE::TESForm>
         static T* GetFormByID(const RE::FormID& id, const std::string& editor_id) {
             T* form = RE::TESForm::LookupByID<T>(id);

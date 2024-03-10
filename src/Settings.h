@@ -13,10 +13,17 @@ struct Source {
     std::string editorid;
     SourceData data;
 
-    Source(std::uint32_t id, const std::string id_str, float capacity)
+    Source(const std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {
+        logger::trace("Creating source with formid: {}", formid);
+        logger::trace("Creating source with editorid: {}", editorid);
+        logger::trace("Creating source with capacity: {}", capacity);
+        
         if (!formid) {
-            auto form = RE::TESForm::LookupByEditorID<RE::TESForm>(editorid);
+            logger::trace("Formid is not found. Attempting to find formid for editorid {}.", editorid);
+            auto form = RE::TESForm::LookupByEditorID(editorid);
+            logger::trace("Formid is found for editorid {}.", editorid);
+
             if (form) {
                 logger::trace("Found formid for editorid {}", editorid);
                 formid = form->GetFormID();
@@ -26,6 +33,7 @@ struct Source {
     };
     
     std::string_view GetName() {
+        logger::trace("Getting name for formid: {}", formid);
         auto form = Utilities::FunctionsSkyrim::GetFormByID(formid, editorid);
         if (form)
             return form->GetName();
@@ -34,6 +42,7 @@ struct Source {
     };
 
     RE::TESBoundObject* GetBoundObject() {
+        logger::trace("Getting bound object for formid: {}", formid);
         return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);
     };
 };
@@ -155,17 +164,26 @@ namespace Settings {
                 logger::info("We have valid entries for container: {} and capacity: {}", val1, val2);
                 // back to container_id and capacity
                 id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
-                id_str = static_cast<std::string>(val1);
+                id_str = std::string(val1);
 
                 // if both formid is valid hex, use it
-                if (Utilities::isValidHexWithLength7or8(val1))
+                if (Utilities::isValidHexWithLength7or8(val1)) {
+                    logger::info("Formid {} is valid hex", val1);
                     sources.emplace_back(id, "", std::stof(val2));
+                }
                 else if (!po3installed) {
+                    logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
                     Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
                     return sources;
-                } else
-                    sources.emplace_back(0, id_str, std::stof(val2));
+                } else {
+                    logger::trace("Formid {} is not valid hex", val1);
+                    const Source src_temp(0, id_str, std::stof(std::string(val2)));
+                    logger::trace("Created source with editorid: {}", src_temp.editorid);
+                    sources.push_back(src_temp);
+                    logger::trace("Formid {} is not valid hex", val1);
+                }
 
+                logger::trace("Source {} has a value of {}", it->pItem, val1);
                 ini.SetValue(InISections[0], it->pItem, val1);
                 ini.SetValue(InISections[1], it->pItem, val2);
                 logger::info("Loaded container: {} with capacity: {}", val1, std::stof(val2));

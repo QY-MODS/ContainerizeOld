@@ -1,5 +1,4 @@
 #include "Manager.h"
-
 // FFI04Sack 000DAB04
 
 Manager* M = nullptr;

@@ -1,6 +1,6 @@
-set(wildlander_output true)
+set(wildlander_output false)
 set(steam_owrt_output false)
-set(steam_mods_output false)
+set(steam_mods_output true)
 # It's recommended to set a minimum CMake version.
 # If you use CMake features from higher versions, update this to match.
 cmake_minimum_required(VERSION 3.21)
@@ -21,6 +21,8 @@ if(DEFINED ENV{SKYRIM_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_FOLDER}/Data")
     set(OUTPUT_FOLDER "$ENV{SKYRIM_FOLDER}/Data")
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
 # If you're using Mod Organizer 2 or Vortex, you might want this to go inside
 # of your "mods" folder, inside of a subfolder named "<your mod>".
 #
@@ -38,13 +40,9 @@ endif()
 # set(OUTPUT_FOLDER "C:/path/to/any/folder")
 
 
+
 # Drew W — 18.01.2024 02:44: Here is my CMakeLists.txt that uses FetchContent for NG
 include(FetchContent)
-FetchContent_Declare(
-    CommonLibNG
-    GIT_REPOSITORY https://github.com/W-Drew/CommonLibSSE-NG.git
-    GIT_TAG 7a1e15eb68836efb86b60e26f953f7930500dd95
-)
 
 set(ENABLE_SKYRIM_SE ON CACHE BOOL " " FORCE)
 set(ENABLE_SKYRIM_AE ON CACHE BOOL " " FORCE)
@@ -53,15 +51,24 @@ set(BUILD_TESTS OFF CACHE BOOL " " FORCE)
 
 #FetchContent_MakeAvailable(CommonLibNG)
 add_subdirectory("C:/Users/Quant/GitHub/CommonLibSSE-NG" ${CMAKE_BINARY_DIR}/_deps/clib-build)
-
 get_target_property(commonlib_src_dir CommonLibSSE SOURCE_DIR)
-include(${commonlib_src_dir}/cmake/CommonLibSSE.cmake) 
+include(${commonlib_src_dir}/cmake/CommonLibSSE.cmake)
+
 
 # Setup your SKSE plugin as an SKSE plugin!
 #find_package(CommonLibSSE CONFIG REQUIRED)
-add_commonlibsse_plugin(${PROJECT_NAME} SOURCES plugin.cpp) # <--- specifies plugin.cpp
+add_commonlibsse_plugin(${PROJECT_NAME} SOURCES src/plugin.cpp) # <--- specifies plugin.cpp
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23) # <--- use C++23 standard
-target_precompile_headers(${PROJECT_NAME} PRIVATE PCH.h) # <--- PCH.h is required!
+target_precompile_headers(${PROJECT_NAME} PRIVATE src/PCH.h) # <--- PCH.h is required!
+
+
+# CLIB-UTIL
+find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
+target_include_directories(
+	${PROJECT_NAME}
+	PRIVATE
+	${CLIB_UTIL_INCLUDE_DIRS}
+)
 
 
 # When your SKSE .dll is compiled, this will automatically copy the .dll into your mods folder.
