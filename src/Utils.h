@@ -1,7 +1,6 @@
 #pragma once
 
 //#include <chrono>
-#include "logger.h"
 #include <windows.h>
 #include <functional>
 #include <unordered_set>

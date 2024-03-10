@@ -11,7 +11,7 @@ bool block_droptake = false;
 // 1) Enables input event check
 bool equipped = false;
 // 2) set in input event if equip is held
-RE::BSFixedString ReShowMenu = "";
+std::string ReShowMenu = "";
 
 FormID fake_id_; // set in equip event
 FormID fake_equipped_id; // set in equip event only when equipped and used in container event (consume)
@@ -173,7 +173,7 @@ public:
 		}
 
 
-        if (equipped && event->menuName == ReShowMenu && !event->opening) {
+        if (equipped && event->menuName.c_str() == ReShowMenu && !event->opening) {
             logger::trace("menu closed: {}", event->menuName.c_str());
             equipped = false;
             logger::trace("Reverting equip...");
@@ -206,7 +206,7 @@ public:
                     M->RevertEquip(fake_id_, external_container_refid);
                 }
                 if (M->_other_settings[Settings::otherstuffKeys[2]]) {
-                    logger::trace("Returning to initial menu: {}", ReShowMenu.c_str());
+                    logger::trace("Returning to initial menu: {}", ReShowMenu);
                     if (const auto queue = RE::UIMessageQueue::GetSingleton()) {
                         if (external_container_refid && ReShowMenu == RE::ContainerMenu::MENU_NAME) {
                             if (auto a_objref = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_refid)) {
@@ -447,27 +447,15 @@ public:
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
-#ifndef NDEBUG
-#else
         auto sources = Settings::LoadINISources();
         if (sources.empty()) {
             logger::critical("Failed to load INI sources.");
             return;
         }
         M = Manager::GetSingleton(sources);
-#endif
-
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
-#ifndef NDEBUG
-        auto sources = Settings::LoadINISources();
-        if (sources.empty()) {
-            logger::critical("Failed to load INI sources.");
-            return;
-        }
-        M = Manager::GetSingleton(sources);
-#endif
         if (!M) return;
         // EventSink
         auto* eventSink = OurEventSink::GetSingleton();
@@ -545,6 +533,28 @@ void InitializeSerialization() {
     SKSE::log::trace("Cosave serialization initialized.");
 }
 
+void SetupLog() {
+
+    auto logsFolder = SKSE::log::log_directory();
+    if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");
+    auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
+    auto logFilePath = *logsFolder / std::format("{}.log", pluginName);
+    auto fileLoggerPtr = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.string(), true);
+    auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
+    spdlog::set_default_logger(std::move(loggerPtr));
+    spdlog::set_level(spdlog::level::trace);
+
+#ifndef NDEBUG
+    spdlog::flush_on(spdlog::level::trace);
+#else
+    spdlog::flush_on(spdlog::level::info);
+#endif
+
+    logger::info("Name of the plugin is {}.", pluginName);
+
+    logger::info("Version of the plugin is {}.", SKSE::PluginDeclaration::GetSingleton()->GetVersion());
+
+}
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 

@@ -22,27 +22,20 @@ struct Source {
         if (!formid) {
             logger::trace("Formid is not found. Attempting to find formid for editorid {}.", editorid);
             auto form = RE::TESForm::LookupByEditorID(editorid);
-            logger::trace("Formid is found for editorid {}.", editorid);
 
-            if (form) {
-                logger::trace("Found formid for editorid {}", editorid);
-                formid = form->GetFormID();
-            } else
-                logger::info("Could not find formid for editorid {}", editorid);
+            if (form) formid = form->GetFormID();
+            else logger::info("Could not find formid for editorid {}", editorid);
         }
     };
     
     std::string_view GetName() {
         logger::trace("Getting name for formid: {}", formid);
         auto form = Utilities::FunctionsSkyrim::GetFormByID(formid, editorid);
-        if (form)
-            return form->GetName();
-        else
-            return "";
+        if (form) return form->GetName();
+        else return "";
     };
 
     RE::TESBoundObject* GetBoundObject() {
-        logger::trace("Getting bound object for formid: {}", formid);
         return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);
     };
 };
