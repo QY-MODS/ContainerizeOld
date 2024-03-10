@@ -835,7 +835,7 @@ namespace Utilities {
         mutable Lock m_Lock;
     };
 
-    class BaseFormRefIDFormRefIDX : public BaseData<Types::SaveDataLHS,Types::SaveDataRHS> {
+    class SaveLoadData : public BaseData<Types::SaveDataLHS,Types::SaveDataRHS> {
     public:
         void DumpToLog() override {
             Locker locker(m_Lock);

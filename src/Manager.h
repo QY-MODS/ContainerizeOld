@@ -7,7 +7,7 @@ using namespace Utilities::FunctionsSkyrim;
 
 // TODO: handled_external_conts duzgun calisiyo mu test et. save et. barrela fakeplacement yap. save et. roll back save. sonra ilerki save e geri don, bakalim fakeitemlar hala duruyor mu
 
-class Manager : public Utilities::BaseFormRefIDFormRefIDX {
+class Manager : public Utilities::SaveLoadData {
     // private variables
     const std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
     const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
