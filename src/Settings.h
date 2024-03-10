@@ -2,8 +2,6 @@
 #include "Utils.h"
 
 
-
-
 using namespace Utilities::Types;
 
 struct Source {
@@ -15,10 +13,7 @@ struct Source {
 
     Source(const std::uint32_t id, const std::string id_str, float capacity)
         : formid(id), editorid(id_str), capacity(capacity) {
-        logger::trace("Creating source with formid: {}", formid);
-        logger::trace("Creating source with editorid: {}", editorid);
-        logger::trace("Creating source with capacity: {}", capacity);
-        
+        logger::trace("Creating source with formid: {}, editorid: {}, capacity: {}", formid, editorid, capacity);
         if (!formid) {
             logger::trace("Formid is not found. Attempting to find formid for editorid {}.", editorid);
             auto form = RE::TESForm::LookupByEditorID(editorid);
@@ -35,9 +30,7 @@ struct Source {
         else return "";
     };
 
-    RE::TESBoundObject* GetBoundObject() {
-        return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);
-    };
+    RE::TESBoundObject* GetBoundObject() {return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);};
 };
 
 

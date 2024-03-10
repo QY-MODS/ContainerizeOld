@@ -409,28 +409,30 @@ namespace Utilities {
         using FormID = RE::FormID;
         using RefID = std::uint32_t;
 
-        struct FormIDX {
-            FormID id;
-            bool equipped;
-            bool favorited;
-            std::string name;
-            FormIDX() : id(0), equipped(false), favorited(false), name("") {}
-            FormIDX(FormID id, bool value1, bool value2, std::string value3)
-                : id(id), equipped(value1), favorited(value2), name(value3) {}
-        };
-
+        // LHS,aka key
         struct FormRefID {
-            FormID outerKey;
-            RefID innerKey;
-
+            FormID outerKey; // real formid
+            RefID innerKey; // refid of unowned
             bool operator<(const FormRefID& other) const {
                 return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
             }
         };
 
+        struct FormIDX {
+            FormID id; //fake formid
+            bool equipped; //is equipped
+            bool favorited; //is favorited
+            std::string name; //(new) name
+            FormIDX() : id(0), equipped(false), favorited(false), name("") {}
+            FormIDX(FormID id, bool value1, bool value2, std::string value3)
+                : id(id), equipped(value1), favorited(value2), name(value3) {}
+        };
+
+
+        // goes to RHS, aka value
         struct FormRefIDX {
-            FormIDX outerKey;
-            RefID innerKey;
+            FormIDX outerKey; // see above
+            RefID innerKey; // refid of unowned/realoutintheworld/externalcont
 
             bool operator<(const FormRefIDX& other) const {
                 // Here, you can access the boolean values via outerKey
@@ -439,15 +441,14 @@ namespace Utilities {
             }
         };
 
-        struct FormFormID {
+        struct FormFormID { // used by ChestToFakeContainer
             FormID outerKey;
             FormID innerKey;
-
             bool operator<(const FormFormID& other) const {
                 return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
             }
         };
-        
+
         using SourceDataKey = RefID; // Chest Ref ID
         using SourceDataVal = RefID; // Container Ref ID if it exists otherwise Chest Ref ID
         //using SourceData = BidirectionalMap<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
