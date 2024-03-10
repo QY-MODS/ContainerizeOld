@@ -168,13 +168,7 @@ namespace Settings {
                     logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
                     Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
                     return sources;
-                } else {
-                    logger::trace("Formid {} is not valid hex", val1);
-                    const Source src_temp(0, id_str, std::stof(std::string(val2)));
-                    logger::trace("Created source with editorid: {}", src_temp.editorid);
-                    sources.push_back(src_temp);
-                    logger::trace("Formid {} is not valid hex", val1);
-                }
+                } else sources.emplace_back(0, id_str, std::stof(std::string(val2)));
 
                 logger::trace("Source {} has a value of {}", it->pItem, val1);
                 ini.SetValue(InISections[0], it->pItem, val1);

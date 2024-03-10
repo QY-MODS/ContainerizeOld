@@ -92,11 +92,9 @@ namespace Utilities {
     };
 
     bool isValidHexWithLength7or8(const char* input) {
-        logger::trace("Checking if {} is a valid hex with length 7 or 8", input);
         std::string inputStr(input);
         std::regex hexRegex("^[0-9A-Fa-f]{7,8}$");  // Allow 7 to 8 characters
         bool isValid = std::regex_match(inputStr, hexRegex);
-        logger::trace("isValid: {}", isValid);
         return isValid;
     }
 
