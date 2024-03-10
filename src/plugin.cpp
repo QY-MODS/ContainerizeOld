@@ -551,8 +551,7 @@ void SetupLog() {
 #endif
 
     logger::info("Name of the plugin is {}.", pluginName);
-
-    logger::info("Version of the plugin is {}.", SKSE::PluginDeclaration::GetSingleton()->GetVersion());
+    logger::info("Version of the plugin is {}", Utilities::Functions::GetPluginVersion(2));
 
 }
 

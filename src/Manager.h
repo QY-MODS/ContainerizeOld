@@ -918,8 +918,11 @@ class Manager : public Utilities::SaveLoadData {
         std::ostringstream stream2;
         stream2 << std::fixed << std::setprecision(2) << src->capacity;
 
+        auto stream1_str = stream1.str();
+        auto stream2_str = src->capacity > 0 ? "/" + stream2.str() : ""; 
+
         return Utilities::MsgBoxesNotifs::ShowMessageBox(
-            name + " | W: " + stream1.str() + "/" + stream2.str() + " | V: " + std::to_string(GetChestValue(chest)),
+            name + " | W: " + stream1_str + stream2_str + " | V: " + std::to_string(GetChestValue(chest)),
             buttons,
             [this](const int result) { this->MsgBoxCallback(result); });
     }
@@ -1827,7 +1830,7 @@ public:
         src->data[chest_refid] = externalcontainer;
 
         // if external container is one of ours (bcs of weight limit):
-        if (IsChest(externalcontainer)) {
+        if (IsChest(externalcontainer) && src->capacity > 0) {
             logger::info("External container is one of our unowneds.");
             const auto weight_limit = src->capacity;
             if (external_ref->GetWeightInContainer() > weight_limit) {
@@ -2022,6 +2025,7 @@ public:
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         const auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
         if (!src) return RaiseMngrErr("Could not find source for container");
+        if (!(src->capacity>0)) return;
         const auto weight_limit = src->capacity;
         listen_container_change = false;
         while (chest->GetWeightInContainer() > weight_limit) {

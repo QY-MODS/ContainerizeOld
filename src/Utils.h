@@ -99,9 +99,10 @@ namespace Utilities {
     }
 
     float Round(float number, int decimalPlaces) {
-        float rounded_number = std::round(number * std::pow(10, decimalPlaces)) / std::pow(10, decimalPlaces);
+        float rounded_number = static_cast<float>(std::round(number * std::pow(10, decimalPlaces))) /static_cast<float>(std::pow(10, decimalPlaces));
         return rounded_number;
     }
+
 
     int Round2Int(float number) {
         auto rounded_number = static_cast<int>(Round(number, 0));
@@ -471,6 +472,21 @@ namespace Utilities {
             return false;
         }
 
+        std::string GetPluginVersion(const unsigned int n_stellen) {
+            const auto fullVersion = SKSE::PluginDeclaration::GetSingleton()->GetVersion();
+            unsigned int i = 1;
+            std::string version = std::to_string(fullVersion.major());
+            if (n_stellen == i) return version;
+            version += "." + std::to_string(fullVersion.minor());
+            if (n_stellen == ++i) return version;
+            version += "." + std::to_string(fullVersion.patch());
+            if (n_stellen == ++i) return version;
+            version += "." + std::to_string(fullVersion.build());
+            return version;
+
+            
+        }
+
     };
 
     namespace FunctionsSkyrim {
@@ -802,6 +818,8 @@ namespace Utilities {
     public:
         float GetData(T formId, T missing) {
             Locker locker(m_Lock);
+            // if the plugin version is less than 0.7 need to handle differently
+            // if (SKSE::PluginInfo::version)
             if (auto idx = m_Data.find(formId) != m_Data.end()) {
                 return m_Data[formId];
             }
