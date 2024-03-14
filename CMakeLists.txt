@@ -6,7 +6,7 @@ set(steam_mods_output true)
 cmake_minimum_required(VERSION 3.21)
 
 # Set your project name. This will be the name of your SKSE .dll file.
-project(Containerize VERSION 0.7 LANGUAGES CXX)
+project(Containerize VERSION 0.7.0.1 LANGUAGES CXX)
 
 include(cmake/headerlist.cmake)
 include(cmake/sourcelist.cmake)

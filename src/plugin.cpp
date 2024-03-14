@@ -107,6 +107,7 @@ public:
         if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
+        logger::trace("Container activated");
         M->ActivateContainer(event->objectActivated.get());
         M->Print();
 
@@ -125,6 +126,8 @@ public:
 
         // prevent player to catch it in the air
         //if (M->IsFakeContainer(event->crosshairRef.get()->GetBaseObject()->GetFormID())) event->crosshairRef->SetActivationBlocked(1);
+
+        logger::trace("Crosshair ref.");
 
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             
@@ -251,6 +254,7 @@ public:
 			return RE::BSEventNotifyControl::kContinue;
         if (event->targetFurniture->GetBaseObject()->formType.underlying() != 40) return RE::BSEventNotifyControl::kContinue;
 
+        logger::trace("Furniture event");
 
         auto bench = event->targetFurniture->GetBaseObject()->As<RE::TESFurniture>();
         if (!bench) return RE::BSEventNotifyControl::kContinue;
@@ -289,6 +293,9 @@ public:
         if (furniture_entered) return RE::BSEventNotifyControl::kContinue;
         if (!event->itemCount) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
+
+
+        logger::trace("Container changed event.");
 
         // to player inventory <-
         if (event->newContainer == 20) {
@@ -552,7 +559,7 @@ void SetupLog() {
 #endif
 
     logger::info("Name of the plugin is {}.", pluginName);
-    logger::info("Version of the plugin is {}", Utilities::Functions::GetPluginVersion(2));
+    logger::info("Version of the plugin is {}", Utilities::Functions::GetPluginVersion(4));
 
 }
 
