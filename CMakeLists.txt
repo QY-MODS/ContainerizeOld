@@ -1,12 +1,12 @@
-set(wildlander_output false)
+set(wildlander_output true)
 set(steam_owrt_output false)
-set(steam_mods_output true)
+set(steam_mods_output false)
 # It's recommended to set a minimum CMake version.
 # If you use CMake features from higher versions, update this to match.
 cmake_minimum_required(VERSION 3.21)
 
 # Set your project name. This will be the name of your SKSE .dll file.
-project(Containerize VERSION 0.7.0.1 LANGUAGES CXX)
+project(Containerize VERSION 0.7.0.2 LANGUAGES CXX)
 
 include(cmake/headerlist.cmake)
 include(cmake/sourcelist.cmake)
@@ -50,7 +50,7 @@ endif()
 
 
 
-# Drew W — 18.01.2024 02:44: Here is my CMakeLists.txt that uses FetchContent for NG
+# Drew W ï¿½ 18.01.2024 02:44: Here is my CMakeLists.txt that uses FetchContent for NG
 include(FetchContent)
 
 set(ENABLE_SKYRIM_SE ON CACHE BOOL " " FORCE)

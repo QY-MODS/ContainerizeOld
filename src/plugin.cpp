@@ -104,7 +104,7 @@ public:
         if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
         if (!event->objectActivated->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
-        if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
+        if (!M->getListenActivate()) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
         logger::trace("Container activated");
@@ -132,20 +132,20 @@ public:
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             
             // if the fake items are not in it we need to place them (this happens upon load game)
-            M->listen_container_change = false;
+            M->setListenContainerChange(false);
             listen_crosshair_ref = false; 
             M->HandleFakePlacement(event->crosshairRef.get());
-            M->listen_container_change = true;
+            M->setListenContainerChange(true);
             listen_crosshair_ref = true;
 
             return RE::BSEventNotifyControl::kContinue;
         
         }
 
-        if (event->crosshairRef->IsActivationBlocked() && !M->isUninstalled) return RE::BSEventNotifyControl::kContinue;
+        if (event->crosshairRef->IsActivationBlocked() && !M->getUninstalled()) return RE::BSEventNotifyControl::kContinue;
 
         
-        if (M->isUninstalled) {
+        if (M->getUninstalled()) {
             event->crosshairRef->SetActivationBlocked(0);
         } else {
             event->crosshairRef->SetActivationBlocked(1);
@@ -162,9 +162,9 @@ public:
 
         //logger::trace("Menu event: {} {}", event->menuName, event->opening ? "opened" : "closed");
         
-        if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->listen_menuclose) {
+        if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->getListenMenuClose()) {
 			logger::trace("Rename menu closed.");
-            M->listen_menuclose = false;
+            M->setListenMenuClose(false);
             const auto skyrimVM = RE::SkyrimVM::GetSingleton();
             auto vm = skyrimVM ? skyrimVM->impl : nullptr;
             if (!vm) return RE::BSEventNotifyControl::kContinue;
@@ -187,7 +187,7 @@ public:
         }
 
 
-        if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
+        if (!M->getListenMenuClose()) return RE::BSEventNotifyControl::kContinue;
         if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
         if (event->opening) {
             listen_weight_limit = true;
@@ -195,8 +195,8 @@ public:
         else {
             logger::trace("Our Container menu closed.");
             listen_weight_limit = false;
-			M->listen_menuclose = false;
-            logger::trace("listen_menuclose: {}", M->listen_menuclose);
+			M->setListenMenuClose(false);
+            logger::trace("listen_menuclose: {}", M->getListenMenuClose());
             if (!ReShowMenu.empty()){
                 M->UnHideReal(fake_id_);
                 if (ReShowMenu == RE::ContainerMenu::MENU_NAME && !external_container_refid) {
@@ -287,7 +287,7 @@ public:
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
         
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
-        if (!M->listen_container_change) return RE::BSEventNotifyControl::kContinue;
+        if (!M->getListenContainerChange()) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
         if (furniture_entered) return RE::BSEventNotifyControl::kContinue;

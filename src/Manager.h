@@ -769,7 +769,7 @@ class Manager : public Utilities::SaveLoadData {
             RaiseMngrErr("moveFrom and moveTo are both null!");
             return ref_handle;
         }
-        listen_container_change = false;
+        setListenContainerChange(false);
         auto inventory = moveFrom->GetInventory();
         for (const auto& item : inventory) {
 			auto item_obj = item.first;
@@ -783,11 +783,11 @@ class Manager : public Utilities::SaveLoadData {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason,
                                                       asd->front(), moveTo);
 				}
-				listen_container_change = true;
-				return ref_handle;
+                setListenContainerChange(true);
+                return ref_handle;
 			}
 		}
-        listen_container_change = true;
+        setListenContainerChange(true);
         return ref_handle;
     }
 
@@ -804,7 +804,9 @@ class Manager : public Utilities::SaveLoadData {
             return ref_handle;
         }
         logger::trace("Removing item reverse");
-        listen_container_change = false;
+
+        setListenContainerChange(false);
+
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
@@ -818,11 +820,11 @@ class Manager : public Utilities::SaveLoadData {
                 } else {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, asd->front(), moveTo);
                 }
-                listen_container_change = true;
+                setListenContainerChange(true);
                 return ref_handle;
             }
         }
-        listen_container_change = true;
+        setListenContainerChange(true);
         return ref_handle;
     }
 
@@ -865,7 +867,8 @@ class Manager : public Utilities::SaveLoadData {
         logger::trace("RemoveAllItemsFromChest");
 
         if (!chest) return RaiseMngrErr("Chest is null");
-        listen_container_change = false;
+
+        setListenContainerChange(false);
 
         auto chest_container = chest->GetContainer();
         if (!chest_container) {
@@ -903,13 +906,13 @@ class Manager : public Utilities::SaveLoadData {
                     else {
                         // the chest that is connected to the fake container which was inside this chest
                         HandleSell(ChestToFakeContainer[key].innerKey, move2ref->GetFormID());
-                        listen_container_change = false;
+                        setListenContainerChange(true);
                     }
                 }
             }
         }
 
-        listen_container_change = true;
+        setListenContainerChange(true);
     };
 
     // Activates a container
@@ -933,10 +936,10 @@ class Manager : public Utilities::SaveLoadData {
         logger::trace("ActivateChest");
 
         if (!chest) return RaiseMngrErr("Chest is null");
-        listen_menuclose = true;
+        setListenMenuClose(true);
         unownedChest->fullName = chest_name;
         logger::trace("Activating chest with name: {}", chest_name);
-        logger::trace("listenclose: {}", listen_menuclose);
+        logger::trace("listenclose: {}", getListenMenuClose());
         Activate(chest);
     };
 
@@ -986,9 +989,8 @@ class Manager : public Utilities::SaveLoadData {
         
         // Take
         if (result == 1) {
-            
-            listen_activate = false;
 
+            setListenActivate(false);
             
             // Add fake container to player
             const auto chest_refid = GetRealContainerChest(current_container->GetFormID());
@@ -1012,7 +1014,7 @@ class Manager : public Utilities::SaveLoadData {
             if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id);
 
             current_container = nullptr;
-            listen_activate = true;
+            setListenActivate(true);
 
             return;
         }
@@ -1056,7 +1058,7 @@ class Manager : public Utilities::SaveLoadData {
                 auto args2 =
                     RE::MakeFunctionArguments(std::move(menuID), std::move(property_name), std::move(container_name));
                 if (vm->DispatchStaticCall("UIExtensions", "SetMenuPropertyString", args2, callback)) {
-                    if (vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) listen_menuclose = true;
+                    if (vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) setListenMenuClose(true);
                 }
             }
             return;
@@ -1212,8 +1214,11 @@ class Manager : public Utilities::SaveLoadData {
     [[nodiscard]] const bool PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try = 3,
                     RE::Actor* actor = RE::PlayerCharacter::GetSingleton()->As<RE::Actor>()) {
         logger::trace("PickUpItem");
-        //std::lock_guard<std::mutex> lock(mutex);
-        listen_container_change = false;
+
+        // std::lock_guard<std::mutex> lock(mutex);
+
+        setListenContainerChange(false);
+
         auto item_bound = item->GetBaseObject();
         const auto item_count = GetItemCount(item_bound, actor);
         logger::trace("Item count: {}", item_count);
@@ -1236,13 +1241,14 @@ class Manager : public Utilities::SaveLoadData {
             logger::trace("Item picked up. Checking if it is in inventory...");
             if (GetItemCount(item_bound, actor) > item_count) {
             	logger::trace("Item picked up. Took {} extra tries.", i);
-                listen_container_change = true;
+                setListenContainerChange(true);
                 return true;
             }
             else logger::trace("item count: {}", GetItemCount(item_bound, actor));
 			i++;
 		}
-        listen_container_change = true;
+
+        setListenContainerChange(true);
         return false;
     }
 
@@ -1444,11 +1450,10 @@ class Manager : public Utilities::SaveLoadData {
             Utilities::MsgBoxesNotifs::InGame::UninstallFailed();
         }
 
-
-        listen_activate = true; // this one stays
-        listen_container_change = false;
+        setListenActivate(true); // this one stays
+        setListenContainerChange(false);
         // set uninstalled flag to true
-        isUninstalled = true;
+        setUninstalled(true);
     }
 
     void RaiseMngrErr(const std::string err_msg_ = "Error") {
@@ -1533,6 +1538,16 @@ class Manager : public Utilities::SaveLoadData {
         return false;
     }
 
+    void setListenActivate(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        listen_activate = value;
+    }
+
+    void setUninstalled(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        isUninstalled = value;
+    }
+
 public:
     Manager(std::vector<Source>& data) : sources(data) { Init(); };
 
@@ -1551,8 +1566,37 @@ public:
     std::unordered_map<std::string, bool> _other_settings;
     bool isUninstalled = false;
 
-    //std::mutex mutex;
+    std::mutex mutex;
 
+    void setListenMenuClose(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        listen_menuclose = value;
+    }
+
+    [[nodiscard]] bool getListenMenuClose() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return listen_menuclose;
+    }
+
+    [[nodiscard]] bool getListenActivate() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return listen_activate;
+    }
+
+    [[nodiscard]] bool getListenContainerChange() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return listen_container_change;
+    }
+
+    void setListenContainerChange(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        listen_container_change = value;
+    }
+
+    [[nodiscard]] bool getUninstalled() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return isUninstalled;
+    }
     
     [[nodiscard]] const bool IsCONT(RefID refid) {
         logger::trace("IsCONT");
@@ -1798,7 +1842,7 @@ public:
     void HandleCraftingEnter() { 
         ENABLE_IF_NOT_UNINSTALLED
         logger::trace("HandleCraftingEnter");
-        listen_container_change = false;
+        setListenContainerChange(false);
         logger::trace("Crafting menu opened");
         // this might be problematic since we dont update source data and chesttofakecontainer
         // trusting that the player will leave the crafting menu at some point and everything will be reverted
@@ -1816,13 +1860,17 @@ public:
                 RemoveItemReverse(player_ref, unownedChestOG, fake_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
             }
 		}
-        listen_container_change = true;
+
+        setListenContainerChange(true);
+
     }
 
     void HandleCraftingExit() { 
         ENABLE_IF_NOT_UNINSTALLED
         logger::trace("HandleCraftingExit");
-        listen_container_change = false;
+
+        setListenContainerChange(false);
+
         logger::trace("Crafting menu closed");
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
@@ -1846,7 +1894,9 @@ public:
         }
         is_equipped.clear();
         is_faved.clear();
-        listen_container_change = true;
+
+        setListenContainerChange(true);
+
     }
 
     // places fake objects in external containers after load game
@@ -1864,7 +1914,8 @@ public:
         if (IsUnownedChest(external_cont->GetFormID())) return;
 
 
-        listen_container_change = false;
+        setListenContainerChange(false);
+
 		if (!external_cont) return RaiseMngrErr("external_cont is null");
         for (auto& src : sources) {
             if (!Utilities::Functions::containsValue(src.data, external_cont->GetFormID())) continue;
@@ -1875,7 +1926,8 @@ public:
             }
         }
         handled_external_conts.push_back(external_cont->GetFormID());
-        listen_container_change = true;
+
+        setListenContainerChange(true);
     }
 
     void HandleConsume(const FormID fake_formid) {
@@ -1911,7 +1963,7 @@ public:
     void LinkExternalContainer(const FormID fakecontainer, const RefID externalcontainer) {
         ENABLE_IF_NOT_UNINSTALLED
 
-        listen_container_change = false;
+        setListenContainerChange(false);
 
         logger::trace("LinkExternalContainer");
 
@@ -1947,8 +1999,7 @@ public:
             external_favs.push_back(fakecontainer);
         }
 
-
-        listen_container_change = true;
+        setListenContainerChange(true);
 
     }
 
@@ -2134,7 +2185,9 @@ public:
         if (!src) return RaiseMngrErr("Could not find source for container");
         if (!(src->capacity>0)) return;
         const auto weight_limit = src->capacity;
-        listen_container_change = false;
+
+        setListenContainerChange(false);
+
         while (chest->GetWeightInContainer() > weight_limit) {
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
@@ -2153,7 +2206,9 @@ public:
                                       .c_str());
 
         }
-        listen_container_change = true;
+
+        setListenContainerChange(true);
+
     }
 
     void Terminate() {
@@ -2175,10 +2230,10 @@ public:
         Clear();
         //handled_external_conts.clear();
         current_container = nullptr;
-        listen_menuclose = false;
-        listen_activate = true;
-        listen_container_change = true;
-        isUninstalled = false;
+        setListenMenuClose(false);
+        setListenActivate(true);
+        setListenContainerChange(true);
+        setUninstalled(false);
         logger::info("Manager reset.");
     }
 
@@ -2291,7 +2346,8 @@ public:
 
         //std::lock_guard<std::mutex> lock(mutex);
 
-        listen_container_change = false;
+        setListenContainerChange(false);
+
         std::map<RefID,std::pair<bool,bool>> chest_equipped_fav;
 
         bool no_match;
@@ -2409,7 +2465,7 @@ public:
 		}*/
         
         current_container = nullptr;
-        listen_container_change = true;
+        setListenContainerChange(true);
     };
 
     [[nodiscard]] const std::vector<RefID> ConnectedChests(const RefID chestRef) {
