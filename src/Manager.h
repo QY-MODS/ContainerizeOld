@@ -1216,6 +1216,14 @@ class Manager : public Utilities::SaveLoadData {
         logger::trace("PickUpItem");
 
         // std::lock_guard<std::mutex> lock(mutex);
+        if (!item) {
+            logger::warn("Item is null");
+            return false;
+        }
+        if (!actor) {
+            logger::warn("Actor is null");
+            return false;
+        }
 
         setListenContainerChange(false);
 
@@ -1228,14 +1236,6 @@ class Manager : public Utilities::SaveLoadData {
             return false;
         }
         while (i < max_try) {
-            if (!item) {
-                logger::warn("Item is null");
-				return false;
-            }
-            if (!actor) {
-                logger::warn("Actor is null");
-                return false;
-            }
             logger::trace("Critical: PickUpItem");
 			actor->PickUpObject(item, 1, false, false);
             logger::trace("Item picked up. Checking if it is in inventory...");
