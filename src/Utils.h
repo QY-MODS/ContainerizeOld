@@ -734,18 +734,28 @@ namespace Utilities {
             auto inventory_changes = inventory_owner->GetInventoryChanges();
             auto entries = inventory_changes->entryList;
             for (auto it = entries->begin(); it != entries->end(); ++it) {
-                auto formid = (*it)->object->GetFormID();
+                const auto object = (*it)->object;
+                if (!object) {
+					logger::error("Object is null");
+					continue;
+				}
+                auto formid = object->GetFormID();
                 if (!formid) logger::critical("Formid is null");
                 if (formid == item->GetFormID()) {
                     logger::trace("Favoriting item: {}", item->GetName());
-                    bool no_extra_ = (*it)->extraLists->empty();
+                    const auto xLists = (*it)->extraLists;
+                    bool no_extra_ = false;
+                    if (!xLists || xLists->empty()) {
+						logger::trace("No extraLists");
+                        no_extra_ = true;
+					}
                     logger::trace("asdasd");
                     if (no_extra_) {
                         logger::trace("No extraLists");
                         inventory_changes->SetFavorite((*it), nullptr);
                     } else {
                         logger::trace("ExtraLists found");
-                        inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
+                        inventory_changes->SetFavorite((*it), xLists->front());
                     }
                     return;
                 }
