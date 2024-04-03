@@ -118,181 +118,18 @@ namespace Utilities {
 		}
 	}
 
-    // bidirectional map
-    template <typename Key, typename Value>
-    class BidirectionalMap {
-    public:
-        bool insert(const Key& key, const Value& value) {
-            // Lock the mutex to ensure thread safety
-            //std::lock_guard<std::mutex> lock(mutex);
-
-            auto result1 = keyToValue.insert({key, value});
-            auto result2 = valueToKey.insert({value, key});
-
-            // Check if both inserts were successful
-            return result1.second && result2.second;
-        }
-
-        // Method to insert all entries from another bidirectional map
-        bool insertAll(const BidirectionalMap& other) {
-            bool success = true;
-            for (const auto& [key, value] : other) {
-                // Insert the entry into the current bidirectional map
-                success = insert(key, value);
-                if (!success) {
-					// If insertion failed, break out of the loop
-					break;
-				}
-            }
-            return success;
-        }
-
-        const Value& getValue(const Key& key) const {
-            auto it = keyToValue.find(key);
-            if (it != keyToValue.end()) {
-                return it->second;
-            } else {
-                logger::info("Key not found in getValue");
-                throw std::out_of_range("Key not found in getValue");
-            }
-        }
-
-        const Key& getKey(const Value& value) const {
-            auto it = valueToKey.find(value);
-            if (it != valueToKey.end()) {
-                return it->second;
-            } else {
-                logger::info("Value not found in getKey");
-                throw std::out_of_range("Value not found in getKey");
-            }
-        }
-
-        bool containsKey(const Key& key) const { return keyToValue.find(key) != keyToValue.end(); }
-
-        bool containsValue(const Value& value) const { return valueToKey.find(value) != valueToKey.end(); }
-
-        // check at the same time if it exists among both keys or values
-        template <typename T>
-        bool contains(const T& keyOrValue) const {
-            static_assert(std::is_same<Key, T>::value, "Key and Value types must be the same");
-            static_assert(std::is_same<Value, T>::value, "Key and Value types must be the same");
-            auto keyIt = keyToValue.find(keyOrValue);
-            auto valueIt = valueToKey.find(keyOrValue);
-            return keyIt != keyToValue.end() || valueIt != valueToKey.end();
-        }
-
-
-        bool updateValue(const Key& key, const Value& newValue) {
-            // Lock the mutex to ensure thread safety
-            //std::lock_guard<std::mutex> lock(mutex);
-
-            auto keyIt = keyToValue.find(key);
-            if (keyIt == keyToValue.end()) {
-                logger::warn("updateValue: Key {} not found in keyToValue.", key);
-                logger::warn("printing keyToValue");
-                printKeyToValue();
-                return false;  // Key not found
-            }
-
-            const Value& oldValue = keyIt->second;
-
-            if (oldValue == newValue) {
-                logger::info("updateValue: New value is same as old value. No update needed.");
-                return true;  // Return true to indicate that no update was necessary
-            }
-
-            auto valueIt = valueToKey.find(oldValue);
-            if (valueIt == valueToKey.end()) {
-                logger::warn("updateValue: oldValue {} not found in valueToKey.", oldValue);
-                logger::warn("printing valueToKey");
-                printValueToKey();
-                return false;  // Value not found
-            }
-
-            // Update the maps
-            logger::trace("updateValue: Key {}, oldValue {}, newValue {}", key, oldValue, newValue);
-            logger::trace("keyToValue[{}] = {}", key, keyToValue[key]);
-            logger::trace("valueToKey[{}] = {}", oldValue, valueToKey[oldValue]);
-            keyIt->second = newValue;
-            valueToKey.erase(valueIt);
-            valueToKey[newValue] = key;
-
-            return true;
-        }
-
-        // Method to remove an entry by key
-        bool removeByKey(const Key& key) {
-            //std::lock_guard<std::mutex> lock(mutex);
-
-            auto keyIt = keyToValue.find(key);
-
-            if (keyIt != keyToValue.end()) {
-                auto valueIt = valueToKey.find(keyIt->second);
-                if (valueIt != valueToKey.end()) {
-                    keyToValue.erase(keyIt);
-                    valueToKey.erase(valueIt);
-                    return true;
-                }
-            }
-            return false;  // Key not found
-        }
-
-        // Method to remove an entry by value
-        bool removeByValue(const Value& value) {
-            
-            //std::lock_guard<std::mutex> lock(mutex);
-
-            auto valueIt = valueToKey.find(value);
-            if (valueIt != valueToKey.end()) {
-                auto keyIt = keyToValue.find(valueIt->second);
-                if (keyIt != keyToValue.end()) {
-                    valueToKey.erase(valueIt);
-                    keyToValue.erase(keyIt);
-                    return true;
-                }
-            }
-            return false;  // Value not found
-        }
-
-        void clear() {
-
-            //std::lock_guard<std::mutex> lock(mutex);
-
-            keyToValue.clear();
-            valueToKey.clear();
-        }
-
-        auto begin() const {
-            //std::lock_guard<std::mutex> lock(mutex);
-            return keyToValue.begin();
-        }
-
-        auto end() const {
-            //std::lock_guard<std::mutex> lock(mutex);
-            return keyToValue.end();
-        }
-
-        bool isEmpty() const {
-            //std::lock_guard<std::mutex> lock(mutex);
-            return keyToValue.empty() && valueToKey.empty();
-        }
-
-        void printValueToKey() {
-            for (const auto& pair : valueToKey) {
-                logger::trace("Key: {}, Value: {}", pair.first, pair.second);
-            }
-        }
-
-        void printKeyToValue() {
-            for (const auto& pair : keyToValue) {
-				logger::trace("Key: {}, Value: {}", pair.first, pair.second);
-			}
-		}
-
-    private:
-        std::map<Key, Value> keyToValue;
-        std::map<Value, Key> valueToKey;
-    };
+    std::string GetPluginVersion(const unsigned int n_stellen) {
+        const auto fullVersion = SKSE::PluginDeclaration::GetSingleton()->GetVersion();
+        unsigned int i = 1;
+        std::string version = std::to_string(fullVersion.major());
+        if (n_stellen == i) return version;
+        version += "." + std::to_string(fullVersion.minor());
+        if (n_stellen == ++i) return version;
+        version += "." + std::to_string(fullVersion.patch());
+        if (n_stellen == ++i) return version;
+        version += "." + std::to_string(fullVersion.build());
+        return version;
+    }
 
     
     // message boxes and notifications
@@ -401,62 +238,6 @@ namespace Utilities {
             void CustomErrMsg(const std::string& msg) { RE::DebugMessageBox((mod_name + ": " + msg).c_str()); };
         };
     };
-
-    // type stuff
-    namespace Types {
-
-        //using EditorID = std::string;
-        using NameID = std::string;
-        using FormID = RE::FormID;
-        using RefID = std::uint32_t;
-
-        // LHS,aka key
-        struct FormRefID {
-            FormID outerKey; // real formid
-            RefID innerKey; // refid of unowned
-            bool operator<(const FormRefID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };
-
-        struct FormIDX {
-            FormID id; //fake formid
-            bool equipped; //is equipped
-            bool favorited; //is favorited
-            std::string name; //(new) name
-            FormIDX() : id(0), equipped(false), favorited(false), name("") {}
-            FormIDX(FormID id, bool value1, bool value2, std::string value3)
-                : id(id), equipped(value1), favorited(value2), name(value3) {}
-        };
-
-
-        // goes to RHS, aka value
-        struct FormRefIDX {
-            FormIDX outerKey; // see above
-            RefID innerKey; // refid of unowned/realoutintheworld/externalcont
-
-            bool operator<(const FormRefIDX& other) const {
-                // Here, you can access the boolean values via outerKey
-                return outerKey.id < other.outerKey.id ||
-                       (outerKey.id == other.outerKey.id && innerKey < other.innerKey);
-            }
-        };
-
-        struct FormFormID { // used by ChestToFakeContainer
-            FormID outerKey;
-            FormID innerKey;
-            bool operator<(const FormFormID& other) const {
-                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
-            }
-        };
-
-        using SourceDataKey = RefID; // Chest Ref ID
-        using SourceDataVal = RefID; // Container Ref ID if it exists otherwise Chest Ref ID
-        //using SourceData = BidirectionalMap<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
-        using SourceData = std::map<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
-        using SaveDataLHS = FormRefID;
-        using SaveDataRHS = FormRefIDX;
-    }
     
     // Get ID stuff
     // Utility functions
@@ -472,20 +253,96 @@ namespace Utilities {
             return false;
         }
 
-        std::string GetPluginVersion(const unsigned int n_stellen) {
-            const auto fullVersion = SKSE::PluginDeclaration::GetSingleton()->GetVersion();
-            unsigned int i = 1;
-            std::string version = std::to_string(fullVersion.major());
-            if (n_stellen == i) return version;
-            version += "." + std::to_string(fullVersion.minor());
-            if (n_stellen == ++i) return version;
-            version += "." + std::to_string(fullVersion.patch());
-            if (n_stellen == ++i) return version;
-            version += "." + std::to_string(fullVersion.build());
-            return version;
+        namespace String {
 
-            
-        }
+            std::string trim(const std::string& str) {
+                // Find the first non-whitespace character from the beginning
+                size_t start = str.find_first_not_of(" \t\n\r");
+
+                // If the string is all whitespace, return an empty string
+                if (start == std::string::npos) return "";
+
+                // Find the last non-whitespace character from the end
+                size_t end = str.find_last_not_of(" \t\n\r");
+
+                // Return the substring containing the trimmed characters
+                return str.substr(start, end - start + 1);
+            }
+
+            std::string toLowercase(const std::string& str) {
+                std::string result = str;
+                std::transform(result.begin(), result.end(), result.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                return result;
+            }
+
+            std::string replaceLineBreaksWithSpace(const std::string& input) {
+                std::string result = input;
+                std::replace(result.begin(), result.end(), '\n', ' ');
+                return result;
+            }
+
+            bool includesString(const std::string& input, const std::vector<std::string>& strings) {
+                std::string lowerInput = toLowercase(input);
+
+                for (const auto& str : strings) {
+                    std::string lowerStr = str;
+                    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                    if (lowerInput.find(lowerStr) != std::string::npos) {
+                        return true;  // The input string includes one of the strings
+                    }
+                }
+                return false;  // None of the strings in 'strings' were found in the input string
+            }
+
+            // if it includes any of the words in the vector
+            bool includesWord(const std::string& input, const std::vector<std::string>& strings) {
+                std::string lowerInput = toLowercase(input);
+                lowerInput = replaceLineBreaksWithSpace(lowerInput);
+                lowerInput = trim(lowerInput);
+                lowerInput = " " + lowerInput + " ";  // Add spaces to the beginning and end of the string
+
+                for (const auto& str : strings) {
+                    std::string lowerStr = str;
+                    lowerStr = trim(lowerStr);
+                    lowerStr = " " + lowerStr + " ";  // Add spaces to the beginning and end of the string
+                    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
+                                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+                    // logger::trace("lowerInput: {} lowerStr: {}", lowerInput, lowerStr);
+
+                    if (lowerInput.find(lowerStr) != std::string::npos) {
+                        return true;  // The input string includes one of the strings
+                    }
+                }
+                return false;  // None of the strings in 'strings' were found in the input string
+            }
+
+            std::vector<std::pair<int, bool>> encodeString(const std::string& inputString) {
+                std::vector<std::pair<int, bool>> encodedValues;
+                for (char ch : inputString) {
+                    encodedValues.push_back(std::make_pair(static_cast<int>(ch), std::isupper(ch)));
+                }
+                return encodedValues;
+            }
+
+            std::string decodeString(const std::vector<std::pair<int, bool>>& encodedValues) {
+                std::string decodedString;
+                for (const auto& pair : encodedValues) {
+                    char ch = static_cast<char>(pair.first);
+                    if (std::isalnum(ch) || std::isspace(ch) || std::ispunct(ch)) {
+                        if (pair.second) {
+                            decodedString += ch;
+                        } else {
+                            decodedString += static_cast<char>(std::tolower(ch));
+                        }
+                    }
+                }
+                return decodedString;
+            }
+
+        };
 
     };
 
@@ -801,24 +658,91 @@ namespace Utilities {
         }*/
     };
 
+    namespace Types {
 
-    /*void SetBoundObjectValue(RE::TESBoundObject* object, int value) {
-        if (!object) {
-            Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
-            return;
+        // using EditorID = std::string;
+        using NameID = std::string;
+        using FormID = RE::FormID;
+        using RefID = std::uint32_t;
+
+        // LHS,aka key
+        struct FormRefID {
+            FormID outerKey;  // real formid
+            RefID innerKey;   // refid of unowned
+            bool operator<(const FormRefID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+            }
+        };
+
+        struct FormIDX {
+            FormID id;         // fake formid
+            bool equipped;     // is equipped
+            bool favorited;    // is favorited
+            std::string name;  //(new) name
+            FormIDX() : id(0), equipped(false), favorited(false), name("") {}
+            FormIDX(FormID id, bool value1, bool value2, std::string value3)
+                : id(id), equipped(value1), favorited(value2), name(value3) {}
+        };
+
+        // goes to RHS, aka value
+        struct FormRefIDX {
+            FormIDX outerKey;  // see above
+            RefID innerKey;    // refid of unowned/realoutintheworld/externalcont
+
+            bool operator<(const FormRefIDX& other) const {
+                // Here, you can access the boolean values via outerKey
+                return outerKey.id < other.outerKey.id ||
+                       (outerKey.id == other.outerKey.id && innerKey < other.innerKey);
+            }
+        };
+
+        struct FormFormID {  // used by ChestToFakeContainer
+            FormID outerKey;
+            FormID innerKey;
+            bool operator<(const FormFormID& other) const {
+                return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
+            }
+        };
+
+        using SourceDataKey = RefID;  // Chest Ref ID
+        using SourceDataVal = RefID;  // Container Ref ID if it exists otherwise Chest Ref ID
+        // using SourceData = BidirectionalMap<SourceDataKey, SourceDataVal>; // Chest-Container Reference ID Pairs
+        using SourceData = std::map<SourceDataKey, SourceDataVal>;  // Chest-Container Reference ID Pairs
+        using SaveDataLHS = FormRefID;
+        using SaveDataRHS = FormRefIDX;
+    }
+
+    bool read_string(SKSE::SerializationInterface* a_intfc, std::string& a_str) {
+        std::vector<std::pair<int, bool>> encodedStr;
+        std::size_t size;
+        if (!a_intfc->ReadRecordData(size)) {
+            return false;
         }
-		std::string formtype(RE::FormTypeToString(object->GetFormType()));
-		if (formtype == "ARMO") FormTraits<RE::TESObjectARMO>::SetValue(object->As<RE::TESObjectARMO>(), value);
-		if (formtype == "WEAP") FormTraits<RE::TESObjectWEAP>::SetValue(object->As<RE::TESObjectWEAP>(), value);
-		if (formtype == "MISC") FormTraits<RE::TESObjectMISC>::SetValue(object->As<RE::TESObjectMISC>(), value);
-		if (formtype == "BOOK") FormTraits<RE::TESObjectBOOK>::SetValue(object->As<RE::TESObjectBOOK>(), value);
-		if (formtype == "AMMO") FormTraits<RE::TESAmmo>::SetValue(object->As<RE::TESAmmo>(), value);
-		if (formtype == "KEYM") FormTraits<RE::TESKey>::SetValue(object->As<RE::TESKey>(), value);
-		if (formtype == "SLGM") FormTraits<RE::TESSoulGem>::SetValue(object->As<RE::TESSoulGem>(), value);
-		if (formtype == "SCRL") FormTraits<RE::ScrollItem>::SetValue(object->As<RE::ScrollItem>(), value);
-		if (formtype == "LIGH") FormTraits<RE::TESObjectLIGH>::SetValue(object->As<RE::TESObjectLIGH>(), value);
-	}*/
+        for (std::size_t i = 0; i < size; i++) {
+            std::pair<int, bool> temp_pair;
+            if (!a_intfc->ReadRecordData(temp_pair)) {
+                return false;
+            }
+            encodedStr.push_back(temp_pair);
+        }
+        a_str = Functions::String::decodeString(encodedStr);
+        return true;
+    }
 
+    bool write_string(SKSE::SerializationInterface* a_intfc, const std::string& a_str) {
+        auto encodedStr = Functions::String::encodeString(a_str);
+        // i first need the size to know no of iterations
+        const auto size = encodedStr.size();
+        if (!a_intfc->WriteRecordData(size)) {
+            return false;
+        }
+        for (const auto& temp_pair : encodedStr) {
+            if (!a_intfc->WriteRecordData(temp_pair)) {
+                return false;
+            }
+        }
+        return true;
+    }
     // Saving and Loading
     
     // https :  // github.com/ozooma10/OSLAroused/blob/29ac62f220fadc63c829f6933e04be429d4f96b0/src/PersistedData.cpp
@@ -846,7 +770,7 @@ namespace Utilities {
         virtual bool Save(SKSE::SerializationInterface*, std::uint32_t,
                           std::uint32_t) {return false;};
         virtual bool Save(SKSE::SerializationInterface*) {return false;};
-        virtual bool Load(SKSE::SerializationInterface*) {return false;};
+        virtual bool Load(SKSE::SerializationInterface*, const bool) {return false;};
 
         void Clear() {
             Locker locker(m_Lock);
@@ -911,7 +835,7 @@ namespace Utilities {
             return Save(serializationInterface);
         }
 
-        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface) override {
+        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, const bool) override {
             assert(serializationInterface);
 
             std::size_t recordDataSize;
