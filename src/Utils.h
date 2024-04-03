@@ -321,8 +321,17 @@ namespace Utilities {
 
             std::vector<std::pair<int, bool>> encodeString(const std::string& inputString) {
                 std::vector<std::pair<int, bool>> encodedValues;
-                for (char ch : inputString) {
-                    encodedValues.push_back(std::make_pair(static_cast<int>(ch), std::isupper(ch)));
+                try {
+                    for (int i = 0; i < 100 && inputString[i] != '\0'; i++) {
+                        char ch = inputString[i];
+                        if (std::isprint(ch) && (std::isalnum(ch) || std::isspace(ch) ||
+                            std::ispunct(ch)) && ch >= 0 && ch <= 255) {
+                            encodedValues.push_back(std::make_pair(static_cast<int>(ch), std::isupper(ch)));
+                        }
+                    }
+                } catch (const std::exception& e) {
+                    logger::error("Error encoding string: {}", e.what());
+                    return encodeString("ERROR");
                 }
                 return encodedValues;
             }
@@ -344,6 +353,41 @@ namespace Utilities {
 
         };
 
+    };
+
+    namespace Math {
+        namespace LinAlg {
+            namespace R3 {
+                void rotateX(RE::NiPoint3& v, float angle) {
+                    float y = v.y * cos(angle) - v.z * sin(angle);
+                    float z = v.y * sin(angle) + v.z * cos(angle);
+                    v.y = y;
+                    v.z = z;
+                }
+
+                // Function to rotate a vector around the y-axis
+                void rotateY(RE::NiPoint3& v, float angle) {
+                    float x = v.x * cos(angle) + v.z * sin(angle);
+                    float z = -v.x * sin(angle) + v.z * cos(angle);
+                    v.x = x;
+                    v.z = z;
+                }
+
+                // Function to rotate a vector around the z-axis
+                void rotateZ(RE::NiPoint3& v, float angle) {
+                    float x = v.x * cos(angle) - v.y * sin(angle);
+                    float y = v.x * sin(angle) + v.y * cos(angle);
+                    v.x = x;
+                    v.y = y;
+                }
+
+                void rotate(RE::NiPoint3& v, float angleX, float angleY, float angleZ) {
+                    rotateX(v, angleX);
+                    rotateY(v, angleY);
+                    rotateZ(v, angleZ);
+                }
+            };
+        };
     };
 
     namespace FunctionsSkyrim {
@@ -469,26 +513,6 @@ namespace Utilities {
                 form->data.costOverride = value;
             }
         };
-
-        /*float GetBoundObjectWeight(RE::TESBoundObject* object) {
-            if (!object) {
-                Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
-                return 0;
-            }
-            std::string formtype(RE::FormTypeToString(object->GetFormType()));
-            if (formtype == "ARMO") return FormTraits<RE::TESObjectARMO>::GetWeight(object->As<RE::TESObjectARMO>());
-            if (formtype == "WEAP") return FormTraits<RE::TESObjectWEAP>::GetWeight(object->As<RE::TESObjectWEAP>());
-            if (formtype == "MISC") return FormTraits<RE::TESObjectMISC>::GetWeight(object->As<RE::TESObjectMISC>());
-            if (formtype == "BOOK") return FormTraits<RE::TESObjectBOOK>::GetWeight(object->As<RE::TESObjectBOOK>());
-            if (formtype == "AMMO") return FormTraits<RE::TESAmmo>::GetWeight(object->As<RE::TESAmmo>());
-            if (formtype == "KEYM") return FormTraits<RE::TESKey>::GetWeight(object->As<RE::TESKey>());
-            if (formtype == "SLGM") return FormTraits<RE::TESSoulGem>::GetWeight(object->As<RE::TESSoulGem>());
-            if (formtype == "SCRL") return FormTraits<RE::ScrollItem>::GetWeight(object->As<RE::ScrollItem>());
-            if (formtype == "LIGH") return FormTraits<RE::TESObjectLIGH>::GetWeight(object->As<RE::TESObjectLIGH>());
-            if (formtype == "ALCH") return FormTraits<RE::AlchemyItem>::GetWeight(object->As<RE::AlchemyItem>());
-
-		    return 0;
-	    }*/
 
 	    // https:// github.com/Exit-9B/Dont-Eat-Spell-Tomes/blob/7b7f97353cc6e7ccfad813661f39710b46d82972/src/SpellTomeManager.cpp#L23-L32
         template <typename T>
@@ -621,7 +645,7 @@ namespace Utilities {
         }
 
         
-    [[nodiscard]] const bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+        [[nodiscard]] const bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
             if (!item) {
                 logger::warn("Item is null");
                 return false;
@@ -639,23 +663,62 @@ namespace Utilities {
             return false;
         }
 
-        /*int GetBoundObjectValue(RE::TESBoundObject* object) {
-            if (!object) {
-                Utilities::MsgBoxesNotifs::ShowMessageBox("Object is null", {"OK"}, [](unsigned int) {});
-                return 0;
+        namespace WorldObject {
+
+            float GetDistanceFromPlayer(RE::TESObjectREFR* ref) {
+                if (!ref) {
+                    logger::error("Ref is null.");
+                    return 0;
+                }
+                auto player_pos = RE::PlayerCharacter::GetSingleton()->GetPosition();
+                auto ref_pos = ref->GetPosition();
+                return player_pos.GetDistance(ref_pos);
             }
-            std::string formtype(RE::FormTypeToString(object->GetFormType()));
-            if (formtype == "ARMO") FormTraits<RE::TESObjectARMO>::GetValue(object->As<RE::TESObjectARMO>());
-            if (formtype == "WEAP") FormTraits<RE::TESObjectWEAP>::GetValue(object->As<RE::TESObjectWEAP>());
-            if (formtype == "MISC") FormTraits<RE::TESObjectMISC>::GetValue(object->As<RE::TESObjectMISC>());
-            if (formtype == "BOOK") FormTraits<RE::TESObjectBOOK>::GetValue(object->As<RE::TESObjectBOOK>());
-            if (formtype == "AMMO") FormTraits<RE::TESAmmo>::GetValue(object->As<RE::TESAmmo>());
-            if (formtype == "KEYM") FormTraits<RE::TESKey>::GetValue(object->As<RE::TESKey>());
-            if (formtype == "SLGM") FormTraits<RE::TESSoulGem>::GetValue(object->As<RE::TESSoulGem>());
-            if (formtype == "SCRL") FormTraits<RE::ScrollItem>::GetValue(object->As<RE::ScrollItem>());
-            if (formtype == "LIGH") FormTraits<RE::TESObjectLIGH>::GetValue(object->As<RE::TESObjectLIGH>());
-            return 0;
-        }*/
+
+            void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok=true) {
+                logger::trace("SwapObjects");
+                if (!a_from) {
+                    logger::error("Ref is null.");
+                    return;
+                }
+                auto ref_base = a_from->GetBaseObject();
+                if (!ref_base) {
+                    logger::error("Ref base is null.");
+				    return;
+                }
+                if (ref_base->GetFormID() == a_to->GetFormID()) {
+				    logger::trace("Ref and base are the same.");
+				    return;
+			    }
+                a_from->SetObjectReference(a_to);
+                a_from->Disable();
+                a_from->Enable(false);
+                if (!apply_havok) return;
+
+                /*float afX = 100;
+                float afY = 100;
+                float afZ = 100;
+                float afMagnitude = 100;*/
+                /*auto args = RE::MakeFunctionArguments(std::move(afX), std::move(afY), std::move(afZ),
+                std::move(afMagnitude)); vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback);*/
+                // Looked up here (wSkeever): https:  // www.nexusmods.com/skyrimspecialedition/mods/73607
+                SKSE::GetTaskInterface()->AddTask([a_from]() {
+                    // auto player_ch = RE::PlayerCharacter::GetSingleton();
+                    // player_ch->StartGrabObject();
+                    auto vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
+                    auto policy = vm->GetObjectHandlePolicy();
+                    auto handle = policy->GetHandleForObject(a_from->GetFormType(), a_from);
+                    RE::BSTSmartPointer<RE::BSScript::Object> object = nullptr;
+                    vm->CreateObject2("ObjectReference", object);
+                    vm->BindObject(object, handle, false);
+                    if (!object) logger::warn("Object is null");
+                    auto args = RE::MakeFunctionArguments(std::move(0.f), std::move(0.f), std::move(0.f), std::move(0.f));
+                    RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
+                    if (vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback)) logger::trace("FUSRODAH");
+                });
+            }
+
+        };
     };
 
     namespace Types {
@@ -669,6 +732,10 @@ namespace Utilities {
         struct FormRefID {
             FormID outerKey;  // real formid
             RefID innerKey;   // refid of unowned
+
+            FormRefID() : outerKey(0), innerKey(0) {}
+            FormRefID(FormID value1, RefID value2) : outerKey(value1), innerKey(value2) {}
+
             bool operator<(const FormRefID& other) const {
                 return outerKey < other.outerKey || (outerKey == other.outerKey && innerKey < other.innerKey);
             }
@@ -676,7 +743,7 @@ namespace Utilities {
 
         struct FormIDX {
             FormID id;         // fake formid
-            bool equipped;     // is equipped
+            bool equipped;     // is equippedB
             bool favorited;    // is favorited
             std::string name;  //(new) name
             FormIDX() : id(0), equipped(false), favorited(false), name("") {}
@@ -688,6 +755,9 @@ namespace Utilities {
         struct FormRefIDX {
             FormIDX outerKey;  // see above
             RefID innerKey;    // refid of unowned/realoutintheworld/externalcont
+
+            FormRefIDX() : innerKey(0) {}
+            FormRefIDX(FormIDX value1, RefID value2) : outerKey(value1), innerKey(value2) {}
 
             bool operator<(const FormRefIDX& other) const {
                 // Here, you can access the boolean values via outerKey
@@ -710,6 +780,17 @@ namespace Utilities {
         using SourceData = std::map<SourceDataKey, SourceDataVal>;  // Chest-Container Reference ID Pairs
         using SaveDataLHS = FormRefID;
         using SaveDataRHS = FormRefIDX;
+
+        struct SaveDataRHS2 {
+            FormID id;         // fake formid
+            bool equipped;     // is equipped
+            bool favorited;    // is favorited
+            RefID refid;       // refid of unowned/realoutintheworld/externalcont
+
+            SaveDataRHS2() : id(0), equipped(false), favorited(false), refid(0) {}
+
+        };
+
     }
 
     bool read_string(SKSE::SerializationInterface* a_intfc, std::string& a_str) {
@@ -817,10 +898,21 @@ namespace Utilities {
                     return false;
                 }
 
-                if (!serializationInterface->WriteRecordData(value)) {
+                Types::SaveDataRHS2 saveDataRHS;
+                saveDataRHS.id = value.outerKey.id;
+                saveDataRHS.equipped = value.outerKey.equipped;
+                saveDataRHS.favorited = value.outerKey.favorited;
+                saveDataRHS.refid = value.innerKey;
+
+                if (!serializationInterface->WriteRecordData(saveDataRHS)) {
                     logger::error("Failed to save value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
                     return false;
                 }
+
+                if (!write_string(serializationInterface, value.outerKey.name)) {
+					logger::error("Failed to save name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+					return false;
+				}
             }
             return true;
         }
@@ -845,10 +937,10 @@ namespace Utilities {
             Locker locker(m_Lock);
             m_Data.clear();
 
-            Types::SaveDataLHS formId;
-            Types::SaveDataRHS value;
 
             for (auto i = 0; i < recordDataSize; i++) {
+                Types::SaveDataLHS formId;
+                Types::SaveDataRHS value;
                 logger::trace("Loading data from serialization interface.");
                 logger::trace("FormID: ({},{}) serializationInterface->ReadRecordData:{}", formId.outerKey, formId.innerKey,
                             serializationInterface->ReadRecordData(formId));
@@ -858,8 +950,22 @@ namespace Utilities {
                     continue;
                 }
 
+                Types::SaveDataRHS2 saveDataRHS;
                 logger::trace("Reading value...");
-                logger::trace("ReadRecordData: {}", serializationInterface->ReadRecordData(value));
+                if (!serializationInterface->ReadRecordData(saveDataRHS)) {
+					logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+					return false;
+				}
+
+                value.outerKey.id = saveDataRHS.id;
+                value.outerKey.equipped = saveDataRHS.equipped;
+                value.outerKey.favorited = saveDataRHS.favorited;
+                value.innerKey = saveDataRHS.refid;
+
+                if (!read_string(serializationInterface, value.outerKey.name)) {
+                    	logger::error("Failed to load name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+                }
+
                 m_Data[formId] = value;
                 logger::trace("Loaded data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
             }
