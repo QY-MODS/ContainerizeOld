@@ -1782,19 +1782,15 @@ public:
         const auto real_cont = real_cont_handle.get();
         real_cont->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
         
-        const auto distance = Utilities::FunctionsSkyrim::WorldObject::GetDistanceFromPlayer(ref_fake);
-        if (distance < 60 || distance > 160) {
-        	logger::info("Distance is not in the range of 60-160. Distance: {}", distance);
-            auto player_ch = RE::PlayerCharacter::GetSingleton();
-            // PRINT IT
-            const auto multiplier = 100.0f;
-            const float qPI = 3.14159265358979323846f;
-            auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
-            Utilities::Math::LinAlg::R3::rotateZ(orji_vec, qPI / 4.f - player_ch->GetAngleZ());
-            auto drop_pos = player_ch->GetPosition() + orji_vec;
-            real_cont->SetParentCell(player_ref->GetParentCell());
-            real_cont->SetPosition(drop_pos);
-        }
+        auto player_ch = RE::PlayerCharacter::GetSingleton();
+        auto player_pos = player_ch->GetPosition();
+        const auto multiplier = 100.0f;
+        const float qPI = 3.14159265358979323846f;
+        auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
+        Utilities::Math::LinAlg::R3::rotateZ(orji_vec, qPI / 4.f - player_ch->GetAngleZ());
+        auto drop_pos = player_ch->GetPosition() + orji_vec;
+        real_cont->SetParentCell(player_ch->GetParentCell());
+        real_cont->SetPosition(drop_pos);
 
         // update source data
         src->data[chest_refid] = real_cont->GetFormID();
