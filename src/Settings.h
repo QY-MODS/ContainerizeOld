@@ -23,14 +23,14 @@ struct Source {
         }
     };
     
-    std::string_view GetName() {
+    std::string_view GetName() const {
         logger::trace("Getting name for formid: {}", formid);
         auto form = Utilities::FunctionsSkyrim::GetFormByID(formid, editorid);
         if (form) return form->GetName();
         else return "";
     };
 
-    RE::TESBoundObject* GetBoundObject() {return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);};
+    RE::TESBoundObject* GetBoundObject() const {return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);};
 };
 
 
@@ -64,7 +64,8 @@ namespace Settings {
 		};
 
    
-    constexpr std::uint32_t kSerializationVersion = 729;
+    //constexpr std::uint32_t kSerializationVersion = 729; // < 0.7
+    constexpr std::uint32_t kSerializationVersion = 730; // >= 0.7
     constexpr std::uint32_t kDataKey = 'CTRZ';
 
     constexpr std::array<const char*, 4> otherstuffKeys = 

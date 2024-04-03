@@ -333,7 +333,7 @@ public:
                         // iterate through all objects in the cell................
                         logger::info("Iterating through all references in the cell.");
                         auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
-                        auto cell_runtime_data = player_cell->GetRuntimeData();
+                        auto& cell_runtime_data = player_cell->GetRuntimeData();
                         for (auto& ref_ : cell_runtime_data.references) {
                             if (!ref_) continue;
                             if (ref_.get()->GetBaseObject()->GetFormID()==event->baseObj) {
@@ -408,7 +408,7 @@ public:
             if (e->eventType.get() == RE::INPUT_EVENT_TYPE::kButton) {
                 RE::ButtonEvent* a_event = e->AsButtonEvent();
                 RE::IDEvent* id_event = e->AsIDEvent();
-                auto userEvent = id_event->userEvent;
+                auto& userEvent = id_event->userEvent;
 
                 if (a_event->IsPressed()) {
                     if (a_event->IsRepeating() && a_event->HeldDuration() > .3f && a_event->HeldDuration() < .32f){
@@ -500,10 +500,17 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
+
+
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
+        bool is_before_0_7 = false;
+        
         auto temp = Utilities::DecodeTypeCode(type);
 
-        if (version != Settings::kSerializationVersion) {
+        if (version == Settings::kSerializationVersion-1) {
+			is_before_0_7= true;
+		}
+        else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
             continue;
@@ -511,7 +518,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         switch (type) {
             case Settings::kDataKey: {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
-                if (!M->Load(serializationInterface)) {
+                if (!M->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
                 }
             } break;
@@ -559,7 +566,7 @@ void SetupLog() {
 #endif
 
     logger::info("Name of the plugin is {}.", pluginName);
-    logger::info("Version of the plugin is {}", Utilities::Functions::GetPluginVersion(4));
+    logger::info("Version of the plugin is {}", Utilities::GetPluginVersion(4));
 
 }
 

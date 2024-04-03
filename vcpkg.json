@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "containerize",
-  "version-string": "0.7.0.2",
+  "version-string": "0.7.0.3",
   "dependencies": [
     "fast-cpp-csv-parser",
     "rsm-binary-io",
