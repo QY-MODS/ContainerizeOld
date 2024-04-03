@@ -13,6 +13,7 @@ class Manager : public Utilities::SaveLoadData {
     const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
     bool uiextensions_is_present = false;
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
+    RE::EffectSetting* empty_mgeff = nullptr;
     
     //  maybe i dont need this by using uniqueID for new forms
     // runtime specific
@@ -1272,7 +1273,8 @@ class Manager : public Utilities::SaveLoadData {
                 logger::trace("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
                 if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
                     logger::trace("Removing enchantment: {}", effect->baseEffect->GetName());
-                    if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
+                    effect->baseEffect = empty_mgeff;
+                    //if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
                 }
             }
         }
@@ -1350,6 +1352,17 @@ class Manager : public Utilities::SaveLoadData {
 
         // Load also other settings...
         _other_settings = Settings::LoadOtherSettings();
+
+        if (_other_settings[Settings::otherstuffKeys[1]]) {
+            empty_mgeff = RE::IFormFactory::GetConcreteFormFactoryByType<RE::EffectSetting>()->Create();
+            if (!empty_mgeff) {
+                logger::critical("Failed to create empty mgeff.");
+                init_failed = true;
+            } else {
+                empty_mgeff->magicItemDescription = std::string(" ");
+                empty_mgeff->data.flags.set(RE::EffectSetting::EffectSettingData::Flag::kNoDuration);
+            }
+		}
 
         auto data_handler = RE::TESDataHandler::GetSingleton();
         if (!data_handler) return RaiseMngrErr("Data handler is null");
