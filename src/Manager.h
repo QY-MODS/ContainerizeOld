@@ -1781,43 +1781,20 @@ public:
         }
         const auto real_cont = real_cont_handle.get();
         real_cont->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
-        /*real_cont->SetParentCell(ref_fake->GetParentCell());
-        real_cont->SetPosition(ref_fake->GetPosition());*/
-        //real_cont->SetMotionType(RE::TESObjectREFR::MotionType::kFixed);
-        //real_cont->MoveTo(player_ref);
-        //auto position = player_ref->GetLookingAtLocation();
-        //logger::info("Looking at location: x: {}, y: {}, z: {}", position.x, position.y, position.z);
         
-        // yes terrible naming scheme. i am tired
-        const auto position = ref_fake->GetPosition();
-        auto player_pos = player_ref->GetPosition();
-        logger::trace("Player's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        // distance in the xy-plane
-        const auto distance = std::sqrt(std::pow(position.x - player_pos.x, 2) + std::pow(position.y - player_pos.y, 2));
+        const auto distance = Utilities::FunctionsSkyrim::WorldObject::GetDistanceFromPlayer(ref_fake);
         if (distance < 60 || distance > 160) {
         	logger::info("Distance is not in the range of 60-160. Distance: {}", distance);
+            auto player_ch = RE::PlayerCharacter::GetSingleton();
+            // PRINT IT
             const auto multiplier = 100.0f;
-            player_pos += {multiplier, multiplier, 70};
-        } else player_pos = position;
-        // unit vector between the player and the looking at location
-        //auto unit_vector = RE::NiPoint3{position.x - player_pos.x, position.y - player_pos.y, 0} / distance;
-        // add it to the player's position with a distance of 100
-        /*player_pos += {unit_vector.x * multiplier, unit_vector.y * multiplier, 70};*/
-        logger::trace("New position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        real_cont->SetParentCell(player_ref->GetParentCell());
-        real_cont->SetPosition(player_pos);
-
-        /*Player's position: x: -287.63037, y: -116.021225, z: 80.00003
-        ref_fake's position: x: -190.57587, y: -136.17564, z: 151.63188 */
-
-
-        //auto player_pos = player_ref->GetPosition();
-        //logger::info("Player's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        //real_cont->SetParentCell(ref_fake->GetParentCell());
-        //player_pos = ref_fake->GetPosition();
-        //logger::info("ref_fake's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        //real_cont->SetPosition(ref_fake->GetPosition());
-
+            const float qPI = 3.14159265358979323846f;
+            auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
+            Utilities::Math::LinAlg::R3::rotateZ(orji_vec, qPI / 4.f - player_ch->GetAngleZ());
+            auto drop_pos = player_ch->GetPosition() + orji_vec;
+            real_cont->SetParentCell(player_ref->GetParentCell());
+            real_cont->SetPosition(drop_pos);
+        }
 
         // update source data
         src->data[chest_refid] = real_cont->GetFormID();
