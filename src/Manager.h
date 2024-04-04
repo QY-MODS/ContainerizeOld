@@ -1332,23 +1332,16 @@ class Manager : public Utilities::SaveLoadData {
         }
 
         logger::info("No of chests in cell: {}", GetNoChests());
-
-        // Check if unowned chest is in the cell and get its ref
-        auto& runtimeData = unownedCell->GetRuntimeData();
-        for (const auto& ref : runtimeData.references) {
-			if (!ref) continue;
-			if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID() && !ChestToFakeContainer.count(ref->GetFormID())) {
-				unownedChestOG = ref.get();
-				break;
-			}
-		}
-
-        if (!unownedChestOG || !unownedCell || !unownedChest || !unownedChest->As<RE::TESBoundObject>()) {
+        unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
+        if (!unownedChestOG || unownedChestOG->GetBaseObject()->GetFormID() != unownedChest->GetFormID() ||
+            !unownedCell ||
+            !unownedChest ||
+            !unownedChest->As<RE::TESBoundObject>()) {
             logger::error("Failed to initialize Manager due to missing unowned chest/cell");
             init_failed = true;
         }
 
-        if (init_failed) InitFailed();
+        if (init_failed) return InitFailed();
 
         // Load also other settings...
         _other_settings = Settings::LoadOtherSettings();
