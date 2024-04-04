@@ -2222,8 +2222,10 @@ public:
         logger::info("--------Sending data---------");
         Print(); 
         Clear();
+        int no_of_container = 0;
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
+                no_of_container++;
                 bool is_equipped_x = false;
                 bool is_favorited_x = false;
                 if (!chest_ref) return RaiseMngrErr("Chest refid is null");
@@ -2243,7 +2245,7 @@ public:
                 SetData({src.formid, chest_ref}, {fake_container_x, cont_ref});
 			}
         }
-        logger::info("Data sent.");
+        logger::info("Data sent. Number of containers: {}", no_of_container);
     };
     
     void Something1(Source& src, const RefID chest_ref, RE::TESObjectREFR* external_cont = nullptr) {
