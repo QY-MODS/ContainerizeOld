@@ -927,7 +927,7 @@ namespace Utilities {
             return Save(serializationInterface);
         }
 
-        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, const bool) override {
+        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, const bool is_older_version) override {
             assert(serializationInterface);
 
             std::size_t recordDataSize;
@@ -949,21 +949,28 @@ namespace Utilities {
                     logger::error("Failed to resolve form ID, 0x{:X}.", formId.outerKey);
                     continue;
                 }
+                
+                if (is_older_version && !serializationInterface->ReadRecordData(value)) {
+                        logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey,
+                                      formId.innerKey);
+                        return false;
+                } 
+                else {
+                    Types::SaveDataRHS2 saveDataRHS;
+                    logger::trace("Reading value...");
+                    if (!serializationInterface->ReadRecordData(saveDataRHS)) {
+					    logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+					    return false;
+				    }
 
-                Types::SaveDataRHS2 saveDataRHS;
-                logger::trace("Reading value...");
-                if (!serializationInterface->ReadRecordData(saveDataRHS)) {
-					logger::error("Failed to load value data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
-					return false;
-				}
+                    value.outerKey.id = saveDataRHS.id;
+                    value.outerKey.equipped = saveDataRHS.equipped;
+                    value.outerKey.favorited = saveDataRHS.favorited;
+                    value.innerKey = saveDataRHS.refid;
 
-                value.outerKey.id = saveDataRHS.id;
-                value.outerKey.equipped = saveDataRHS.equipped;
-                value.outerKey.favorited = saveDataRHS.favorited;
-                value.innerKey = saveDataRHS.refid;
-
-                if (!read_string(serializationInterface, value.outerKey.name)) {
-                    	logger::error("Failed to load name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+                    if (!read_string(serializationInterface, value.outerKey.name)) {
+                    	    logger::error("Failed to load name data for FormRefID: ({},{})", formId.outerKey, formId.innerKey);
+                    }
                 }
 
                 m_Data[formId] = value;

@@ -508,6 +508,8 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         auto temp = Utilities::DecodeTypeCode(type);
 
         if (version == Settings::kSerializationVersion-1) {
+            logger::warn("Loading data is from an older version < v0.7. Recieved ({}) - Expected ({}) for Data Key ({})",
+							 version, Settings::kSerializationVersion, temp);
 			is_before_0_7= true;
 		}
         else if (version != Settings::kSerializationVersion) {
