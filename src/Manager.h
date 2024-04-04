@@ -7,12 +7,13 @@ using namespace Utilities::FunctionsSkyrim;
 
 // TODO: handled_external_conts duzgun calisiyo mu test et. save et. barrela fakeplacement yap. save et. roll back save. sonra ilerki save e geri don, bakalim fakeitemlar hala duruyor mu
 
-class Manager : public Utilities::BaseFormRefIDFormRefIDX {
+class Manager : public Utilities::SaveLoadData {
     // private variables
     const std::vector<std::string> buttons = {"Open", "Take", "More...", "Close"};
     const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
     bool uiextensions_is_present = false;
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
+    RE::EffectSetting* empty_mgeff = nullptr;
     
     //  maybe i dont need this by using uniqueID for new forms
     // runtime specific
@@ -38,6 +39,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // private functions
     [[nodiscard]] RE::TESObjectREFR* MakeChest(const RE::NiPoint3 Pos3 = {0.0f, 0.0f, 0.0f}) {
+        logger::info("Making chest");
         auto item = unownedChest->As<RE::TESBoundObject>();
 
         auto newPropRef = RE::TESDataHandler::GetSingleton()
@@ -49,6 +51,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     [[nodiscard]] RE::TESObjectREFR* AddChest(const uint32_t chest_no) {
+        logger::trace("Adding chest");
         auto total_chests = chest_no;
         total_chests += 1;
         /*int total_chests_x = (((total_chests - 1) + 2) % 5) - 2;
@@ -65,6 +68,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     [[nodiscard]] RE::TESObjectREFR* FindNotMatchedChest() {
+        logger::trace("Finding not matched chest");
         auto& runtimeData = unownedCell->GetRuntimeData();
         for (const auto& ref : runtimeData.references) {
             if (!ref) continue;
@@ -86,6 +90,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     [[nodiscard]] const uint32_t GetNoChests() {
+        logger::trace("Getting number of chests");
         auto& runtimeData = unownedCell->GetRuntimeData();
         uint32_t no_chests = 0;
         for (const auto& ref : runtimeData.references) {
@@ -99,6 +104,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     [[nodiscard]] const RefID GetRealContainerChest(const RefID real_refid) {
+        logger::trace("GetRealContainerChest");
         if (!real_refid) {
             RaiseMngrErr("Real container refid is null");
             return 0;
@@ -114,6 +120,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // OK. from container out in the world to linked chest
     [[nodiscard]] RE::TESObjectREFR* GetRealContainerChest(const RE::TESObjectREFR* real_container) {
+        logger::trace("GetRealContainerChest");
         if (!real_container) { 
             RaiseMngrErr("Container reference is null");
             return nullptr;
@@ -150,6 +157,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     }
 
     [[nodiscard]] const RefID GetFakeContainerChest(const FormID fake_id) {
+        logger::trace("GetFakeContainerChest");
         if (!fake_id) {
 			RaiseMngrErr("Fake container refid is null");
 			return 0;
@@ -183,6 +191,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // OK. from real container formid to linked source
     [[nodiscard]] Source* GetContainerSource(const FormID container_formid) {
+        logger::trace("GetContainerSource");
         for (auto& src : sources) {
             if (src.formid == container_formid) {
                 return &src;
@@ -193,6 +202,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     };
 
     [[nodiscard]] RE::TESBoundObject* FakeToRealContainer(FormID fake) {
+        logger::trace("FakeToRealContainer");
         for (const auto& [chest_ref, cont_forms] : ChestToFakeContainer) {
             if (cont_forms.innerKey == fake) {
                 return RE::TESForm::LookupByID<RE::TESBoundObject>(cont_forms.outerKey);
@@ -202,6 +212,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     }
 
     void UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to) {
+        logger::trace("UpdateExtras");
         if (!copy_from || !copy_to) return RaiseMngrErr("copy_from or copy_to is null");
         // Enchantment
         if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
@@ -526,6 +537,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     }
 
     void UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
+        logger::trace("UpdateExtras");
         if (!copy_from || !copy_to) return RaiseMngrErr("copy_from or copy_to is null");
         auto* copy_from_extralist = &copy_from->extraList;
         auto* copy_to_extralist = &copy_to->extraList;
@@ -543,6 +555,11 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     }*/
 
     [[nodiscard]] const int GetChestValue(RE::TESObjectREFR* a_chest) {
+        logger::trace("GetChestValue");
+        if (!a_chest) {
+            RaiseMngrErr("Chest is null");
+            return 0;
+        }
 		auto chest_inventory = a_chest->GetInventory();
 		int total_value = 0;
 		for (const auto& item : chest_inventory) {
@@ -555,6 +572,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     template <typename T>
     void UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const unsigned int value_offset) {
+        logger::trace("UpdateFakeWV");
         
         // assumes base container is already in the chest
         if (!chest_linked || !fake_form) return RaiseMngrErr("Failed to get chest.");
@@ -626,7 +644,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // Updates weight and value of fake container and uses Copy and applies renaming
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, const unsigned int value_offset) {
-
+        logger::trace("pre-UpdateFakeWV");
         std::string formtype(RE::FormTypeToString(fake_form->GetFormType()));
         if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked,value_offset);
         else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked,value_offset);
@@ -643,6 +661,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     template <typename T>
     const FormID CreateFakeContainer(T* realcontainer, RE::ExtraDataList* extralist) {
+        logger::trace("CreateFakeContainer");
         T* new_form = nullptr;
         new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
 
@@ -663,6 +682,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // Creates new form for fake container and adds it to unownedChestOG
     const FormID CreateFakeContainer(RE::TESBoundObject* container, RE::ExtraDataList* extralist) {
+        logger::trace("pre-CreateFakeContainer");
         std::string formtype(RE::FormTypeToString(container->GetFormType()));
         if (formtype == "SCRL") {return CreateFakeContainer<RE::ScrollItem>(container->As<RE::ScrollItem>(), extralist);}
         else if (formtype == "ARMO") {return CreateFakeContainer<RE::TESObjectARMO>(container->As<RE::TESObjectARMO>(), extralist);}
@@ -681,6 +701,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     template <typename T>
     void Rename(const std::string new_name, T item) {
+        logger::trace("Rename");
         if (!item) logger::warn("Item not found");
         else item->fullName = new_name;
     }
@@ -691,6 +712,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     // it will be sent back to the linked chest at the end
     // DOES NOT UPDATE THE SOURCE OR ChestToFakeContainer !!!
     void FetchStoredFake(RE::TESObjectREFR* chest_of_fake, const FormID fake_id, const RefID chest_linked,RE::TESObjectREFR* real_ref=nullptr) {
+
+        logger::trace("FetchStoredFake");
         
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_linked);
         if (!chest) return RaiseMngrErr("Chest linked is null");
@@ -737,14 +760,17 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // removes only one unit of the item
     const RE::ObjectRefHandle RemoveItem(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, FormID item_id,
-                                   RE::ITEM_REMOVE_REASON reason) { 
+                                   RE::ITEM_REMOVE_REASON reason) {
+
+        logger::trace("RemoveItem");
+
         auto ref_handle = RE::ObjectRefHandle();
         
         if (!moveFrom && !moveTo) {
             RaiseMngrErr("moveFrom and moveTo are both null!");
             return ref_handle;
         }
-        listen_container_change = false;
+        setListenContainerChange(false);
         auto inventory = moveFrom->GetInventory();
         for (const auto& item : inventory) {
 			auto item_obj = item.first;
@@ -758,17 +784,20 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason,
                                                       asd->front(), moveTo);
 				}
-				listen_container_change = true;
-				return ref_handle;
+                setListenContainerChange(true);
+                return ref_handle;
 			}
 		}
-        listen_container_change = true;
+        setListenContainerChange(true);
         return ref_handle;
     }
 
     // removes only one unit of the item
     const RE::ObjectRefHandle RemoveItemReverse(RE::TESObjectREFR* moveFrom, RE::TESObjectREFR* moveTo, FormID item_id,
                                    RE::ITEM_REMOVE_REASON reason) {
+
+        logger::trace("RemoveItemReverse");
+
         auto ref_handle = RE::ObjectRefHandle();
 
         if (!moveFrom && !moveTo) {
@@ -776,7 +805,9 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             return ref_handle;
         }
         logger::trace("Removing item reverse");
-        listen_container_change = false;
+
+        setListenContainerChange(false);
+
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
@@ -790,16 +821,19 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 } else {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, asd->front(), moveTo);
                 }
-                listen_container_change = true;
+                setListenContainerChange(true);
                 return ref_handle;
             }
         }
-        listen_container_change = true;
+        setListenContainerChange(true);
         return ref_handle;
     }
 
     // Removes the object from the world and adds it to an inventory
     [[nodiscard]] const bool RemoveObject(RE::TESObjectREFR* ref, RE::TESObjectREFR* move2container,bool owned=true) {
+
+        logger::trace("RemoveObject");
+
         if (!ref) {
             logger::error("Object is null");
 			return false;
@@ -830,8 +864,12 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     }
 
     void RemoveAllItemsFromChest(RE::TESObjectREFR* chest, RE::TESObjectREFR* move2ref = nullptr) {
+
+        logger::trace("RemoveAllItemsFromChest");
+
         if (!chest) return RaiseMngrErr("Chest is null");
-        listen_container_change = false;
+
+        setListenContainerChange(false);
 
         auto chest_container = chest->GetContainer();
         if (!chest_container) {
@@ -869,17 +907,20 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                     else {
                         // the chest that is connected to the fake container which was inside this chest
                         HandleSell(ChestToFakeContainer[key].innerKey, move2ref->GetFormID());
-                        listen_container_change = false;
+                        setListenContainerChange(true);
                     }
                 }
             }
         }
 
-        listen_container_change = true;
+        setListenContainerChange(true);
     };
 
     // Activates a container
     void Activate(RE::TESObjectREFR* a_objref) {
+
+        logger::trace("Activate");
+
         if (!a_objref) {
             return RaiseMngrErr("Object reference is null");
         }
@@ -892,16 +933,21 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // OK.
     void ActivateChest(RE::TESObjectREFR* chest, const char* chest_name) {
+
+        logger::trace("ActivateChest");
+
         if (!chest) return RaiseMngrErr("Chest is null");
-        listen_menuclose = true;
+        setListenMenuClose(true);
         unownedChest->fullName = chest_name;
         logger::trace("Activating chest with name: {}", chest_name);
-        logger::trace("listenclose: {}", listen_menuclose);
+        logger::trace("listenclose: {}", getListenMenuClose());
         Activate(chest);
     };
 
     void PromptInterface() {
         DISABLE_IF_NO_CURR_CONT
+
+        logger::trace("PromptInterface");
 
         // get the source corresponding to the container that we are activating
         auto src = GetContainerSource(current_container->GetBaseObject()->GetFormID());
@@ -918,8 +964,11 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         std::ostringstream stream2;
         stream2 << std::fixed << std::setprecision(2) << src->capacity;
 
+        auto stream1_str = stream1.str();
+        auto stream2_str = src->capacity > 0 ? "/" + stream2.str() : ""; 
+
         return Utilities::MsgBoxesNotifs::ShowMessageBox(
-            name + " | W: " + stream1.str() + "/" + stream2.str() + " | V: " + std::to_string(GetChestValue(chest)),
+            name + " | W: " + stream1_str + stream2_str + " | V: " + std::to_string(GetChestValue(chest)),
             buttons,
             [this](const int result) { this->MsgBoxCallback(result); });
     }
@@ -941,9 +990,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         
         // Take
         if (result == 1) {
-            
-            listen_activate = false;
 
+            setListenActivate(false);
             
             // Add fake container to player
             const auto chest_refid = GetRealContainerChest(current_container->GetFormID());
@@ -967,7 +1015,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id);
 
             current_container = nullptr;
-            listen_activate = true;
+            setListenActivate(true);
 
             return;
         }
@@ -1011,7 +1059,7 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 auto args2 =
                     RE::MakeFunctionArguments(std::move(menuID), std::move(property_name), std::move(container_name));
                 if (vm->DispatchStaticCall("UIExtensions", "SetMenuPropertyString", args2, callback)) {
-                    if (vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) listen_menuclose = true;
+                    if (vm->DispatchStaticCall("UIExtensions", "OpenMenu", args, callback)) setListenMenuClose(true);
                 }
             }
             return;
@@ -1046,6 +1094,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
         // Create the fake container form and put in the unownedchestOG
         // extradata gets updates when the player picks up the real container and gets the fake container from
         // unownedchestOG
+
+        logger::trace("HandleRegistration");
 
         if (!a_container) return RaiseMngrErr("Container is null");
 
@@ -1108,6 +1158,13 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     [[nodiscard]] const bool IsFaved(RE::TESBoundObject* item) { return IsFavorited(item, player_ref); }
 
     [[nodiscard]] const bool IsEquipped(RE::TESBoundObject* item) {
+
+        logger::trace("IsEquipped");
+
+        if (!item) {
+            logger::trace("Item is null");
+            return false;
+        }
 		auto inventory = player_ref->GetInventory();
 		auto it = inventory.find(item);
         if (it != inventory.end()) {
@@ -1122,6 +1179,9 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     void FaveItem(const FormID formid) { FaveItem(RE::TESForm::LookupByID<RE::TESBoundObject>(formid));}
 
     void EquipItem(RE::TESBoundObject* item, bool unequip=false) {
+
+        logger::trace("EquipItem");
+
         if (!item) return RaiseMngrErr("Item is null");
         auto inventory_changes = player_ref->GetInventoryChanges();
         auto entries = inventory_changes->entryList;
@@ -1154,8 +1214,20 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     [[nodiscard]] const bool PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try = 3,
                     RE::Actor* actor = RE::PlayerCharacter::GetSingleton()->As<RE::Actor>()) {
-        //std::lock_guard<std::mutex> lock(mutex);
-        listen_container_change = false;
+        logger::trace("PickUpItem");
+
+        // std::lock_guard<std::mutex> lock(mutex);
+        if (!item) {
+            logger::warn("Item is null");
+            return false;
+        }
+        if (!actor) {
+            logger::warn("Actor is null");
+            return false;
+        }
+
+        setListenContainerChange(false);
+
         auto item_bound = item->GetBaseObject();
         const auto item_count = GetItemCount(item_bound, actor);
         logger::trace("Item count: {}", item_count);
@@ -1165,28 +1237,26 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             return false;
         }
         while (i < max_try) {
-            if (!item) {
-                logger::warn("Item is null");
-				return false;
-            }
-            if (!actor) {
-                logger::warn("Actor is null");
-                return false;
-            }
+            logger::trace("Critical: PickUpItem");
 			actor->PickUpObject(item, 1, false, false);
+            logger::trace("Item picked up. Checking if it is in inventory...");
             if (GetItemCount(item_bound, actor) > item_count) {
             	logger::trace("Item picked up. Took {} extra tries.", i);
-                listen_container_change = true;
+                setListenContainerChange(true);
                 return true;
             }
             else logger::trace("item count: {}", GetItemCount(item_bound, actor));
 			i++;
 		}
-        listen_container_change = true;
+
+        setListenContainerChange(true);
         return false;
     }
 
     void RemoveCarryWeightBoost(const FormID item_formid){
+
+        logger::trace("RemoveCarryWeightBoost");
+
         auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
         if (!item_obj) return RaiseMngrErr("Item not found");
         if (!HasItem(item_obj, player_ref)) {
@@ -1203,7 +1273,8 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
                 logger::trace("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
                 if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
                     logger::trace("Removing enchantment: {}", effect->baseEffect->GetName());
-                    if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
+                    effect->baseEffect = empty_mgeff;
+                    //if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
                 }
             }
         }
@@ -1281,6 +1352,17 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
         // Load also other settings...
         _other_settings = Settings::LoadOtherSettings();
+
+        if (_other_settings[Settings::otherstuffKeys[1]]) {
+            empty_mgeff = RE::IFormFactory::GetConcreteFormFactoryByType<RE::EffectSetting>()->Create();
+            if (!empty_mgeff) {
+                logger::critical("Failed to create empty mgeff.");
+                init_failed = true;
+            } else {
+                empty_mgeff->magicItemDescription = std::string(" ");
+                empty_mgeff->data.flags.set(RE::EffectSetting::EffectSettingData::Flag::kNoDuration);
+            }
+		}
 
         auto data_handler = RE::TESDataHandler::GetSingleton();
         if (!data_handler) return RaiseMngrErr("Data handler is null");
@@ -1381,11 +1463,10 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
             Utilities::MsgBoxesNotifs::InGame::UninstallFailed();
         }
 
-
-        listen_activate = true; // this one stays
-        listen_container_change = false;
+        setListenActivate(true); // this one stays
+        setListenContainerChange(false);
         // set uninstalled flag to true
-        isUninstalled = true;
+        setUninstalled(true);
     }
 
     void RaiseMngrErr(const std::string err_msg_ = "Error") {
@@ -1396,6 +1477,9 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
     }
 
     void TRICK(Source& src, const RE::ObjectRefHandle& real_handle, const RefID chest_refid) {
+
+        logger::trace("TRICK");
+
         src.data[chest_refid] = real_handle.get()->GetFormID();
         auto old_fakeid = ChestToFakeContainer[chest_refid].innerKey;  // for external_favs
         HandleRegistration(real_handle.get().get());  // sets current_container, creates the fake with the
@@ -1456,12 +1540,25 @@ class Manager : public Utilities::BaseFormRefIDFormRefIDX {
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
     [[nodiscard]] const bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
+
+        logger::trace("HasItemPlusCleanUp");
+
         if (HasItem(item, item_owner)) return true;
         if (HasItemEntry(item, item_owner)) {
             RemoveItemReverse(item_owner, nullptr, item->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
             logger::trace("Item with zero count removed from player.");
         }
         return false;
+    }
+
+    void setListenActivate(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        listen_activate = value;
+    }
+
+    void setUninstalled(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        isUninstalled = value;
     }
 
 public:
@@ -1482,16 +1579,47 @@ public:
     std::unordered_map<std::string, bool> _other_settings;
     bool isUninstalled = false;
 
-    //std::mutex mutex;
+    std::mutex mutex;
 
+    void setListenMenuClose(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        listen_menuclose = value;
+    }
+
+    [[nodiscard]] bool getListenMenuClose() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return listen_menuclose;
+    }
+
+    [[nodiscard]] bool getListenActivate() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return listen_activate;
+    }
+
+    [[nodiscard]] bool getListenContainerChange() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return listen_container_change;
+    }
+
+    void setListenContainerChange(const bool value) {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        listen_container_change = value;
+    }
+
+    [[nodiscard]] bool getUninstalled() {
+        std::lock_guard<std::mutex> lock(mutex); // Lock the mutex
+        return isUninstalled;
+    }
     
     [[nodiscard]] const bool IsCONT(RefID refid) {
+        logger::trace("IsCONT");
         return RE::FormTypeToString(
                    RE::TESForm::LookupByID<RE::TESObjectREFR>(refid)->GetObjectReference()->GetFormType()) == "CONT";
     }
 
     // Checks if realcontainer_formid is in the sources
     [[nodiscard]] const bool IsRealContainer(const FormID formid) {
+        logger::trace("IsRealContainer");
         for (const auto& src : sources) {
             if (src.formid == formid) return true;
         }
@@ -1500,6 +1628,7 @@ public:
 
     // Checks if ref has formid in the sources
     [[nodiscard]] const bool IsRealContainer(const RE::TESObjectREFR* ref) {
+        logger::trace("IsRealContainer2");
         if (!ref) return false;
         if (ref->IsDisabled()) return false;
         if (ref->IsDeleted()) return false;
@@ -1510,6 +1639,7 @@ public:
 
     // if the src with this formid has some data, then we say it has registry
     [[nodiscard]] const bool RealContainerHasRegistry(const FormID realcontainer_formid) {
+        logger::trace("RealContainerHasRegistry");
         for (const auto& src : sources) {
             if (src.formid == realcontainer_formid) {
                 if (!src.data.empty()) return true;
@@ -1520,6 +1650,7 @@ public:
 	}
 
     [[nodiscard]] const bool IsARegistry(const RefID registry) {
+        logger::trace("IsARegistry");
         for (const auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
                 if (cont_ref == registry) return true;
@@ -1530,6 +1661,7 @@ public:
 
     // external refid is in one of the source data. unownedchests are allowed
     [[nodiscard]] const bool ExternalContainerIsRegistered(const RefID external_container_id) {
+        logger::trace("ExternalContainerIsRegistered");
         if (!external_container_id) return false;
         if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)->HasContainer()) {
             RaiseMngrErr("External container does not have a container.");
@@ -1541,6 +1673,9 @@ public:
     // external container can be found in the values of src.data
     [[nodiscard]] const bool ExternalContainerIsRegistered(const FormID fake_container_formid,
                                                            const RefID external_container_id) {
+        logger::trace("ExternalContainerIsRegistered2");
+        if (!external_container_id) return false;
+        if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)) return false;
         if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id)->HasContainer()) {
             RaiseMngrErr("External container does not have a container.");
             return false;
@@ -1552,6 +1687,8 @@ public:
     }
 
     [[nodiscard]] const bool IsFakeContainer(const FormID formid) {
+        logger::trace("IsFakeContainer");
+        if (!formid) return false;
         for (const auto& [chest_ref, cont_form] : ChestToFakeContainer) {
 			if (cont_form.innerKey == formid) return true;
 		}
@@ -1568,6 +1705,7 @@ public:
     }*/
 
     [[nodiscard]] const bool IsUnownedChest(const RefID refid) {
+        logger::trace("IsUnownedChest");
         const auto base = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid)->GetBaseObject();
         return base->GetFormID() == unownedChest->GetFormID();
 	}
@@ -1578,6 +1716,10 @@ public:
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
 
     void UnHideReal(const FormID fakeid) { 
+        ENABLE_IF_NOT_UNINSTALLED
+
+        logger::trace("UnHideReal");
+
         if (!hidden_real_ref) return RaiseMngrErr("Hidden real ref is null");
         
         const auto fake_form = RE::TESForm::LookupByID(fakeid);
@@ -1602,6 +1744,13 @@ public:
     }
 
     [[nodiscard]] const bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake) {
+
+        logger::trace("SwapDroppedFakeContainer");
+
+        if (!ref_fake) {
+            logger::trace("Fake container is null.");
+            return false;
+        }
         
         // print gold value
         logger::trace("Gold value: {}", ref_fake->GetGoldValue());
@@ -1645,43 +1794,16 @@ public:
         }
         const auto real_cont = real_cont_handle.get();
         real_cont->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
-        /*real_cont->SetParentCell(ref_fake->GetParentCell());
-        real_cont->SetPosition(ref_fake->GetPosition());*/
-        //real_cont->SetMotionType(RE::TESObjectREFR::MotionType::kFixed);
-        //real_cont->MoveTo(player_ref);
-        //auto position = player_ref->GetLookingAtLocation();
-        //logger::info("Looking at location: x: {}, y: {}, z: {}", position.x, position.y, position.z);
         
-        // yes terrible naming scheme. i am tired
-        const auto position = ref_fake->GetPosition();
-        auto player_pos = player_ref->GetPosition();
-        logger::trace("Player's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        // distance in the xy-plane
-        const auto distance = std::sqrt(std::pow(position.x - player_pos.x, 2) + std::pow(position.y - player_pos.y, 2));
-        if (distance < 60 || distance > 160) {
-        	logger::info("Distance is not in the range of 60-160. Distance: {}", distance);
-            const auto multiplier = 100.0f;
-            player_pos += {multiplier, multiplier, 70};
-        } else player_pos = position;
-        // unit vector between the player and the looking at location
-        //auto unit_vector = RE::NiPoint3{position.x - player_pos.x, position.y - player_pos.y, 0} / distance;
-        // add it to the player's position with a distance of 100
-        /*player_pos += {unit_vector.x * multiplier, unit_vector.y * multiplier, 70};*/
-        logger::trace("New position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        real_cont->SetParentCell(player_ref->GetParentCell());
-        real_cont->SetPosition(player_pos);
-
-        /*Player's position: x: -287.63037, y: -116.021225, z: 80.00003
-        ref_fake's position: x: -190.57587, y: -136.17564, z: 151.63188 */
-
-
-        //auto player_pos = player_ref->GetPosition();
-        //logger::info("Player's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        //real_cont->SetParentCell(ref_fake->GetParentCell());
-        //player_pos = ref_fake->GetPosition();
-        //logger::info("ref_fake's position: x: {}, y: {}, z: {}", player_pos.x, player_pos.y, player_pos.z);
-        //real_cont->SetPosition(ref_fake->GetPosition());
-
+        auto player_ch = RE::PlayerCharacter::GetSingleton();
+        auto player_pos = player_ch->GetPosition();
+        const auto multiplier = 100.0f;
+        const float qPI = 3.14159265358979323846f;
+        auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
+        Utilities::Math::LinAlg::R3::rotateZ(orji_vec, qPI / 4.f - player_ch->GetAngleZ());
+        auto drop_pos = player_ch->GetPosition() + orji_vec;
+        real_cont->SetParentCell(player_ch->GetParentCell());
+        real_cont->SetPosition(drop_pos);
 
         // update source data
         src->data[chest_refid] = real_cont->GetFormID();
@@ -1705,7 +1827,8 @@ public:
     // need to put the real items in player's inventory and the fake items in unownedChestOG
     void HandleCraftingEnter() { 
         ENABLE_IF_NOT_UNINSTALLED
-        listen_container_change = false;
+        logger::trace("HandleCraftingEnter");
+        setListenContainerChange(false);
         logger::trace("Crafting menu opened");
         // this might be problematic since we dont update source data and chesttofakecontainer
         // trusting that the player will leave the crafting menu at some point and everything will be reverted
@@ -1723,12 +1846,17 @@ public:
                 RemoveItemReverse(player_ref, unownedChestOG, fake_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
             }
 		}
-        listen_container_change = true;
+
+        setListenContainerChange(true);
+
     }
 
     void HandleCraftingExit() { 
         ENABLE_IF_NOT_UNINSTALLED
-        listen_container_change = false;
+        logger::trace("HandleCraftingExit");
+
+        setListenContainerChange(false);
+
         logger::trace("Crafting menu closed");
         for (auto& src : sources) {
             for (const auto& [chest_ref, cont_ref] : src.data) {
@@ -1752,12 +1880,15 @@ public:
         }
         is_equipped.clear();
         is_faved.clear();
-        listen_container_change = true;
+
+        setListenContainerChange(true);
+
     }
 
     // places fake objects in external containers after load game
     void HandleFakePlacement(RE::TESObjectREFR* external_cont) {
         ENABLE_IF_NOT_UNINSTALLED
+        logger::trace("HandleFakePlacement");
         // if the external container is already handled (handled_external_conts) return
         const auto it = std::find(handled_external_conts.begin(), handled_external_conts.end(), external_cont->GetFormID());
         if (it != handled_external_conts.end()) return;
@@ -1769,7 +1900,8 @@ public:
         if (IsUnownedChest(external_cont->GetFormID())) return;
 
 
-        listen_container_change = false;
+        setListenContainerChange(false);
+
 		if (!external_cont) return RaiseMngrErr("external_cont is null");
         for (auto& src : sources) {
             if (!Utilities::Functions::containsValue(src.data, external_cont->GetFormID())) continue;
@@ -1780,11 +1912,13 @@ public:
             }
         }
         handled_external_conts.push_back(external_cont->GetFormID());
-        listen_container_change = true;
+
+        setListenContainerChange(true);
     }
 
     void HandleConsume(const FormID fake_formid) {
-        
+        ENABLE_IF_NOT_UNINSTALLED
+        logger::trace("HandleConsume");
         // check if player has the fake item
         // sometimes player does not have the fake item but it can still be there with count = 0.
         const auto fake_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
@@ -1813,7 +1947,11 @@ public:
 
     // Register an external container (technically could be another unownedchest of another of our containers) to the source data so that chestrefid of currentcontainer -> external container
     void LinkExternalContainer(const FormID fakecontainer, const RefID externalcontainer) {
-        listen_container_change = false;
+        ENABLE_IF_NOT_UNINSTALLED
+
+        setListenContainerChange(false);
+
+        logger::trace("LinkExternalContainer");
 
         if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(externalcontainer)->HasContainer()) {
             return RaiseMngrErr("External container does not have a container.");
@@ -1827,7 +1965,7 @@ public:
         src->data[chest_refid] = externalcontainer;
 
         // if external container is one of ours (bcs of weight limit):
-        if (IsChest(externalcontainer)) {
+        if (IsChest(externalcontainer) && src->capacity > 0) {
             logger::info("External container is one of our unowneds.");
             const auto weight_limit = src->capacity;
             if (external_ref->GetWeightInContainer() > weight_limit) {
@@ -1847,12 +1985,14 @@ public:
             external_favs.push_back(fakecontainer);
         }
 
-
-        listen_container_change = true;
+        setListenContainerChange(true);
 
     }
 
     void UnLinkExternalContainer(const FormID fake_container_formid, const RefID externalcontainer) { 
+        ENABLE_IF_NOT_UNINSTALLED
+
+        logger::trace("UnLinkExternalContainer");
 
         if (!RE::TESForm::LookupByID<RE::TESObjectREFR>(externalcontainer)->HasContainer()) {
             return RaiseMngrErr("External container does not have a container.");
@@ -1878,6 +2018,9 @@ public:
     void HandleSell(const FormID fake_container, const RefID sell_refid) {
         // assumes the sell_refid is a container
         ENABLE_IF_NOT_UNINSTALLED
+
+        logger::trace("HandleSell");
+
         const auto sell_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(sell_refid);
         logger::trace("sell ref name: {}", sell_ref->GetName());
         if (!sell_ref) return RaiseMngrErr("Sell ref not found");
@@ -1927,6 +2070,8 @@ public:
     };
 
     void RenameContainer(const std::string new_name) {
+        ENABLE_IF_NOT_UNINSTALLED
+        logger::trace("RenameContainer");
         const auto chest = GetRealContainerChest(current_container);
         if (!chest) return RaiseMngrErr("Chest not found");
         const auto fake_formid = ChestToFakeContainer[chest->GetFormID()].innerKey;
@@ -1967,6 +2112,7 @@ public:
     // reverts by sending it back to the initial inventory
     void RevertEquip(const FormID fakeid, const RefID external_container_id) {
         ENABLE_IF_NOT_UNINSTALLED
+        logger::trace("RevertEquip");
         const auto external_container = RE::TESForm::LookupByID<RE::TESObjectREFR>(external_container_id);
         if (!external_container) return RaiseMngrErr("External container not found");
         RemoveItemReverse(player_ref, external_container, fakeid, RE::ITEM_REMOVE_REASON::kRemove);
@@ -2018,12 +2164,16 @@ public:
 
     void InspectItemTransfer(const RefID chest_refid) {
         ENABLE_IF_NOT_UNINSTALLED
+        logger::trace("InspectItemTransfer");
         // check if container has enough capacity
         const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         const auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
         if (!src) return RaiseMngrErr("Could not find source for container");
+        if (!(src->capacity>0)) return;
         const auto weight_limit = src->capacity;
-        listen_container_change = false;
+
+        setListenContainerChange(false);
+
         while (chest->GetWeightInContainer() > weight_limit) {
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
@@ -2042,16 +2192,20 @@ public:
                                       .c_str());
 
         }
-        listen_container_change = true;
+
+        setListenContainerChange(true);
+
     }
 
     void Terminate() {
 		ENABLE_IF_NOT_UNINSTALLED
+        logger::info("Terminating manager...");
 		Uninstall();
 	}
 
     void Reset() {
         ENABLE_IF_NOT_UNINSTALLED
+        logger::info("Resetting manager...");
         for (auto& src : sources) {
 			src.data.clear();
 		}
@@ -2062,10 +2216,10 @@ public:
         Clear();
         //handled_external_conts.clear();
         current_container = nullptr;
-        listen_menuclose = false;
-        listen_activate = true;
-        listen_container_change = true;
-        isUninstalled = false;
+        setListenMenuClose(false);
+        setListenActivate(true);
+        setListenContainerChange(true);
+        setUninstalled(false);
         logger::info("Manager reset.");
     }
 
@@ -2100,6 +2254,8 @@ public:
     };
     
     void Something1(Source& src, const RefID chest_ref, RE::TESObjectREFR* external_cont = nullptr) {
+
+        logger::trace("Something1");
 
         const auto saved_ref = src.data[chest_ref];
         // bu sadece load sirasinda
@@ -2153,6 +2309,7 @@ public:
     }
 
     void Something2(const RefID chest_ref, std::vector<RefID>& ha) {
+
         // ha: handled already
         if (std::find(ha.begin(), ha.end(), chest_ref) != ha.end()) return;
         logger::info("-------------------chest_ref: {} -------------------", chest_ref);
@@ -2175,7 +2332,8 @@ public:
 
         //std::lock_guard<std::mutex> lock(mutex);
 
-        listen_container_change = false;
+        setListenContainerChange(false);
+
         std::map<RefID,std::pair<bool,bool>> chest_equipped_fav;
 
         bool no_match;
@@ -2293,7 +2451,7 @@ public:
 		}*/
         
         current_container = nullptr;
-        listen_container_change = true;
+        setListenContainerChange(true);
     };
 
     [[nodiscard]] const std::vector<RefID> ConnectedChests(const RefID chestRef) {

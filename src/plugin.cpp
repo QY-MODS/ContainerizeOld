@@ -1,5 +1,4 @@
 #include "Manager.h"
-
 // FFI04Sack 000DAB04
 
 Manager* M = nullptr;
@@ -12,7 +11,7 @@ bool block_droptake = false;
 // 1) Enables input event check
 bool equipped = false;
 // 2) set in input event if equip is held
-RE::BSFixedString ReShowMenu = "";
+std::string ReShowMenu = "";
 
 FormID fake_id_; // set in equip event
 FormID fake_equipped_id; // set in equip event only when equipped and used in container event (consume)
@@ -105,9 +104,10 @@ public:
         if (!event->actionRef->IsPlayerRef()) return RE::BSEventNotifyControl::kContinue;
         if (!event->objectActivated->IsActivationBlocked()) return RE::BSEventNotifyControl::kContinue;
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
-        if (!M->listen_activate) return RE::BSEventNotifyControl::kContinue;
+        if (!M->getListenActivate()) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
+        logger::trace("Container activated");
         M->ActivateContainer(event->objectActivated.get());
         M->Print();
 
@@ -127,23 +127,25 @@ public:
         // prevent player to catch it in the air
         //if (M->IsFakeContainer(event->crosshairRef.get()->GetBaseObject()->GetFormID())) event->crosshairRef->SetActivationBlocked(1);
 
+        logger::trace("Crosshair ref.");
+
         if (!M->IsRealContainer(event->crosshairRef.get())) {
             
             // if the fake items are not in it we need to place them (this happens upon load game)
-            M->listen_container_change = false;
+            M->setListenContainerChange(false);
             listen_crosshair_ref = false; 
             M->HandleFakePlacement(event->crosshairRef.get());
-            M->listen_container_change = true;
+            M->setListenContainerChange(true);
             listen_crosshair_ref = true;
 
             return RE::BSEventNotifyControl::kContinue;
         
         }
 
-        if (event->crosshairRef->IsActivationBlocked() && !M->isUninstalled) return RE::BSEventNotifyControl::kContinue;
+        if (event->crosshairRef->IsActivationBlocked() && !M->getUninstalled()) return RE::BSEventNotifyControl::kContinue;
 
         
-        if (M->isUninstalled) {
+        if (M->getUninstalled()) {
             event->crosshairRef->SetActivationBlocked(0);
         } else {
             event->crosshairRef->SetActivationBlocked(1);
@@ -160,9 +162,9 @@ public:
 
         //logger::trace("Menu event: {} {}", event->menuName, event->opening ? "opened" : "closed");
         
-        if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->listen_menuclose) {
+        if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->getListenMenuClose()) {
 			logger::trace("Rename menu closed.");
-            M->listen_menuclose = false;
+            M->setListenMenuClose(false);
             const auto skyrimVM = RE::SkyrimVM::GetSingleton();
             auto vm = skyrimVM ? skyrimVM->impl : nullptr;
             if (!vm) return RE::BSEventNotifyControl::kContinue;
@@ -174,8 +176,8 @@ public:
 		}
 
 
-        if (equipped && event->menuName == ReShowMenu && !event->opening) {
-            logger::trace("menu closed: {}", event->menuName);
+        if (equipped && event->menuName.c_str() == ReShowMenu && !event->opening) {
+            logger::trace("menu closed: {}", event->menuName.c_str());
             equipped = false;
             logger::trace("Reverting equip...");
             M->RevertEquip(fake_id_);
@@ -185,7 +187,7 @@ public:
         }
 
 
-        if (!M->listen_menuclose) return RE::BSEventNotifyControl::kContinue;
+        if (!M->getListenMenuClose()) return RE::BSEventNotifyControl::kContinue;
         if (event->menuName != RE::ContainerMenu::MENU_NAME) return RE::BSEventNotifyControl::kContinue;
         if (event->opening) {
             listen_weight_limit = true;
@@ -193,8 +195,8 @@ public:
         else {
             logger::trace("Our Container menu closed.");
             listen_weight_limit = false;
-			M->listen_menuclose = false;
-            logger::trace("listen_menuclose: {}", M->listen_menuclose);
+			M->setListenMenuClose(false);
+            logger::trace("listen_menuclose: {}", M->getListenMenuClose());
             if (!ReShowMenu.empty()){
                 M->UnHideReal(fake_id_);
                 if (ReShowMenu == RE::ContainerMenu::MENU_NAME && !external_container_refid) {
@@ -252,6 +254,7 @@ public:
 			return RE::BSEventNotifyControl::kContinue;
         if (event->targetFurniture->GetBaseObject()->formType.underlying() != 40) return RE::BSEventNotifyControl::kContinue;
 
+        logger::trace("Furniture event");
 
         auto bench = event->targetFurniture->GetBaseObject()->As<RE::TESFurniture>();
         if (!bench) return RE::BSEventNotifyControl::kContinue;
@@ -284,12 +287,15 @@ public:
                                                                    RE::BSTEventSource<RE::TESContainerChangedEvent>*) {
         
         if (block_eventsinks) return RE::BSEventNotifyControl::kContinue;
-        if (!M->listen_container_change) return RE::BSEventNotifyControl::kContinue;
+        if (!M->getListenContainerChange()) return RE::BSEventNotifyControl::kContinue;
         if (!event) return RE::BSEventNotifyControl::kContinue;
         if (!listen_crosshair_ref) return RE::BSEventNotifyControl::kContinue;
         if (furniture_entered) return RE::BSEventNotifyControl::kContinue;
         if (!event->itemCount) return RE::BSEventNotifyControl::kContinue;
         if (event->oldContainer != 20 && event->newContainer != 20) return RE::BSEventNotifyControl::kContinue;
+
+
+        logger::trace("Container changed event.");
 
         // to player inventory <-
         if (event->newContainer == 20) {
@@ -327,7 +333,7 @@ public:
                         // iterate through all objects in the cell................
                         logger::info("Iterating through all references in the cell.");
                         auto player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell();
-                        auto cell_runtime_data = player_cell->GetRuntimeData();
+                        auto& cell_runtime_data = player_cell->GetRuntimeData();
                         for (auto& ref_ : cell_runtime_data.references) {
                             if (!ref_) continue;
                             if (ref_.get()->GetBaseObject()->GetFormID()==event->baseObj) {
@@ -402,7 +408,7 @@ public:
             if (e->eventType.get() == RE::INPUT_EVENT_TYPE::kButton) {
                 RE::ButtonEvent* a_event = e->AsButtonEvent();
                 RE::IDEvent* id_event = e->AsIDEvent();
-                auto userEvent = id_event->userEvent;
+                auto& userEvent = id_event->userEvent;
 
                 if (a_event->IsPressed()) {
                     if (a_event->IsRepeating() && a_event->HeldDuration() > .3f && a_event->HeldDuration() < .32f){
@@ -494,17 +500,25 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     std::uint32_t type;
     std::uint32_t version;
     std::uint32_t length;
+
+
     while (serializationInterface->GetNextRecordInfo(type, version, length)) {
+        bool is_before_0_7 = false;
+        
         auto temp = Utilities::DecodeTypeCode(type);
 
-        if (version != Settings::kSerializationVersion) {
+        if (version == Settings::kSerializationVersion-1) {
+			is_before_0_7= true;
+		}
+        else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
             continue;
         }
         switch (type) {
             case Settings::kDataKey: {
-                if (!M->Load(serializationInterface)) {
+                logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
+                if (!M->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
                 }
             } break;
@@ -533,6 +547,28 @@ void InitializeSerialization() {
     SKSE::log::trace("Cosave serialization initialized.");
 }
 
+void SetupLog() {
+
+    auto logsFolder = SKSE::log::log_directory();
+    if (!logsFolder) SKSE::stl::report_and_fail("SKSE log_directory not provided, logs disabled.");
+    auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
+    auto logFilePath = *logsFolder / std::format("{}.log", pluginName);
+    auto fileLoggerPtr = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.string(), true);
+    auto loggerPtr = std::make_shared<spdlog::logger>("log", std::move(fileLoggerPtr));
+    spdlog::set_default_logger(std::move(loggerPtr));
+
+#ifndef NDEBUG
+    spdlog::set_level(spdlog::level::trace);
+    spdlog::flush_on(spdlog::level::trace);
+#else
+    spdlog::set_level(spdlog::level::info);
+    spdlog::flush_on(spdlog::level::info);
+#endif
+
+    logger::info("Name of the plugin is {}.", pluginName);
+    logger::info("Version of the plugin is {}", Utilities::GetPluginVersion(4));
+
+}
 
 SKSEPluginLoad(const SKSE::LoadInterface *skse) {
 
