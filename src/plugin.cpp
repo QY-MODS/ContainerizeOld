@@ -511,6 +511,11 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
             logger::warn("Loading data is from an older version < v0.7. Recieved ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
 			is_before_0_7= true;
+            std::string err_message =
+                "It seems you haven't followed the latest update instructions for the mod correctly. "
+                "Please refer to the mod page for the latest instructions. "
+                "In case of a failure you will see an error message box displayed. If not, you are probably fine.";
+            Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(err_message);
 		}
         else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
@@ -522,6 +527,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
                 logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
                 if (!M->Load(serializationInterface, is_before_0_7)) {
                     logger::critical("Failed to Load Data");
+                    return Utilities::MsgBoxesNotifs::InGame::CustomErrMsg("Failed to Load Data.");
                 }
             } break;
             default:
