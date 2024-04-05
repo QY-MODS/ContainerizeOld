@@ -897,6 +897,486 @@ namespace Utilities {
         };
     
         namespace xData {
+
+            namespace Copy {
+                void CopyEnchantment(RE::ExtraEnchantment* from, RE::ExtraEnchantment* to) {
+                    logger::trace("CopyEnchantment");
+                    to->enchantment = from->enchantment;
+                    to->charge = from->charge;
+                    to->removeOnUnequip = from->removeOnUnequip;
+                }
+
+                void CopyHealth(RE::ExtraHealth* from, RE::ExtraHealth* to) {
+                    logger::trace("CopyHealth");
+                    to->health = from->health;
+                }
+
+                void CopyRank(RE::ExtraRank* from, RE::ExtraRank* to) {
+                    logger::trace("CopyRank");
+                    to->rank = from->rank;
+                }
+
+                void CopyTimeLeft(RE::ExtraTimeLeft* from, RE::ExtraTimeLeft* to) {
+                    logger::trace("CopyTimeLeft");
+                    to->time = from->time;
+                }
+
+                void CopyCharge(RE::ExtraCharge* from, RE::ExtraCharge* to) {
+                    logger::trace("CopyCharge");
+                    to->charge = from->charge;
+                }
+
+                void CopyScale(RE::ExtraScale* from, RE::ExtraScale* to) {
+                    logger::trace("CopyScale");
+                    to->scale = from->scale;
+                }
+
+                void CopyUniqueID(RE::ExtraUniqueID* from, RE::ExtraUniqueID* to) {
+                    logger::trace("CopyUniqueID");
+                    to->baseID = from->baseID;
+                    to->uniqueID = from->uniqueID;
+                }
+
+                void CopyPoison(RE::ExtraPoison* from, RE::ExtraPoison* to) {
+                    logger::trace("CopyPoison");
+                    to->poison = from->poison;
+                    to->count = from->count;
+                }
+
+                void CopyObjectHealth(RE::ExtraObjectHealth* from, RE::ExtraObjectHealth* to) {
+                    logger::trace("CopyObjectHealth");
+                    to->health = from->health;
+                }
+
+                void CopyLight(RE::ExtraLight* from, RE::ExtraLight* to) {
+                    logger::trace("CopyLight");
+                    to->lightData = from->lightData;
+                }
+
+                void CopyRadius(RE::ExtraRadius* from, RE::ExtraRadius* to) {
+                    logger::trace("CopyRadius");
+                    to->radius = from->radius;
+                }
+
+                void CopyHorse(RE::ExtraHorse* from, RE::ExtraHorse* to) {
+                    logger::trace("CopyHorse");
+                    to->horseRef = from->horseRef;
+                }
+
+                void CopyHotkey(RE::ExtraHotkey* from, RE::ExtraHotkey* to) {
+                    logger::trace("CopyHotkey");
+                    to->hotkey = from->hotkey;
+                }
+
+                void CopyTextDisplayData(RE::ExtraTextDisplayData* from, RE::ExtraTextDisplayData* to) {
+                    to->displayName = from->displayName;
+                    to->displayNameText = from->displayNameText;
+                    to->ownerQuest = from->ownerQuest;
+                    to->ownerInstance = from->ownerInstance;
+                    to->temperFactor = from->temperFactor;
+                    to->customNameLength = from->customNameLength;
+                }
+
+                void CopySoul(RE::ExtraSoul* from, RE::ExtraSoul* to) {
+                    logger::trace("CopySoul");
+                    to->soul = from->soul;
+                }
+
+                void CopyOwnership(RE::ExtraOwnership* from, RE::ExtraOwnership* to) {
+                    logger::trace("CopyOwnership");
+                    to->owner = from->owner;
+                }
+            };
+
+            template <typename T>
+            void CopyExtraData(T* from, T* to) {
+                if (!from || !to) return;
+                switch (T->EXTRADATATYPE) {
+                    case RE::ExtraDataType::kEnchantment:
+                        CopyEnchantment(from, to);
+                        break;
+                    case RE::ExtraDataType::kHealth:
+                        CopyHealth(from, to);
+                        break;
+                    case RE::ExtraDataType::kRank:
+                        CopyRank(from, to);
+                        break;
+                    case RE::ExtraDataType::kTimeLeft:
+                        CopyTimeLeft(from, to);
+                        break;
+                    case RE::ExtraDataType::kCharge:
+                        CopyCharge(from, to);
+                        break;
+                    case RE::ExtraDataType::kScale:
+                        CopyScale(from, to);
+                        break;
+                    case RE::ExtraDataType::kUniqueID:
+                        CopyUniqueID(from, to);
+                        break;
+                    case RE::ExtraDataType::kPoison:
+                        CopyPoison(from, to);
+                        break;
+                    case RE::ExtraDataType::kObjectHealth:
+                        CopyObjectHealth(from, to);
+                        break;
+                    case RE::ExtraDataType::kLight:
+                        CopyLight(from, to);
+                        break;
+                    case RE::ExtraDataType::kRadius:
+                        CopyRadius(from, to);
+                        break;
+                    case RE::ExtraDataType::kHorse:
+                        CopyHorse(from, to);
+                        break;
+                    case RE::ExtraDataType::kHotkey:
+                        CopyHotkey(from, to);
+                        break;
+                    case RE::ExtraDataType::kTextDisplayData:
+                        CopyTextDisplayData(from, to);
+                        break;
+                    case RE::ExtraDataType::kSoul:
+                        CopySoul(from, to);
+                        break;
+                    case RE::ExtraDataType::kOwnership:
+                        CopyOwnership(from, to);
+                        break;
+                    default:
+                        logger::warn("ExtraData type not found");
+                        break;
+                };
+            }
+
+            [[nodiscard]] const bool UpdateExtras(RE::ExtraDataList* copy_from, RE::ExtraDataList* copy_to) {
+                logger::trace("UpdateExtras");
+                if (!copy_from || !copy_to) return false;
+                // Enchantment
+                if (copy_from->HasType(RE::ExtraDataType::kEnchantment)) {
+                    logger::trace("Enchantment found");
+                    auto enchantment =
+                        static_cast<RE::ExtraEnchantment*>(copy_from->GetByType(RE::ExtraDataType::kEnchantment));
+                    if (enchantment) {
+                        RE::ExtraEnchantment* enchantment_fake = RE::BSExtraData::Create<RE::ExtraEnchantment>();
+                        // log the associated actor value
+                        logger::trace("Associated actor value: {}", enchantment->enchantment->GetAssociatedSkill());
+                        Copy::CopyEnchantment(enchantment, enchantment_fake);
+                        copy_to->Add(enchantment_fake);
+                    } else
+                        return false;
+                }
+                // Health
+                if (copy_from->HasType(RE::ExtraDataType::kHealth)) {
+                    logger::trace("Health found");
+                    auto health = static_cast<RE::ExtraHealth*>(copy_from->GetByType(RE::ExtraDataType::kHealth));
+                    if (health) {
+                        RE::ExtraHealth* health_fake = RE::BSExtraData::Create<RE::ExtraHealth>();
+                        Copy::CopyHealth(health, health_fake);
+                        copy_to->Add(health_fake);
+                    } else
+                        return false;
+                }
+                // Rank
+                if (copy_from->HasType(RE::ExtraDataType::kRank)) {
+                    logger::trace("Rank found");
+                    auto rank = static_cast<RE::ExtraRank*>(copy_from->GetByType(RE::ExtraDataType::kRank));
+                    if (rank) {
+                        RE::ExtraRank* rank_fake = RE::BSExtraData::Create<RE::ExtraRank>();
+                        Copy::CopyRank(rank, rank_fake);
+                        copy_to->Add(rank_fake);
+                    } else
+                        return false;
+                }
+                // TimeLeft
+                if (copy_from->HasType(RE::ExtraDataType::kTimeLeft)) {
+                    logger::trace("TimeLeft found");
+                    auto timeleft = static_cast<RE::ExtraTimeLeft*>(copy_from->GetByType(RE::ExtraDataType::kTimeLeft));
+                    if (timeleft) {
+                        RE::ExtraTimeLeft* timeleft_fake = RE::BSExtraData::Create<RE::ExtraTimeLeft>();
+                        Copy::CopyTimeLeft(timeleft, timeleft_fake);
+                        copy_to->Add(timeleft_fake);
+                    } else
+                        return false;
+                }
+                // Charge
+                if (copy_from->HasType(RE::ExtraDataType::kCharge)) {
+                    logger::trace("Charge found");
+                    auto charge = static_cast<RE::ExtraCharge*>(copy_from->GetByType(RE::ExtraDataType::kCharge));
+                    if (charge) {
+                        RE::ExtraCharge* charge_fake = RE::BSExtraData::Create<RE::ExtraCharge>();
+                        Copy::CopyCharge(charge, charge_fake);
+                        copy_to->Add(charge_fake);
+                    } else
+                        return false;
+                }
+                // Scale
+                if (copy_from->HasType(RE::ExtraDataType::kScale)) {
+                    logger::trace("Scale found");
+                    auto scale = static_cast<RE::ExtraScale*>(copy_from->GetByType(RE::ExtraDataType::kScale));
+                    if (scale) {
+                        RE::ExtraScale* scale_fake = RE::BSExtraData::Create<RE::ExtraScale>();
+                        Copy::CopyScale(scale, scale_fake);
+                        copy_to->Add(scale_fake);
+                    } else
+                        return false;
+                }
+                // UniqueID
+                if (copy_from->HasType(RE::ExtraDataType::kUniqueID)) {
+                    logger::trace("UniqueID found");
+                    auto uniqueid = static_cast<RE::ExtraUniqueID*>(copy_from->GetByType(RE::ExtraDataType::kUniqueID));
+                    if (uniqueid) {
+                        RE::ExtraUniqueID* uniqueid_fake = RE::BSExtraData::Create<RE::ExtraUniqueID>();
+                        Copy::CopyUniqueID(uniqueid, uniqueid_fake);
+                        copy_to->Add(uniqueid_fake);
+                    } else
+                        return false;
+                }
+                // Poison
+                if (copy_from->HasType(RE::ExtraDataType::kPoison)) {
+                    logger::trace("Poison found");
+                    auto poison = static_cast<RE::ExtraPoison*>(copy_from->GetByType(RE::ExtraDataType::kPoison));
+                    if (poison) {
+                        RE::ExtraPoison* poison_fake = RE::BSExtraData::Create<RE::ExtraPoison>();
+                        Copy::CopyPoison(poison, poison_fake);
+                        copy_to->Add(poison_fake);
+                    } else
+                        return false;
+                }
+                // ObjectHealth
+                if (copy_from->HasType(RE::ExtraDataType::kObjectHealth)) {
+                    logger::trace("ObjectHealth found");
+                    auto objhealth =
+                        static_cast<RE::ExtraObjectHealth*>(copy_from->GetByType(RE::ExtraDataType::kObjectHealth));
+                    if (objhealth) {
+                        RE::ExtraObjectHealth* objhealth_fake = RE::BSExtraData::Create<RE::ExtraObjectHealth>();
+                        Copy::CopyObjectHealth(objhealth, objhealth_fake);
+                        copy_to->Add(objhealth_fake);
+                    } else
+                        return false;
+                }
+                // Light
+                if (copy_from->HasType(RE::ExtraDataType::kLight)) {
+                    logger::trace("Light found");
+                    auto light = static_cast<RE::ExtraLight*>(copy_from->GetByType(RE::ExtraDataType::kLight));
+                    if (light) {
+                        RE::ExtraLight* light_fake = RE::BSExtraData::Create<RE::ExtraLight>();
+                        Copy::CopyLight(light, light_fake);
+                        copy_to->Add(light_fake);
+                    } else
+                        return false;
+                }
+                // Radius
+                if (copy_from->HasType(RE::ExtraDataType::kRadius)) {
+                    logger::trace("Radius found");
+                    auto radius = static_cast<RE::ExtraRadius*>(copy_from->GetByType(RE::ExtraDataType::kRadius));
+                    if (radius) {
+                        RE::ExtraRadius* radius_fake = RE::BSExtraData::Create<RE::ExtraRadius>();
+                        Copy::CopyRadius(radius, radius_fake);
+                        copy_to->Add(radius_fake);
+                    } else
+                        return false;
+                }
+                // Sound (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kSound)) {
+                    logger::trace("Sound found");
+                    auto sound = static_cast<RE::ExtraSound*>(copy_from->GetByType(RE::ExtraDataType::kSound));
+                    if (sound) {
+                        RE::ExtraSound* sound_fake = RE::BSExtraData::Create<RE::ExtraSound>();
+                        sound_fake->handle = sound->handle;
+                        copy_to->Add(sound_fake);
+                    } else
+                        RaiseMngrErr("Failed to get radius from copy_from");
+                }*/
+                // LinkedRef (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kLinkedRef)) {
+                    logger::trace("LinkedRef found");
+                    auto linkedref =
+                        static_cast<RE::ExtraLinkedRef*>(copy_from->GetByType(RE::ExtraDataType::kLinkedRef));
+                    if (linkedref) {
+                        RE::ExtraLinkedRef* linkedref_fake = RE::BSExtraData::Create<RE::ExtraLinkedRef>();
+                        linkedref_fake->linkedRefs = linkedref->linkedRefs;
+                        copy_to->Add(linkedref_fake);
+                    } else
+                        RaiseMngrErr("Failed to get linkedref from copy_from");
+                }*/
+                // Horse
+                if (copy_from->HasType(RE::ExtraDataType::kHorse)) {
+                    logger::trace("Horse found");
+                    auto horse = static_cast<RE::ExtraHorse*>(copy_from->GetByType(RE::ExtraDataType::kHorse));
+                    if (horse) {
+                        RE::ExtraHorse* horse_fake = RE::BSExtraData::Create<RE::ExtraHorse>();
+                        Copy::CopyHorse(horse, horse_fake);
+                        copy_to->Add(horse_fake);
+                    } else
+                        return false;
+                }
+                // Hotkey
+                if (copy_from->HasType(RE::ExtraDataType::kHotkey)) {
+                    logger::trace("Hotkey found");
+                    auto hotkey = static_cast<RE::ExtraHotkey*>(copy_from->GetByType(RE::ExtraDataType::kHotkey));
+                    if (hotkey) {
+                        RE::ExtraHotkey* hotkey_fake = RE::BSExtraData::Create<RE::ExtraHotkey>();
+                        Copy::CopyHotkey(hotkey, hotkey_fake);
+                        copy_to->Add(hotkey_fake);
+                    } else
+                        return false;
+                }
+                // Weapon Attack Sound (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kWeaponAttackSound)) {
+                    logger::trace("WeaponAttackSound found");
+                    auto weaponattacksound = static_cast<RE::ExtraWeaponAttackSound*>(
+                        copy_from->GetByType(RE::ExtraDataType::kWeaponAttackSound));
+                    if (weaponattacksound) {
+                        RE::ExtraWeaponAttackSound* weaponattacksound_fake =
+                            RE::BSExtraData::Create<RE::ExtraWeaponAttackSound>();
+                        weaponattacksound_fake->handle = weaponattacksound->handle;
+                        copy_to->Add(weaponattacksound_fake);
+                    } else
+                        RaiseMngrErr("Failed to get weaponattacksound from copy_from");
+                }*/
+                // Activate Ref (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kActivateRef)) {
+                    logger::trace("ActivateRef found");
+                    auto activateref =
+                        static_cast<RE::ExtraActivateRef*>(copy_from->GetByType(RE::ExtraDataType::kActivateRef));
+                    if (activateref) {
+                        RE::ExtraActivateRef* activateref_fake = RE::BSExtraData::Create<RE::ExtraActivateRef>();
+                        activateref_fake->parents = activateref->parents;
+                        activateref_fake->activateFlags = activateref->activateFlags;
+                    } else
+                        RaiseMngrErr("Failed to get activateref from copy_from");
+                }*/
+                // TextDisplayData
+                if (copy_from->HasType(RE::ExtraDataType::kTextDisplayData)) {
+                    logger::trace("TextDisplayData found");
+                    auto textdisplaydata = static_cast<RE::ExtraTextDisplayData*>(
+                        copy_from->GetByType(RE::ExtraDataType::kTextDisplayData));
+                    if (textdisplaydata) {
+                        RE::ExtraTextDisplayData* textdisplaydata_fake =
+                            RE::BSExtraData::Create<RE::ExtraTextDisplayData>();
+                        Copy::CopyTextDisplayData(textdisplaydata, textdisplaydata_fake);
+                        copy_to->Add(textdisplaydata_fake);
+                    } else
+                        return false;
+                }
+                // Soul
+                if (copy_from->HasType(RE::ExtraDataType::kSoul)) {
+                    logger::trace("Soul found");
+                    auto soul = static_cast<RE::ExtraSoul*>(copy_from->GetByType(RE::ExtraDataType::kSoul));
+                    if (soul) {
+                        RE::ExtraSoul* soul_fake = RE::BSExtraData::Create<RE::ExtraSoul>();
+                        Copy::CopySoul(soul, soul_fake);
+                        copy_to->Add(soul_fake);
+                    } else
+                        return false;
+                }
+                // Flags (OK)
+                if (copy_from->HasType(RE::ExtraDataType::kFlags)) {
+                    logger::trace("Flags found");
+                    auto flags = static_cast<RE::ExtraFlags*>(copy_from->GetByType(RE::ExtraDataType::kFlags));
+                    if (flags) {
+                        SKSE::stl::enumeration<RE::ExtraFlags::Flag, std::uint32_t> flags_fake;
+                        if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivate))
+                            flags_fake.set(RE::ExtraFlags::Flag::kBlockActivate);
+                        if (flags->flags.all(RE::ExtraFlags::Flag::kBlockPlayerActivate))
+                            flags_fake.set(RE::ExtraFlags::Flag::kBlockPlayerActivate);
+                        if (flags->flags.all(RE::ExtraFlags::Flag::kBlockLoadEvents))
+                            flags_fake.set(RE::ExtraFlags::Flag::kBlockLoadEvents);
+                        if (flags->flags.all(RE::ExtraFlags::Flag::kBlockActivateText))
+                            flags_fake.set(RE::ExtraFlags::Flag::kBlockActivateText);
+                        if (flags->flags.all(RE::ExtraFlags::Flag::kPlayerHasTaken))
+                            flags_fake.set(RE::ExtraFlags::Flag::kPlayerHasTaken);
+                        // RE::ExtraFlags* flags_fake = RE::BSExtraData::Create<RE::ExtraFlags>();
+                        // flags_fake->flags = flags->flags;
+                        // copy_to->Add(flags_fake);
+                    } else
+                        return false;
+                }
+                // Lock (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kLock)) {
+                    logger::trace("Lock found");
+                    auto lock = static_cast<RE::ExtraLock*>(copy_from->GetByType(RE::ExtraDataType::kLock));
+                    if (lock) {
+                        RE::ExtraLock* lock_fake = RE::BSExtraData::Create<RE::ExtraLock>();
+                        lock_fake->lock = lock->lock;
+                        copy_to->Add(lock_fake);
+                    } else
+                        RaiseMngrErr("Failed to get lock from copy_from");
+                }*/
+                // Teleport (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kTeleport)) {
+                    logger::trace("Teleport found");
+                    auto teleport =
+                        static_cast<RE::ExtraTeleport*>(copy_from->GetByType(RE::ExtraDataType::kTeleport));
+                    if (teleport) {
+                        RE::ExtraTeleport* teleport_fake = RE::BSExtraData::Create<RE::ExtraTeleport>();
+                        teleport_fake->teleportData = teleport->teleportData;
+                        copy_to->Add(teleport_fake);
+                    } else
+                        RaiseMngrErr("Failed to get teleport from copy_from");
+                }*/
+                // LockList (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kLockList)) {
+                    logger::trace("LockList found");
+                    auto locklist =
+                        static_cast<RE::ExtraLockList*>(copy_from->GetByType(RE::ExtraDataType::kLockList));
+                    if (locklist) {
+                        RE::ExtraLockList* locklist_fake = RE::BSExtraData::Create<RE::ExtraLockList>();
+                        locklist_fake->list = locklist->list;
+                        copy_to->Add(locklist_fake);
+                    } else
+                        RaiseMngrErr("Failed to get locklist from copy_from");
+                }*/
+                // OutfitItem (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kOutfitItem)) {
+                    logger::trace("OutfitItem found");
+                    auto outfititem =
+                        static_cast<RE::ExtraOutfitItem*>(copy_from->GetByType(RE::ExtraDataType::kOutfitItem));
+                    if (outfititem) {
+                        RE::ExtraOutfitItem* outfititem_fake = RE::BSExtraData::Create<RE::ExtraOutfitItem>();
+                        outfititem_fake->id = outfititem->id;
+                        copy_to->Add(outfititem_fake);
+                    } else
+                        RaiseMngrErr("Failed to get outfititem from copy_from");
+                }*/
+                // CannotWear (Disabled)
+                /*if (copy_from->HasType(RE::ExtraDataType::kCannotWear)) {
+                    logger::trace("CannotWear found");
+                    auto cannotwear =
+                        static_cast<RE::ExtraCannotWear*>(copy_from->GetByType(RE::ExtraDataType::kCannotWear));
+                    if (cannotwear) {
+                        RE::ExtraCannotWear* cannotwear_fake = RE::BSExtraData::Create<RE::ExtraCannotWear>();
+                        copy_to->Add(cannotwear_fake);
+                    } else
+                        RaiseMngrErr("Failed to get cannotwear from copy_from");
+                }*/
+                // Ownership (OK)
+                if (copy_from->HasType(RE::ExtraDataType::kOwnership)) {
+                    logger::trace("Ownership found");
+                    auto ownership =
+                        static_cast<RE::ExtraOwnership*>(copy_from->GetByType(RE::ExtraDataType::kOwnership));
+                    if (ownership) {
+                        logger::trace("length of fake extradatalist: {}", copy_to->GetCount());
+                        RE::ExtraOwnership* ownership_fake = RE::BSExtraData::Create<RE::ExtraOwnership>();
+                        Copy::CopyOwnership(ownership, ownership_fake);
+                        copy_to->Add(ownership_fake);
+                        logger::trace("length of fake extradatalist: {}", copy_to->GetCount());
+                    } else
+                        return false;
+                }
+
+                return true;
+            }
+
+            [[nodiscard]] const bool UpdateExtras(RE::TESObjectREFR* copy_from, RE::TESObjectREFR* copy_to) {
+                logger::trace("UpdateExtras");
+                if (!copy_from || !copy_to) {
+                    logger::error("copy_from or copy_to is null");
+					return false;
+                }
+                auto* copy_from_extralist = &copy_from->extraList;
+                auto* copy_to_extralist = &copy_to->extraList;
+                UpdateExtras(copy_from_extralist, copy_to_extralist);
+            }
+
             void PrintObjectExtraData(RE::TESObjectREFR* ref) {
                 if (!ref) {
                     logger::error("Ref is null.");
@@ -909,6 +1389,7 @@ namespace Utilities {
                     }
                 }
             }
+
         }; 
     };
 
