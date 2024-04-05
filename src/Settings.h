@@ -65,9 +65,10 @@ namespace Settings {
 
    
     //constexpr std::uint32_t kSerializationVersion = 729; // < 0.7
-    constexpr std::uint32_t kSerializationVersion = 730; // >= 0.7
+    //constexpr std::uint32_t kSerializationVersion = 730; // = 0.7.0
+    constexpr std::uint32_t kSerializationVersion = 731; // >= 0.7.1
     constexpr std::uint32_t kDataKey = 'CTRZ';
-    bool is_older_version = false;
+    bool is_pre_0_7_1 = false;
 
     constexpr std::array<const char*, 4> otherstuffKeys = 
     {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell"};

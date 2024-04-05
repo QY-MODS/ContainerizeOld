@@ -1374,7 +1374,7 @@ namespace Utilities {
                 }
                 auto* copy_from_extralist = &copy_from->extraList;
                 auto* copy_to_extralist = &copy_to->extraList;
-                UpdateExtras(copy_from_extralist, copy_to_extralist);
+                return UpdateExtras(copy_from_extralist, copy_to_extralist);
             }
 
             void PrintObjectExtraData(RE::TESObjectREFR* ref) {

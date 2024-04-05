@@ -108,7 +108,7 @@ public:
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
         logger::trace("Container activated");
-        M->ActivateContainer(event->objectActivated.get());
+        M->OnActivateContainer(event->objectActivated.get());
         M->Print();
 
 
@@ -507,7 +507,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         
         auto temp = Utilities::DecodeTypeCode(type);
 
-        if (version == Settings::kSerializationVersion-1) {
+        if (version == Settings::kSerializationVersion-2) {
             logger::warn("Loading data is from an older version < v0.7. Recieved ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
 			is_before_0_7= true;
@@ -516,8 +516,12 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
                 "Please refer to the mod page for the latest instructions. "
                 "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(err_message);
-            Settings::is_older_version = true;
-		}
+            Settings::is_pre_0_7_1 = true;
+        } else if (version == Settings::kSerializationVersion - 1) {
+			logger::warn("Loading data is from an older version < v0.7.1. Recieved ({}) - Expected ({}) for Data Key ({})",
+							 version, Settings::kSerializationVersion, temp);
+            Settings::is_pre_0_7_1 = true;
+        }
         else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
