@@ -217,16 +217,16 @@ public:
                                 if (auto has_container = a_objref->HasContainer()) {
                                     logger::trace("HasContainer: {}", has_container);
                                     if (auto container = a_objref->As<RE::TESObjectCONT>()) {
-                                        OpenContainer(a_objref, 0);
+                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
                                         //container->Activate(a_objref, player_ref, 0, container, 1);
                                     } 
                                     else if (auto container_ = a_objref->GetBaseObject()->As<RE::TESObjectCONT>()) {
-                                        OpenContainer(a_objref, 0);
+                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
                                         //container_->Activate(a_objref, player_ref, 0, container_, 1);
                                     } 
                                     else {
                                         logger::trace("has container but could not activate.");
-                                        OpenContainer(a_objref, 3);
+                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 3);
                                     }
                                 } else a_objref->ActivateRef(player_ref, 0, a_objref->GetBaseObject(), 1, 0);
                             }
@@ -516,6 +516,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
                 "Please refer to the mod page for the latest instructions. "
                 "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(err_message);
+            Settings::is_older_version = true;
 		}
         else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
