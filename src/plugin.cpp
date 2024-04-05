@@ -514,7 +514,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
             std::string err_message =
                 "It seems you haven't followed the latest update instructions for the mod correctly. "
                 "Please refer to the mod page for the latest instructions. "
-                "In case of a failure you will see an error message box displayed. If not, you are probably fine.";
+                "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(err_message);
 		}
         else if (version != Settings::kSerializationVersion) {
