@@ -23,8 +23,10 @@ class Manager : public Utilities::SaveLoadData {
     RE::TESObjectREFR* hidden_real_ref = nullptr;
 
     // unowned stuff
+    const RefID unownedChestOGRefID = 0x000EA29A;
+    const RefID unownedChestFormID = 0x000EA299;
     RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000EA28B);
-    RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000EA299);
+    RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(unownedChestFormID);
     //RE::TESObjectCELL* unownedCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(0x000FE47B);  // cwquartermastercontainers
     //RE::TESObjectCONT* unownedChest = RE::TESForm::LookupByID<RE::TESObjectCONT>(0x000A0DB5); // playerhousechestnew
     const RE::NiPoint3 unownedChestPos = {1986.f, 1780.f, 6784.f};
@@ -72,6 +74,7 @@ class Manager : public Utilities::SaveLoadData {
         auto& runtimeData = unownedCell->GetRuntimeData();
         for (const auto& ref : runtimeData.references) {
             if (!ref) continue;
+            if (ref->GetFormID() == unownedChestOGRefID) continue;
             if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
                 size_t n_items = ref->GetInventory().size();
                 bool contains_key = false;
@@ -542,14 +545,19 @@ class Manager : public Utilities::SaveLoadData {
         if (ref->IsDeleted()) logger::warn("Object is deleted");
         
         // Remove object from world
+        const auto ref_bound = ref->GetBaseObject();
+        if (!ref_bound) {
+			logger::error("Bound object is null: {} with refid", ref->GetName(), ref->GetFormID());
+			return false;
+		}
+        const auto ref_formid = ref_bound->GetFormID();
         
         if (owned) ref->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
         if (!PickUpItem(ref)) {
             logger::error("Failed to pick up item");
             return false;
         }
-        const auto ref_bound = ref->GetBaseObject();
-        RemoveItemReverse(player_ref, move2container, ref_bound->GetFormID(),
+        RemoveItemReverse(player_ref, move2container, ref_formid,
                           RE::ITEM_REMOVE_REASON::kStoreInContainer);
         if (!HasItem(ref_bound, move2container)) {
             logger::error("Real container not found in move2container");
@@ -582,19 +590,23 @@ class Manager : public Utilities::SaveLoadData {
             auto inv_data = item.second.second.get();
             auto asd = inv_data->extraLists;
             if (!asd || asd->empty()) {
+                logger::trace("Removing item: {} with count: {}", item_obj->GetName(), item_count);
                 chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, move2ref);
             } else {
+                logger::trace("Removing item with extradata: {} with count: {}", item_obj->GetName(), item_count);
                 chest->RemoveItem(item_obj, item_count, RE::ITEM_REMOVE_REASON::kRemove, asd->front(), move2ref);
             }
         }
         
+        logger::trace("Checking for fake containers in chest");
         // need to handle if a fake container was inside this chest. yani cont_ref i bu cheste bakan data varsa
         // redirectlemeliyim
+        const auto chest_refid = chest->GetFormID();
         for (auto& src : sources) {
-            if (!Utilities::Functions::containsValue(src.data,chest->GetFormID())) continue;
+            if (!Utilities::Functions::containsValue(src.data, chest_refid)) continue;
             if (!move2ref) RaiseMngrErr("move2ref is null, but a fake container was found in the chest.");
             for (const auto& [key, value] : src.data) {
-                if (value == chest->GetFormID() && key!=value) {
+                if (value == chest_refid && key != value) {
                     logger::info(
                         "Fake container with formid {} found in chest during RemoveAllItemsFromChest. Redirecting...",
                         ChestToFakeContainer[key].innerKey);
@@ -681,6 +693,17 @@ class Manager : public Utilities::SaveLoadData {
                                                              [this](const int res) { this->MsgBoxCallbackMore(res); });
         }
 
+        if (result == 3 || result == 1){
+            auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
+            if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
+            const auto real_formid = current_container->GetBaseObject()->GetFormID();
+            auto chest = GetRealContainerChest(current_container);
+            if (!chest) return RaiseMngrErr("MsgBoxCallback Chest not found");
+            if (!HasItem(RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid), unownedChestOG))
+                return RaiseMngrErr("Real container not found in unownedChestOG");
+            RemoveItemReverse(unownedChestOG, chest, real_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+        }
+
         // Close
         if (result == 3) return;
         
@@ -730,6 +753,7 @@ class Manager : public Utilities::SaveLoadData {
 
         // Activate the unowned chest
         auto chest = GetRealContainerChest(current_container);
+        if (!chest) return RaiseMngrErr("MsgBoxCallback Chest not found");
         auto fake_id = ChestToFakeContainer[chest->GetFormID()].innerKey;
         auto chest_rename = renames.count(fake_id) ? renames[fake_id].c_str() : current_container->GetName();
         ActivateChest(chest, chest_rename);
@@ -1067,27 +1091,16 @@ class Manager : public Utilities::SaveLoadData {
 
         // Delete all unowned chests and try to return all items to the player's inventory while doing that
         auto& unownedRuntimeData = unownedCell->GetRuntimeData();
-        RE::TESObjectREFR* unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(0x000EA29A);
-        if (!unownedChestOG) {
-			uninstall_successful = false;
-			logger::error("Unowned chest not found");
-		} else {
-            for (const auto& ref : unownedRuntimeData.references) {
-			    if (!ref) continue;
-                if (ref->GetFormID() == unownedChestOG->GetFormID()) continue;
-			    if (ref->GetBaseObject()->GetFormID() == unownedChest->GetFormID()) {
-                    if (ref->IsDisabled() && ref->IsDeleted()) continue;
-                    RemoveAllItemsFromChest(ref.get(), player_ref);
-                    if (ref->GetInventory().size()) {
-                        uninstall_successful = false;
-                        logger::error("Chest with refid {} is not empty.", ref->GetFormID());
-                        break;
-                    }
-				    ref->Disable();
-				    ref->SetDelete(true);
-			    }
-		    }
-        }
+        for (const auto& ref : unownedRuntimeData.references) {
+			if (!ref) continue;
+            if (ref->GetFormID() == unownedChestOGRefID) continue;
+            if (ref->GetBaseObject()->GetFormID() != unownedChestFormID) continue;
+            if (ref->IsDisabled() && ref->IsDeleted()) continue;
+            logger::info("Removing items from chest with refid {}", ref->GetFormID());
+            RemoveAllItemsFromChest(ref.get(), player_ref);
+			ref->Disable();
+			ref->SetDelete(true);
+		}
 
         // seems like i need to do it for the player again???????
         for (const auto& [chest_refid, real_fake_formid] : ChestToFakeContainer) {
@@ -1397,7 +1410,6 @@ public:
     }
 
     [[nodiscard]] const bool IsFakeContainer(const FormID formid) {
-        logger::trace("IsFakeContainer");
         if (!formid) return false;
         for (const auto& [chest_ref, cont_form] : ChestToFakeContainer) {
 			if (cont_form.innerKey == formid) return true;
@@ -1471,14 +1483,16 @@ public:
             return false;
         }
 
-        if (auto* player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell()) {
+        /*if (auto* player_cell = RE::PlayerCharacter::GetSingleton()->GetParentCell()) {
 			logger::trace("Adding persistent cell xdata to ref1");
             RE::ExtraPersistentCell* xPersistentCell = RE::BSExtraData::Create<RE::ExtraPersistentCell>();
             xPersistentCell->persistentCell = player_cell;
             logger::trace("Adding persistent cell xdata to ref2");
-            ref_fake->extraList.Add(xPersistentCell);
+            ref_fake->extraList.SetExtraFlags(xPersistentCell);
             logger::trace("Added persistent cell xdata to ref.");
-		}
+		}*/
+
+        ref_fake->extraList.SetOwner(RE::TESForm::LookupByID(0x07));
 
         Utilities::FunctionsSkyrim::WorldObject::SwapObjects(ref_fake, real_base);
 
@@ -1719,6 +1733,15 @@ public:
         ENABLE_IF_NOT_UNINSTALLED
         logger::trace("OnActivateContainer 1 arg");
         HandleRegistration(a_container);
+        
+        // store it temporarily in unownedChestOG
+        auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
+        if (!unownedChestOG) return RaiseMngrErr("OnActivateContainer: unownedChestOG is null");
+        auto chest = GetRealContainerChest(current_container);
+        if (!chest) return RaiseMngrErr("OnActivateContainer: Chest not found");
+        const auto real_formid = ChestToFakeContainer[chest->GetFormID()].outerKey;
+        RemoveItemReverse(chest, unownedChestOG, real_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
+
         return PromptInterface();
     };
 
@@ -1731,11 +1754,12 @@ public:
         const auto real_container_name = RE::TESForm::LookupByID<RE::TESBoundObject>(real_container_formid)->GetName();
         if (hide_real) {
             // if the fake container was equipped, then we need to unequip it vice versa
-            logger::trace("Hiding real container");
+            logger::trace("Hiding real container {} which is in chest {}", real_container_formid, chest_refid);
             const auto fake_form = RE::TESForm::LookupByID(fakeid);
             if (fake_form->formFlags != 13) fake_form->formFlags = 13;
             const auto real_refhandle =
                 RemoveItemReverse(chest, nullptr, real_container_formid, RE::ITEM_REMOVE_REASON::kDropping);
+            if (!real_refhandle) return RaiseMngrErr("Real refhandle is null.");
             hidden_real_ref = real_refhandle.get().get();
 		}
         
@@ -1979,6 +2003,7 @@ public:
         logger::info("-------------------chest_ref: {} -------------------", chest_ref);
         auto connected_chests = ConnectedChests(chest_ref);
         for (const auto& connected_chest : connected_chests) {
+            logger::info("Connected chest: {}", connected_chest);
             Something2(connected_chest,ha);
             //ha.push_back(connected_chest);
         }
@@ -2063,8 +2088,9 @@ public:
         // Now i need to iterate through the chests deal with some cases
         std::vector<RefID> handled_already;
         for (const auto& [chest_ref, _] : ChestToFakeContainer) {
-			if (std::find(handled_already.begin(), handled_already.end(), chest_ref) != handled_already.end())
+            if (std::find(handled_already.begin(), handled_already.end(), chest_ref) != handled_already.end()) {
 				continue;
+            }
             Something2(chest_ref,handled_already);
 		}
 
@@ -2082,6 +2108,13 @@ public:
         auto inventory_changes = player_ref->GetInventoryChanges();
         auto entries = inventory_changes->entryList;
         for (auto it = entries->begin(); it != entries->end(); ++it){
+            if (!(*it)) {
+                logger::error("Entry is null. Fave-equip failed.");
+				continue;
+            } else if (!(*it)->object) {
+				logger::error("Object is null. Fave-equip failed.");
+                continue;
+            }
             auto fake_formid = (*it)->object->GetFormID();
             if (IsFakeContainer(fake_formid)) {
                 bool is_equipped_x = chest_equipped_fav[GetFakeContainerChest(fake_formid)].first;
