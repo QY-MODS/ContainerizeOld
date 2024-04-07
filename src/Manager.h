@@ -785,7 +785,6 @@ class Manager : public Utilities::SaveLoadData {
             if (!src) {return RaiseMngrErr("Could not find source for container");}
             src->data[chest_refid] = chest_refid;
 
-            if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id);
 
             logger::trace("Updating fake container V/W. Chest refid: {}, Fake container formid: {}", chest_refid, fake_container_id);
             const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
@@ -793,6 +792,7 @@ class Manager : public Utilities::SaveLoadData {
             UpdateFakeWV(fake_bound, chest);
             logger::trace("Updated fake container V/W");
 
+            if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id,player_ref);
             current_container = nullptr;
             setListenActivate(true);
 
@@ -947,9 +947,13 @@ class Manager : public Utilities::SaveLoadData {
 
     [[nodiscard]] const bool IsFaved(RE::TESBoundObject* item) { return IsFavorited(item, player_ref); }
 
-    void FaveItem(RE::TESBoundObject* item) { FavoriteItem(item, player_ref);}
+    void FaveItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+        FavoriteItem(item, inventory_owner);
+    }
 
-    void FaveItem(const FormID formid) { FaveItem(RE::TESForm::LookupByID<RE::TESBoundObject>(formid));}
+    void FaveItem(const FormID formid, RE::TESObjectREFR* inventory_owner) {
+        FaveItem(RE::TESForm::LookupByID<RE::TESBoundObject>(formid), inventory_owner);
+    }
 
     [[nodiscard]] const bool PickUpItem(RE::TESObjectREFR* item, const unsigned int max_try = 3) {
         logger::trace("PickUpItem");
@@ -999,18 +1003,18 @@ class Manager : public Utilities::SaveLoadData {
         return false;
     }
 
-    void RemoveCarryWeightBoost(const FormID item_formid){
+    void RemoveCarryWeightBoost(const FormID item_formid,RE::TESObjectREFR* inventory_owner){
 
         logger::trace("RemoveCarryWeightBoost");
 
         auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
         if (!item_obj) return RaiseMngrErr("Item not found");
-        if (!HasItem(item_obj, player_ref)) {
+        if (!HasItem(item_obj, inventory_owner)) {
             logger::warn("Item not found in player's inventory");
             return;
         }
-        auto inventory_player = player_ref->GetInventory();
-        if (auto enchantment = inventory_player.find(item_obj)->second.second->GetEnchantment()) {
+        auto inventory = inventory_owner->GetInventory();
+        if (auto enchantment = inventory.find(item_obj)->second.second->GetEnchantment()) {
             logger::trace("Enchantment: {}", enchantment->GetName());
             // remove the enchantment from the fake container if it is carry weight boost
             for (const auto& effect : enchantment->effects) {
@@ -1310,10 +1314,10 @@ class Manager : public Utilities::SaveLoadData {
         auto it = std::find(external_favs.begin(), external_favs.end(), fake_formid);
         if (it != external_favs.end()) {
             logger::trace("Faving");
-            FaveItem(fake_formid);
+            FaveItem(fake_formid, to_inv);
         }
         // Remove carry weight boost if it has
-        if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid);
+        if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_formid, to_inv);
     }
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
@@ -2191,7 +2195,7 @@ public:
 				}
                 if (is_faved_x) {
                     logger::trace("Favoriting fake container with formid {}", fake_formid);
-                    FaveItem((*it)->object);
+                    FaveItem((*it)->object,player_ref);
                     //inventory_changes->SetFavorite((*it), (*it)->extraLists->front());
                 }
 			}
