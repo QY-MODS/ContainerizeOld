@@ -545,357 +545,6 @@ namespace Utilities {
             func(a_this, a_openType);
         }
 
-
-
-        namespace Inventory {
-            const unsigned int GetValueInContainer(RE::TESObjectCONT* container) {
-			    if (!container) {
-				    logger::warn("Container is null");
-				    return 0;
-			    }
-                unsigned int total_value = 0;
-                for (std::uint32_t i = 0; i < container->numContainerObjects; ++i) {
-                    auto entry = container->containerObjects[i];
-                    if (entry) total_value += entry->obj->GetGoldValue();
-                    else logger::warn("Entry is null");
-                }
-                return total_value;
-		    }
-
-            const unsigned int GetValueInContainer(RE::TESObjectREFR* container) {
-                if (!container) {
-                    logger::warn("Container is null");
-                    return 0;
-                }
-                unsigned int total_value = 0;
-                auto inventory = container->GetInventory();
-                for (auto it = inventory.begin(); it != inventory.end(); ++it) {
-                    total_value += it->second.second->GetValue() * it->second.first;
-			    }
-                return total_value;
-            }
-
-            const bool HasItemEntry(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner,
-                                    bool nonzero_entry_check = false) {
-                if (!item) {
-                    logger::warn("Item is null");
-                    return 0;
-                }
-                if (!inventory_owner) {
-                    logger::warn("Inventory owner is null");
-                    return 0;
-                }
-                auto inventory = inventory_owner->GetInventory();
-                auto it = inventory.find(item);
-                bool has_entry = it != inventory.end();
-                if (nonzero_entry_check) return has_entry && it->second.first > 0;
-                return has_entry;
-            }
-
-
-            const std::int32_t GetItemValue(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
-                if (HasItemEntry(item, inventory_owner, true)) {
-                    return inventory_owner->GetInventory().find(item)->second.second->GetValue();
-                }
-                return 0;
-            }
-
-            const std::int32_t GetItemCount(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
-                if (HasItemEntry(item, inventory_owner, true)) {
-                    auto inventory = inventory_owner->GetInventory();
-                    auto it = inventory.find(item);
-                    return it->second.first;
-                }
-                return 0;
-            }
-
-            const bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
-                if (HasItemEntry(item, item_owner, true)) return true;
-                return false;
-            }
-
-            void AddItem(RE::TESObjectREFR* addTo, RE::TESObjectREFR* addFrom, FormID item_id, Count count,
-                         RE::ExtraDataList* xList = nullptr) {
-                logger::trace("AddItem");
-                // xList = nullptr;
-                if (!addTo) {
-                    logger::error("add to is null!");
-                    return;
-                }
-
-                logger::trace("Adding item.");
-
-                auto bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item_id);
-                addTo->AddObjectToContainer(bound, xList, count, addFrom);
-            }
-
-            void RemoveAll(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
-                if (!item) return;
-                if (!item_owner) return;
-                auto inventory = item_owner->GetInventory();
-                auto it = inventory.find(item);
-                bool has_entry = it != inventory.end();
-                if (!has_entry) return;
-                item_owner->RemoveItem(item, std::min(it->second.first, 1), RE::ITEM_REMOVE_REASON::kRemove, nullptr,
-                                       nullptr);
-            }
-
-            void FavoriteItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
-                if (!item) return;
-                if (!inventory_owner) return;
-                auto inventory_changes = inventory_owner->GetInventoryChanges();
-                auto entries = inventory_changes->entryList;
-                for (auto it = entries->begin(); it != entries->end(); ++it) {
-                    if (!(*it)) {
-                        logger::error("Item entry is null");
-                        continue;
-                    }
-                    const auto object = (*it)->object;
-                    if (!object) {
-                        logger::error("Object is null");
-                        continue;
-                    }
-                    auto formid = object->GetFormID();
-                    if (!formid) logger::critical("Formid is null");
-                    if (formid == item->GetFormID()) {
-                        logger::trace("Favoriting item: {}", item->GetName());
-                        const auto xLists = (*it)->extraLists;
-                        bool no_extra_ = false;
-                        if (!xLists || xLists->empty()) {
-                            logger::trace("No extraLists");
-                            no_extra_ = true;
-                        }
-                        logger::trace("asdasd");
-                        if (no_extra_) {
-                            logger::trace("No extraLists");
-                            // inventory_changes->SetFavorite((*it), nullptr);
-                        } else if (xLists->front()) {
-                            logger::trace("ExtraLists found");
-                            inventory_changes->SetFavorite((*it), xLists->front());
-                        }
-                        return;
-                    }
-                }
-                logger::error("Item not found in inventory");
-            }
-
-            void FavoriteItem(const FormID formid, const FormID refid) {
-                FavoriteItem(GetFormByID<RE::TESBoundObject>(formid), GetFormByID<RE::TESObjectREFR>(refid));
-            }
-
-            [[nodiscard]] const bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner,
-                                                        RE::ExtraDataList* xList = nullptr) {
-                logger::trace("HasItemPlusCleanUp");
-
-                if (HasItem(item, item_owner)) return true;
-                if (HasItemEntry(item, item_owner)) {
-                    item_owner->RemoveItem(item, 1, RE::ITEM_REMOVE_REASON::kRemove, xList, nullptr);
-                    logger::trace("Item with zero count removed from player.");
-                }
-                return false;
-            }
-
-            [[nodiscard]] const bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
-                if (!item) {
-                    logger::warn("Item is null");
-                    return false;
-                }
-                if (!inventory_owner) {
-                    logger::warn("Inventory owner is null");
-                    return false;
-                }
-                auto inventory = inventory_owner->GetInventory();
-                auto it = inventory.find(item);
-                if (it != inventory.end()) {
-                    if (it->second.first <= 0) logger::warn("Item count is 0");
-                    return it->second.second->IsFavorited();
-                }
-                return false;
-            }
-
-            [[nodiscard]] const bool IsFavorited(RE::FormID formid, RE::FormID refid) {
-                return IsFavorited(GetFormByID<RE::TESBoundObject>(formid), GetFormByID<RE::TESObjectREFR>(refid));
-            }
-
-            [[nodiscard]] const bool IsPlayerFavorited(RE::TESBoundObject* item) {
-                return IsFavorited(item, RE::PlayerCharacter::GetSingleton()->AsReference());
-            }
-
-            [[nodiscard]] const bool IsEquipped(RE::TESBoundObject* item) {
-                logger::trace("IsEquipped");
-
-                if (!item) {
-                    logger::trace("Item is null");
-                    return false;
-                }
-
-                auto player_ref = RE::PlayerCharacter::GetSingleton();
-                auto inventory = player_ref->GetInventory();
-                auto it = inventory.find(item);
-                if (it != inventory.end()) {
-                    if (it->second.first <= 0) logger::warn("Item count is 0");
-                    return it->second.second->IsWorn();
-                }
-                return false;
-            }
-
-            [[nodiscard]] const bool IsEquipped(const FormID formid) {
-                return IsEquipped(GetFormByID<RE::TESBoundObject>(formid));
-            }
-
-            void EquipItem(RE::TESBoundObject* item, bool unequip = false) {
-                logger::trace("EquipItem");
-
-                if (!item) {
-                    logger::error("Item is null");
-                    return;
-                }
-                auto player_ref = RE::PlayerCharacter::GetSingleton();
-                auto inventory_changes = player_ref->GetInventoryChanges();
-                auto entries = inventory_changes->entryList;
-                for (auto it = entries->begin(); it != entries->end(); ++it) {
-                    auto formid = (*it)->object->GetFormID();
-                    if (formid == item->GetFormID()) {
-                        if (!(*it) || !(*it)->extraLists) {
-                            logger::error("Item extraLists is null");
-                            return;
-                        }
-                        if (unequip) {
-                            if ((*it)->extraLists->empty()) {
-                                RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                                    player_ref, (*it)->object, nullptr, 1, (const RE::BGSEquipSlot*)nullptr, true,
-                                    false, false);
-                            } else if ((*it)->extraLists->front()) {
-                                RE::ActorEquipManager::GetSingleton()->UnequipObject(
-                                    player_ref, (*it)->object, (*it)->extraLists->front(), 1,
-                                    (const RE::BGSEquipSlot*)nullptr, true, false, false);
-                            }
-                        } else {
-                            if ((*it)->extraLists->empty()) {
-                                RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref, (*it)->object, nullptr,
-                                                                                   1, (const RE::BGSEquipSlot*)nullptr,
-                                                                                   true, false, false, false);
-                            } else if ((*it)->extraLists->front()) {
-                                RE::ActorEquipManager::GetSingleton()->EquipObject(
-                                    player_ref, (*it)->object, (*it)->extraLists->front(), 1,
-                                    (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
-                            }
-                        }
-                        return;
-                    }
-                }
-            }
-
-            void EquipItem(const FormID formid, bool unequip = false) {
-                EquipItem(GetFormByID<RE::TESBoundObject>(formid), unequip);
-            }
-        };
-
-
-        namespace WorldObject {
-
-            float GetDistanceFromPlayer(RE::TESObjectREFR* ref) {
-                if (!ref) {
-                    logger::error("Ref is null.");
-                    return 0;
-                }
-                auto player_pos = RE::PlayerCharacter::GetSingleton()->GetPosition();
-                auto ref_pos = ref->GetPosition();
-                return player_pos.GetDistance(ref_pos);
-            }
-
-            void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok=true) {
-                logger::trace("SwapObjects");
-                if (!a_from) {
-                    logger::error("Ref is null.");
-                    return;
-                }
-                auto ref_base = a_from->GetBaseObject();
-                if (!ref_base) {
-                    logger::error("Ref base is null.");
-				    return;
-                }
-                if (ref_base->GetFormID() == a_to->GetFormID()) {
-				    logger::trace("Ref and base are the same.");
-				    return;
-			    }
-                a_from->SetObjectReference(a_to);
-                a_from->Disable();
-                a_from->Enable(false);
-                if (!apply_havok) return;
-
-                /*float afX = 100;
-                float afY = 100;
-                float afZ = 100;
-                float afMagnitude = 100;*/
-                /*auto args = RE::MakeFunctionArguments(std::move(afX), std::move(afY), std::move(afZ),
-                std::move(afMagnitude)); vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback);*/
-                // Looked up here (wSkeever): https:  // www.nexusmods.com/skyrimspecialedition/mods/73607
-                SKSE::GetTaskInterface()->AddTask([a_from]() {
-                    // auto player_ch = RE::PlayerCharacter::GetSingleton();
-                    // player_ch->StartGrabObject();
-                    auto vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
-                    auto policy = vm->GetObjectHandlePolicy();
-                    auto handle = policy->GetHandleForObject(a_from->GetFormType(), a_from);
-                    RE::BSTSmartPointer<RE::BSScript::Object> object = nullptr;
-                    vm->CreateObject2("ObjectReference", object);
-                    vm->BindObject(object, handle, false);
-                    if (!object) logger::warn("Object is null");
-                    auto args = RE::MakeFunctionArguments(std::move(0.f), std::move(0.f), std::move(0.f), std::move(0.f));
-                    RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-                    if (vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback)) logger::trace("FUSRODAH");
-                });
-            }
-
-            void SetObjectCount(RE::TESObjectREFR* ref, Count count) {
-                if (!ref) {
-                    logger::error("Ref is null.");
-                    return;
-                }
-                int max_try = 10;
-                while (ref->extraList.HasType(RE::ExtraDataType::kCount) && max_try) {
-                    ref->extraList.RemoveByType(RE::ExtraDataType::kCount);
-                    max_try--;
-                }
-                // ref->extraList.SetCount(static_cast<uint16_t>(count));
-                auto xCount = new RE::ExtraCount(static_cast<int16_t>(count));
-                ref->extraList.Add(xCount);
-            }
-
-            RE::TESObjectREFR* DropObjectIntoTheWorld(RE::TESBoundObject* obj, Count count=1, bool owned = true) {
-                auto player_ch = RE::PlayerCharacter::GetSingleton();
-                if (!player_ch) {
-					logger::critical("Player character is null.");
-					return nullptr;
-				}
-                // PRINT IT
-                const auto multiplier = 100.0f;
-                const float qPI = 3.14159265358979323846f;
-                auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
-                Math::LinAlg::R3::rotateZ(orji_vec, qPI / 4.f - player_ch->GetAngleZ());
-                auto drop_pos = player_ch->GetPosition() + orji_vec;
-                auto player_cell = player_ch->GetParentCell();
-                auto player_ws = player_ch->GetWorldspace();
-                if (!player_cell && !player_ws) {
-                    logger::critical("Player cell AND player world is null.");
-                    return nullptr;
-                }
-                auto newPropRef = RE::TESDataHandler::GetSingleton()
-                                      ->CreateReferenceAtLocation(obj, drop_pos, {0.0f, 0.0f, 0.0f}, player_cell,
-                                                                  player_ws, nullptr, nullptr, {}, false, false)
-                                      .get()
-                                      .get();
-                if (!newPropRef) {
-                    logger::critical("New prop ref is null.");
-                    return nullptr;
-                }
-                if (count>1) SetObjectCount(newPropRef, count);
-                if (owned) newPropRef->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
-                return newPropRef;
-            }
-
-        };
-    
         namespace xData {
 
             namespace Copy {
@@ -1370,12 +1019,33 @@ namespace Utilities {
                 logger::trace("UpdateExtras");
                 if (!copy_from || !copy_to) {
                     logger::error("copy_from or copy_to is null");
-					return false;
+                    return false;
                 }
                 auto* copy_from_extralist = &copy_from->extraList;
                 auto* copy_to_extralist = &copy_to->extraList;
                 return UpdateExtras(copy_from_extralist, copy_to_extralist);
             }
+
+            const int32_t GetXDataCostOverride(RE::ExtraDataList* xList) {
+				if (!xList) return 0;
+				int32_t extra_costs = 0;
+                if (xList && GetExtraDataListLength(xList)) {
+                    if (auto xench = xList->GetByType<RE::ExtraEnchantment>()){
+                        auto ench = xench->enchantment;
+                        auto temp_costoverride = ench->data.costOverride;
+                        if (temp_costoverride < 0)
+                            temp_costoverride = static_cast<int32_t>(ench->CalculateTotalGoldValue());
+                        if (temp_costoverride < 0)
+                            temp_costoverride = static_cast<int32_t>(
+                                ench->CalculateTotalGoldValue(RE::PlayerCharacter::GetSingleton()));
+                        if (temp_costoverride > 0) {
+                            logger::trace("CostOverride: {}", temp_costoverride);
+                            extra_costs += temp_costoverride;
+                        }
+                    }
+                }
+				return extra_costs;
+			}
 
             void PrintObjectExtraData(RE::TESObjectREFR* ref) {
                 if (!ref) {
@@ -1389,8 +1059,401 @@ namespace Utilities {
                     }
                 }
             }
+            
+        };
 
-        }; 
+        namespace Menu {
+            void RefreshInventoryMenu() {
+                auto ui = RE::UI::GetSingleton();
+                if (ui->IsMenuOpen(RE::InventoryMenu::MENU_NAME)) {
+                    auto invMenu = ui->GetMenu<RE::InventoryMenu>(RE::InventoryMenu::MENU_NAME);
+                    invMenu.get()->GetRuntimeData().itemList->Update();
+                }
+            }
+
+            // po3
+            void SendInventoryUpdateMessage(RE::TESObjectREFR* a_inventoryRef, const RE::TESBoundObject* a_updateObj) {
+                using func_t = decltype(&SendInventoryUpdateMessage);
+                static REL::Relocation<func_t> func{RELOCATION_ID(51911, 52849)};
+                return func(a_inventoryRef, a_updateObj);
+            }
+        };
+
+        namespace Inventory {
+            
+            const bool EntryHasXData(RE::InventoryEntryData* entry) {
+                if (entry && entry->extraLists && !entry->extraLists->empty()) return true;
+                return false;
+            }
+
+            const int32_t GetEntryCostOverride(RE::InventoryEntryData* entry){ 
+                if (!EntryHasXData(entry)) return 0;
+                int32_t extra_costs = 0;
+                for (auto& xList : *entry->extraLists) {
+                    extra_costs += xData::GetXDataCostOverride(xList);
+                }
+                return extra_costs;
+            }
+
+            const unsigned int GetValueInContainer(RE::TESObjectCONT* container) {
+			    if (!container) {
+				    logger::warn("Container is null");
+				    return 0;
+			    }
+                unsigned int total_value = 0;
+                for (std::uint32_t i = 0; i < container->numContainerObjects; ++i) {
+                    auto entry = container->containerObjects[i];
+                    if (entry) total_value += entry->obj->GetGoldValue();
+                    else logger::warn("Entry is null");
+                }
+                return total_value;
+		    }
+
+            const unsigned int GetValueInContainer(RE::TESObjectREFR* container) {
+                if (!container) {
+                    logger::warn("Container is null");
+                    return 0;
+                }
+                unsigned int total_value = 0;
+                auto inventory = container->GetInventory();
+                for (auto it = inventory.begin(); it != inventory.end(); ++it) {
+                    auto gold_value = it->first->GetGoldValue();
+                    logger::trace("Gold value: {}", gold_value);
+                    total_value += gold_value * it->second.first;
+                    int extra_costs = 0;
+                    /*if (auto ench = it->second.second->GetEnchantment()) {
+                        auto costoverride = ench->GetData()->costOverride;
+                        logger::trace("Base enchantment cost: {}", costoverride);
+                        extra_costs += costoverride;
+                    }*/
+                    extra_costs += GetEntryCostOverride(it->second.second.get());
+                    total_value += extra_costs;
+			    }
+                return total_value;
+            }
+
+
+            const bool HasItemEntry(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner,
+                                    bool nonzero_entry_check = false) {
+                if (!item) {
+                    logger::warn("Item is null");
+                    return 0;
+                }
+                if (!inventory_owner) {
+                    logger::warn("Inventory owner is null");
+                    return 0;
+                }
+                auto inventory = inventory_owner->GetInventory();
+                auto it = inventory.find(item);
+                bool has_entry = it != inventory.end();
+                if (nonzero_entry_check) return has_entry && it->second.first > 0;
+                return has_entry;
+            }
+
+
+            const std::int32_t GetItemValue(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+                if (HasItemEntry(item, inventory_owner, true)) {
+                    return inventory_owner->GetInventory().find(item)->second.second->GetValue();
+                }
+                return 0;
+            }
+
+            const std::int32_t GetItemCount(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+                if (HasItemEntry(item, inventory_owner, true)) {
+                    auto inventory = inventory_owner->GetInventory();
+                    auto it = inventory.find(item);
+                    return it->second.first;
+                }
+                return 0;
+            }
+
+            const bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
+                if (HasItemEntry(item, item_owner, true)) return true;
+                return false;
+            }
+
+            void AddItem(RE::TESObjectREFR* addTo, RE::TESObjectREFR* addFrom, FormID item_id, Count count,
+                         RE::ExtraDataList* xList = nullptr) {
+                logger::trace("AddItem");
+                // xList = nullptr;
+                if (!addTo) {
+                    logger::error("add to is null!");
+                    return;
+                }
+
+                logger::trace("Adding item.");
+
+                auto bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item_id);
+                addTo->AddObjectToContainer(bound, xList, count, addFrom);
+            }
+
+            void RemoveAll(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
+                if (!item) return;
+                if (!item_owner) return;
+                auto inventory = item_owner->GetInventory();
+                auto it = inventory.find(item);
+                bool has_entry = it != inventory.end();
+                if (!has_entry) return;
+                item_owner->RemoveItem(item, std::min(it->second.first, 1), RE::ITEM_REMOVE_REASON::kRemove, nullptr,
+                                       nullptr);
+            }
+
+            void FavoriteItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+                if (!item) return;
+                if (!inventory_owner) return;
+                auto inventory_changes = inventory_owner->GetInventoryChanges();
+                auto entries = inventory_changes->entryList;
+                for (auto it = entries->begin(); it != entries->end(); ++it) {
+                    if (!(*it)) {
+                        logger::error("Item entry is null");
+                        continue;
+                    }
+                    const auto object = (*it)->object;
+                    if (!object) {
+                        logger::error("Object is null");
+                        continue;
+                    }
+                    auto formid = object->GetFormID();
+                    if (!formid) logger::critical("Formid is null");
+                    if (formid == item->GetFormID()) {
+                        logger::trace("Favoriting item: {}", item->GetName());
+                        const auto xLists = (*it)->extraLists;
+                        bool no_extra_ = false;
+                        if (!xLists || xLists->empty()) {
+                            logger::trace("No extraLists");
+                            no_extra_ = true;
+                        }
+                        logger::trace("asdasd");
+                        if (no_extra_) {
+                            logger::trace("No extraLists");
+                            // inventory_changes->SetFavorite((*it), nullptr);
+                        } else if (xLists->front()) {
+                            logger::trace("ExtraLists found");
+                            inventory_changes->SetFavorite((*it), xLists->front());
+                        }
+                        return;
+                    }
+                }
+                logger::error("Item not found in inventory");
+            }
+
+            void FavoriteItem(const FormID formid, const FormID refid) {
+                FavoriteItem(GetFormByID<RE::TESBoundObject>(formid), GetFormByID<RE::TESObjectREFR>(refid));
+            }
+
+            [[nodiscard]] const bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner,
+                                                        RE::ExtraDataList* xList = nullptr) {
+                logger::trace("HasItemPlusCleanUp");
+
+                if (HasItem(item, item_owner)) return true;
+                if (HasItemEntry(item, item_owner)) {
+                    item_owner->RemoveItem(item, 1, RE::ITEM_REMOVE_REASON::kRemove, xList, nullptr);
+                    logger::trace("Item with zero count removed from player.");
+                }
+                return false;
+            }
+
+            [[nodiscard]] const bool IsFavorited(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
+                if (!item) {
+                    logger::warn("Item is null");
+                    return false;
+                }
+                if (!inventory_owner) {
+                    logger::warn("Inventory owner is null");
+                    return false;
+                }
+                auto inventory = inventory_owner->GetInventory();
+                auto it = inventory.find(item);
+                if (it != inventory.end()) {
+                    if (it->second.first <= 0) logger::warn("Item count is 0");
+                    return it->second.second->IsFavorited();
+                }
+                return false;
+            }
+
+            [[nodiscard]] const bool IsFavorited(RE::FormID formid, RE::FormID refid) {
+                return IsFavorited(GetFormByID<RE::TESBoundObject>(formid), GetFormByID<RE::TESObjectREFR>(refid));
+            }
+
+            [[nodiscard]] const bool IsPlayerFavorited(RE::TESBoundObject* item) {
+                return IsFavorited(item, RE::PlayerCharacter::GetSingleton()->AsReference());
+            }
+
+            [[nodiscard]] const bool IsEquipped(RE::TESBoundObject* item) {
+                logger::trace("IsEquipped");
+
+                if (!item) {
+                    logger::trace("Item is null");
+                    return false;
+                }
+
+                auto player_ref = RE::PlayerCharacter::GetSingleton();
+                auto inventory = player_ref->GetInventory();
+                auto it = inventory.find(item);
+                if (it != inventory.end()) {
+                    if (it->second.first <= 0) logger::warn("Item count is 0");
+                    return it->second.second->IsWorn();
+                }
+                return false;
+            }
+
+            [[nodiscard]] const bool IsEquipped(const FormID formid) {
+                return IsEquipped(GetFormByID<RE::TESBoundObject>(formid));
+            }
+
+            void EquipItem(RE::TESBoundObject* item, bool unequip = false) {
+                logger::trace("EquipItem");
+
+                if (!item) {
+                    logger::error("Item is null");
+                    return;
+                }
+                auto player_ref = RE::PlayerCharacter::GetSingleton();
+                auto inventory_changes = player_ref->GetInventoryChanges();
+                auto entries = inventory_changes->entryList;
+                for (auto it = entries->begin(); it != entries->end(); ++it) {
+                    auto formid = (*it)->object->GetFormID();
+                    if (formid == item->GetFormID()) {
+                        if (!(*it) || !(*it)->extraLists) {
+                            logger::error("Item extraLists is null");
+                            return;
+                        }
+                        if (unequip) {
+                            if ((*it)->extraLists->empty()) {
+                                RE::ActorEquipManager::GetSingleton()->UnequipObject(
+                                    player_ref, (*it)->object, nullptr, 1, (const RE::BGSEquipSlot*)nullptr, true,
+                                    false, false);
+                            } else if ((*it)->extraLists->front()) {
+                                RE::ActorEquipManager::GetSingleton()->UnequipObject(
+                                    player_ref, (*it)->object, (*it)->extraLists->front(), 1,
+                                    (const RE::BGSEquipSlot*)nullptr, true, false, false);
+                            }
+                        } else {
+                            if ((*it)->extraLists->empty()) {
+                                RE::ActorEquipManager::GetSingleton()->EquipObject(player_ref, (*it)->object, nullptr,
+                                                                                   1, (const RE::BGSEquipSlot*)nullptr,
+                                                                                   true, false, false, false);
+                            } else if ((*it)->extraLists->front()) {
+                                RE::ActorEquipManager::GetSingleton()->EquipObject(
+                                    player_ref, (*it)->object, (*it)->extraLists->front(), 1,
+                                    (const RE::BGSEquipSlot*)nullptr, true, false, false, false);
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+
+            void EquipItem(const FormID formid, bool unequip = false) {
+                EquipItem(GetFormByID<RE::TESBoundObject>(formid), unequip);
+            }
+        };
+
+
+        namespace WorldObject {
+
+            float GetDistanceFromPlayer(RE::TESObjectREFR* ref) {
+                if (!ref) {
+                    logger::error("Ref is null.");
+                    return 0;
+                }
+                auto player_pos = RE::PlayerCharacter::GetSingleton()->GetPosition();
+                auto ref_pos = ref->GetPosition();
+                return player_pos.GetDistance(ref_pos);
+            }
+
+            void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok=true) {
+                logger::trace("SwapObjects");
+                if (!a_from) {
+                    logger::error("Ref is null.");
+                    return;
+                }
+                auto ref_base = a_from->GetBaseObject();
+                if (!ref_base) {
+                    logger::error("Ref base is null.");
+				    return;
+                }
+                if (ref_base->GetFormID() == a_to->GetFormID()) {
+				    logger::trace("Ref and base are the same.");
+				    return;
+			    }
+                a_from->SetObjectReference(a_to);
+                a_from->Disable();
+                a_from->Enable(false);
+                if (!apply_havok) return;
+
+                /*float afX = 100;
+                float afY = 100;
+                float afZ = 100;
+                float afMagnitude = 100;*/
+                /*auto args = RE::MakeFunctionArguments(std::move(afX), std::move(afY), std::move(afZ),
+                std::move(afMagnitude)); vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback);*/
+                // Looked up here (wSkeever): https:  // www.nexusmods.com/skyrimspecialedition/mods/73607
+                SKSE::GetTaskInterface()->AddTask([a_from]() {
+                    // auto player_ch = RE::PlayerCharacter::GetSingleton();
+                    // player_ch->StartGrabObject();
+                    auto vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
+                    auto policy = vm->GetObjectHandlePolicy();
+                    auto handle = policy->GetHandleForObject(a_from->GetFormType(), a_from);
+                    RE::BSTSmartPointer<RE::BSScript::Object> object = nullptr;
+                    vm->CreateObject2("ObjectReference", object);
+                    vm->BindObject(object, handle, false);
+                    if (!object) logger::warn("Object is null");
+                    auto args = RE::MakeFunctionArguments(std::move(0.f), std::move(0.f), std::move(0.f), std::move(0.f));
+                    RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
+                    if (vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback)) logger::trace("FUSRODAH");
+                });
+            }
+
+            void SetObjectCount(RE::TESObjectREFR* ref, Count count) {
+                if (!ref) {
+                    logger::error("Ref is null.");
+                    return;
+                }
+                int max_try = 10;
+                while (ref->extraList.HasType(RE::ExtraDataType::kCount) && max_try) {
+                    ref->extraList.RemoveByType(RE::ExtraDataType::kCount);
+                    max_try--;
+                }
+                // ref->extraList.SetCount(static_cast<uint16_t>(count));
+                auto xCount = new RE::ExtraCount(static_cast<int16_t>(count));
+                ref->extraList.Add(xCount);
+            }
+
+            RE::TESObjectREFR* DropObjectIntoTheWorld(RE::TESBoundObject* obj, Count count=1, bool owned = true) {
+                auto player_ch = RE::PlayerCharacter::GetSingleton();
+                if (!player_ch) {
+					logger::critical("Player character is null.");
+					return nullptr;
+				}
+                // PRINT IT
+                const auto multiplier = 100.0f;
+                const float qPI = 3.14159265358979323846f;
+                auto orji_vec = RE::NiPoint3{multiplier, 0.f, player_ch->GetHeight()};
+                Math::LinAlg::R3::rotateZ(orji_vec, qPI / 4.f - player_ch->GetAngleZ());
+                auto drop_pos = player_ch->GetPosition() + orji_vec;
+                auto player_cell = player_ch->GetParentCell();
+                auto player_ws = player_ch->GetWorldspace();
+                if (!player_cell && !player_ws) {
+                    logger::critical("Player cell AND player world is null.");
+                    return nullptr;
+                }
+                auto newPropRef = RE::TESDataHandler::GetSingleton()
+                                      ->CreateReferenceAtLocation(obj, drop_pos, {0.0f, 0.0f, 0.0f}, player_cell,
+                                                                  player_ws, nullptr, nullptr, {}, false, false)
+                                      .get()
+                                      .get();
+                if (!newPropRef) {
+                    logger::critical("New prop ref is null.");
+                    return nullptr;
+                }
+                if (count>1) SetObjectCount(newPropRef, count);
+                if (owned) newPropRef->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
+                return newPropRef;
+            }
+
+        };
+     
     };
 
     namespace Types {

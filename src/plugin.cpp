@@ -237,6 +237,8 @@ public:
                 }
                 external_container_refid = 0;
                 ReShowMenu = "";
+            } else {
+            	M->HandleContainerMenuExit();
             }
         }
         return RE::BSEventNotifyControl::kContinue;
@@ -265,7 +267,7 @@ public:
             logger::trace("Furniture event: Enter {}", event->targetFurniture->GetName());
             furniture_entered = true;
             furniture = event->targetFurniture;
-            M->HandleCraftingEnter();
+            //M->HandleCraftingEnter();
         }
         else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
             logger::trace("Furniture event: Exit {}", event->targetFurniture->GetName());
