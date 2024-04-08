@@ -547,6 +547,14 @@ namespace Utilities {
 
         namespace xData {
 
+            void AddTextDisplayData(RE::ExtraDataList* extraDataList, const std::string& displayName) {
+                if (!extraDataList) return;
+                if (extraDataList->HasType(RE::ExtraDataType::kTextDisplayData)) return;
+				auto textDisplayData = RE::BSExtraData::Create<RE::ExtraTextDisplayData>();
+                textDisplayData->SetName(displayName.c_str()); 
+				extraDataList->Add(textDisplayData);
+			}
+
             namespace Copy {
                 void CopyEnchantment(RE::ExtraEnchantment* from, RE::ExtraEnchantment* to) {
                     logger::trace("CopyEnchantment");

@@ -1552,6 +1552,9 @@ public:
 		}*/
 
         ref_fake->extraList.SetOwner(RE::TESForm::LookupByID(0x07));
+        if (renames.contains(dropped_formid) && !renames[dropped_formid].empty()) {
+            Utilities::FunctionsSkyrim::xData::AddTextDisplayData(&ref_fake->extraList, renames[dropped_formid]);
+		}
 
         Utilities::FunctionsSkyrim::WorldObject::SwapObjects(ref_fake, real_base);
 
@@ -1852,6 +1855,11 @@ public:
         else logger::warn("Form type not supported: {}", formtype);
 
         renames[fake_formid] = new_name;
+        logger::trace("Renamed fake container.");
+        if (current_container){
+            logger::trace("Renaming current container.");
+            Utilities::FunctionsSkyrim::xData::AddTextDisplayData(&current_container->extraList, new_name);
+        }
 
         // if reopeninitialmenu is true, then PromptInterface
         if (_other_settings[Settings::otherstuffKeys[2]]) PromptInterface();

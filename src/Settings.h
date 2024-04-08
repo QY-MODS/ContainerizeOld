@@ -266,7 +266,7 @@ namespace Settings {
     // 0x8C - ExtraPromotedRef 140 NOT OK
     // 0x1C - ExtraReferenceHandle 28 NOT OK (npc muhabbeti)
     std::vector<int> xRemove = {
-        //0x99, 
+        0x99, 
         0x3C, 0x0B, 0x48,
                                  0x21,
                                 //
