@@ -7,6 +7,10 @@
 using namespace std::literals;
 namespace logger = SKSE::log;
 
+using FormID = RE::FormID;
+using RefID = RE::FormID;
+using Count = RE::TESObjectREFR::Count;
+
 namespace RE {
 
 	struct TESSellEvent {

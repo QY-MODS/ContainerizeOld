@@ -108,7 +108,7 @@ public:
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
         
         logger::trace("Container activated");
-        M->ActivateContainer(event->objectActivated.get());
+        M->OnActivateContainer(event->objectActivated.get());
         M->Print();
 
 
@@ -217,16 +217,16 @@ public:
                                 if (auto has_container = a_objref->HasContainer()) {
                                     logger::trace("HasContainer: {}", has_container);
                                     if (auto container = a_objref->As<RE::TESObjectCONT>()) {
-                                        OpenContainer(a_objref, 0);
+                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
                                         //container->Activate(a_objref, player_ref, 0, container, 1);
                                     } 
                                     else if (auto container_ = a_objref->GetBaseObject()->As<RE::TESObjectCONT>()) {
-                                        OpenContainer(a_objref, 0);
+                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
                                         //container_->Activate(a_objref, player_ref, 0, container_, 1);
                                     } 
                                     else {
                                         logger::trace("has container but could not activate.");
-                                        OpenContainer(a_objref, 3);
+                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 3);
                                     }
                                 } else a_objref->ActivateRef(player_ref, 0, a_objref->GetBaseObject(), 1, 0);
                             }
@@ -237,6 +237,8 @@ public:
                 }
                 external_container_refid = 0;
                 ReShowMenu = "";
+            } else {
+            	M->HandleContainerMenuExit();
             }
         }
         return RE::BSEventNotifyControl::kContinue;
@@ -265,7 +267,7 @@ public:
             logger::trace("Furniture event: Enter {}", event->targetFurniture->GetName());
             furniture_entered = true;
             furniture = event->targetFurniture;
-            M->HandleCraftingEnter();
+            //M->HandleCraftingEnter();
         }
         else if (event->type == RE::TESFurnitureEvent::FurnitureEventType::kExit) {
             logger::trace("Furniture event: Exit {}", event->targetFurniture->GetName());
@@ -471,7 +473,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
-        RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(OurEventSink::GetSingleton());
+        RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
         RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
     }
@@ -507,7 +509,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
         
         auto temp = Utilities::DecodeTypeCode(type);
 
-        if (version == Settings::kSerializationVersion-1) {
+        if (version == Settings::kSerializationVersion-2) {
             logger::warn("Loading data is from an older version < v0.7. Recieved ({}) - Expected ({}) for Data Key ({})",
 							 version, Settings::kSerializationVersion, temp);
 			is_before_0_7= true;
@@ -516,7 +518,12 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
                 "Please refer to the mod page for the latest instructions. "
                 "In case of a failure you will see an error message box displayed after this one. If not, you are probably fine.";
             Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(err_message);
-		}
+            Settings::is_pre_0_7_1 = true;
+        } else if (version == Settings::kSerializationVersion - 1) {
+			logger::warn("Loading data is from an older version < v0.7.1. Recieved ({}) - Expected ({}) for Data Key ({})",
+							 version, Settings::kSerializationVersion, temp);
+            Settings::is_pre_0_7_1 = true;
+        }
         else if (version != Settings::kSerializationVersion) {
             logger::critical("Loaded data has incorrect version. Recieved ({}) - Expected ({}) for Data Key ({})",
                              version, Settings::kSerializationVersion, temp);
