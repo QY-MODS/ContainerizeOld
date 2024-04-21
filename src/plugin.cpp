@@ -465,6 +465,7 @@ public:
 void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
+        DFT = DynamicFormTracker::GetSingleton();
         auto sources = Settings::LoadINISources();
         if (sources.empty()) {
             logger::critical("Failed to load INI sources.");
@@ -482,6 +483,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         eventSourceHolder->AddEventSink<RE::TESActivateEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESContainerChangedEvent>(eventSink);
         eventSourceHolder->AddEventSink<RE::TESFurnitureEvent>(eventSink);
+        eventSourceHolder->AddEventSink<RE::TESFormDeleteEvent>(eventSink);
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
         RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
@@ -497,6 +499,10 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
     }
+    DFT->SendData();
+    if (!DFT->Save(serializationInterface, Settings::kDFDataKey, Settings::kSerializationVersion)) {
+        logger::critical("Failed to save Data");
+    }
 }
 
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
@@ -507,6 +513,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     block_eventsinks = true;
 
     M->Reset();
+    DFT->Reset();
 
     std::uint32_t type;
     std::uint32_t version;
@@ -546,6 +553,10 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
                     return Utilities::MsgBoxesNotifs::InGame::CustomErrMsg("Failed to Load Data.");
                 }
             } break;
+            case Settings::kDFDataKey: {
+                logger::trace("Loading Record: {} - Version: {} - Length: {}", temp, version, length);
+                if (!DFT->Load(serializationInterface, is_before_0_7)) logger::critical("Failed to Load Data for DFT");
+            } break;
             default:
                 logger::critical("Unrecognized Record Type: {}", temp);
                 break;
@@ -557,6 +568,7 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     listen_crosshair_ref = true;
     furniture_entered = false;
     logger::info("Receiving Data.");
+    DFT->ReceiveData();
     M->ReceiveData();
     logger::info("Data loaded from skse co-save.");
     block_eventsinks = false;

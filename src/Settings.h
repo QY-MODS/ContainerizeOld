@@ -1,5 +1,5 @@
 #pragma once
-#include "Utils.h"
+#include "DynamicFormTracker.h"
 
 
 using namespace Utilities::Types;
@@ -68,6 +68,7 @@ namespace Settings {
     //constexpr std::uint32_t kSerializationVersion = 730; // = 0.7.0
     constexpr std::uint32_t kSerializationVersion = 731; // >= 0.7.1
     constexpr std::uint32_t kDataKey = 'CTRZ';
+    constexpr std::uint32_t kDFDataKey = 'DCTZ';
     bool is_pre_0_7_1 = false;
 
     constexpr std::array<const char*, 4> otherstuffKeys = 
@@ -217,7 +218,7 @@ namespace Settings {
         "INGR",  //	1E INGR	IngredientItem
         "MISC",  //	20 MISC TESObjectMISC
         "WEAP",  //	29 WEAP	TESObjectWEAP
-        "AMMO",  //	2A AMMO	TESAmmo
+        //"AMMO",  //	2A AMMO	TESAmmo
         "SLGM",  // 34 SLGM	TESSoulGem
         "ALCH",  //	2E ALCH	AlchemyItem
 	};

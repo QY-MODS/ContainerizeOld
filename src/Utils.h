@@ -415,6 +415,14 @@ namespace Utilities {
             return nullptr;
         };
 
+        const std::string GetEditorID(const FormID a_formid) {
+            if (const auto form = RE::TESForm::LookupByID(a_formid)) {
+                return clib_util::editorID::get_editorID(form);
+            } else {
+                return "";
+            }
+        }
+
         std::size_t GetExtraDataListLength(const RE::ExtraDataList* dataList) {
             std::size_t length = 0;
 
@@ -1461,7 +1469,130 @@ namespace Utilities {
             }
 
         };
-     
+        
+
+        // SkyrimThiago <3
+        // https://github.com/Thiago099/DPF-Dynamic-Persistent-Forms
+        namespace DynamicForm {
+
+            const bool IsDynamicFormID(const FormID a_formID) { return a_formID >= 0xFF000000; }
+
+            static void copyBookAppearence(RE::TESForm* source, RE::TESForm* target) {
+                auto* sourceBook = source->As<RE::TESObjectBOOK>();
+
+                auto* targetBook = target->As<RE::TESObjectBOOK>();
+
+                if (sourceBook && targetBook) {
+                    targetBook->inventoryModel = sourceBook->inventoryModel;
+                }
+            }
+
+            template <class T>
+
+            void copyComponent(RE::TESForm* from, RE::TESForm* to) {
+                auto fromT = from->As<T>();
+
+                auto toT = to->As<T>();
+
+                if (fromT && toT) {
+                    toT->CopyComponent(fromT);
+                }
+            }
+
+            static void copyFormArmorModel(RE::TESForm* source, RE::TESForm* target) {
+                auto* sourceModelBipedForm = source->As<RE::TESObjectARMO>();
+
+                auto* targeteModelBipedForm = target->As<RE::TESObjectARMO>();
+
+                if (sourceModelBipedForm && targeteModelBipedForm) {
+                    logger::info("armor");
+
+                    targeteModelBipedForm->armorAddons = sourceModelBipedForm->armorAddons;
+                }
+            }
+
+            static void copyFormObjectWeaponModel(RE::TESForm* source, RE::TESForm* target) {
+                auto* sourceModelWeapon = source->As<RE::TESObjectWEAP>();
+
+                auto* targeteModelWeapon = target->As<RE::TESObjectWEAP>();
+
+                if (sourceModelWeapon && targeteModelWeapon) {
+                    logger::info("weapon");
+
+                    targeteModelWeapon->firstPersonModelObject = sourceModelWeapon->firstPersonModelObject;
+
+                    targeteModelWeapon->attackSound = sourceModelWeapon->attackSound;
+
+                    targeteModelWeapon->attackSound2D = sourceModelWeapon->attackSound2D;
+
+                    targeteModelWeapon->attackSound = sourceModelWeapon->attackSound;
+
+                    targeteModelWeapon->attackFailSound = sourceModelWeapon->attackFailSound;
+
+                    targeteModelWeapon->idleSound = sourceModelWeapon->idleSound;
+
+                    targeteModelWeapon->equipSound = sourceModelWeapon->equipSound;
+
+                    targeteModelWeapon->unequipSound = sourceModelWeapon->unequipSound;
+
+                    targeteModelWeapon->soundLevel = sourceModelWeapon->soundLevel;
+                }
+            }
+
+            static void copyMagicEffect(RE::TESForm* source, RE::TESForm* target) {
+                auto* sourceEffect = source->As<RE::EffectSetting>();
+
+                auto* targetEffect = target->As<RE::EffectSetting>();
+
+                if (sourceEffect && targetEffect) {
+                    targetEffect->effectSounds = sourceEffect->effectSounds;
+
+                    targetEffect->data.castingArt = sourceEffect->data.castingArt;
+
+                    targetEffect->data.light = sourceEffect->data.light;
+
+                    targetEffect->data.hitEffectArt = sourceEffect->data.hitEffectArt;
+
+                    targetEffect->data.effectShader = sourceEffect->data.effectShader;
+
+                    targetEffect->data.hitVisuals = sourceEffect->data.hitVisuals;
+
+                    targetEffect->data.enchantShader = sourceEffect->data.enchantShader;
+
+                    targetEffect->data.enchantEffectArt = sourceEffect->data.enchantEffectArt;
+
+                    targetEffect->data.enchantVisuals = sourceEffect->data.enchantVisuals;
+
+                    targetEffect->data.projectileBase = sourceEffect->data.projectileBase;
+
+                    targetEffect->data.explosion = sourceEffect->data.explosion;
+
+                    targetEffect->data.impactDataSet = sourceEffect->data.impactDataSet;
+
+                    targetEffect->data.imageSpaceMod = sourceEffect->data.imageSpaceMod;
+                }
+            }
+
+            void copyAppearence(RE::TESForm* source, RE::TESForm* target) {
+                copyFormArmorModel(source, target);
+
+                copyFormObjectWeaponModel(source, target);
+
+                copyMagicEffect(source, target);
+
+                copyBookAppearence(source, target);
+
+                copyComponent<RE::BGSPickupPutdownSounds>(source, target);
+
+                copyComponent<RE::BGSMenuDisplayObject>(source, target);
+
+                copyComponent<RE::TESModel>(source, target);
+
+                copyComponent<RE::TESBipedModelForm>(source, target);
+            }
+
+        };
+
     };
 
     namespace Types {
@@ -1523,16 +1654,23 @@ namespace Utilities {
         using SaveDataRHS = FormRefIDX;
 
         struct SaveDataRHS2 {
-            FormID id;         // fake formid
-            bool equipped;     // is equipped
-            bool favorited;    // is favorited
-            RefID refid;       // refid of unowned/realoutintheworld/externalcont
+            FormID id;       // fake formid
+            bool equipped;   // is equipped
+            bool favorited;  // is favorited
+            RefID refid;     // refid of unowned/realoutintheworld/externalcont
 
             SaveDataRHS2() : id(0), equipped(false), favorited(false), refid(0) {}
-
         };
 
-    }
+        struct DFSaveData {
+            FormID dyn_formid = 0;
+            std::pair<bool, uint32_t> custom_id = {false, 0};
+            float acteff_elapsed = -1.f;
+        };
+        using DFSaveDataLHS = std::pair<FormID, std::string>;
+        using DFSaveDataRHS = std::vector<DFSaveData>;
+
+    };
 
     bool read_string(SKSE::SerializationInterface* a_intfc, std::string& a_str) {
         std::vector<std::pair<int, bool>> encodedStr;
@@ -1721,5 +1859,116 @@ namespace Utilities {
         }
     };
 
+    class DFSaveLoadData : public BaseData<Types::DFSaveDataLHS, Types::DFSaveDataRHS> {
+    public:
+        void DumpToLog() override {
+            // nothing for now
+        }
+
+        [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface) override {
+            assert(serializationInterface);
+            Locker locker(m_Lock);
+
+            const auto numRecords = m_Data.size();
+            if (!serializationInterface->WriteRecordData(numRecords)) {
+                logger::error("Failed to save {} data records", numRecords);
+                return false;
+            }
+
+            for (const auto& [lhs, rhs] : m_Data) {
+                // we serialize formid, editorid, and refid separately
+                std::uint32_t formid = lhs.first;
+                logger::trace("Formid:{}", formid);
+                if (!serializationInterface->WriteRecordData(formid)) {
+                    logger::error("Failed to save formid");
+                    return false;
+                }
+
+                const std::string editorid = lhs.second;
+                logger::trace("Editorid:{}", editorid);
+                write_string(serializationInterface, editorid);
+
+                // save the number of rhs records
+                const auto numRhsRecords = rhs.size();
+                if (!serializationInterface->WriteRecordData(numRhsRecords)) {
+                    logger::error("Failed to save the size {} of rhs records", numRhsRecords);
+                    return false;
+                }
+
+                for (const auto& rhs_ : rhs) {
+                    logger::trace("size of rhs_: {}", sizeof(rhs_));
+                    if (!serializationInterface->WriteRecordData(rhs_)) {
+                        logger::error("Failed to save data");
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        [[nodiscard]] bool Save(SKSE::SerializationInterface* serializationInterface, std::uint32_t type,
+                                std::uint32_t version) override {
+            if (!serializationInterface->OpenRecord(type, version)) {
+                logger::error("Failed to open record for Data Serialization!");
+                return false;
+            }
+
+            return Save(serializationInterface);
+        }
+
+        [[nodiscard]] bool Load(SKSE::SerializationInterface* serializationInterface, const bool) override {
+            assert(serializationInterface);
+
+            std::size_t recordDataSize;
+            serializationInterface->ReadRecordData(recordDataSize);
+            logger::info("Loading data from serialization interface with size: {}", recordDataSize);
+
+            Locker locker(m_Lock);
+            m_Data.clear();
+
+            logger::trace("Loading data from serialization interface.");
+            for (auto i = 0; i < recordDataSize; i++) {
+                Types::DFSaveDataRHS rhs;
+
+                std::uint32_t formid = 0;
+                logger::trace("ReadRecordData:{}", serializationInterface->ReadRecordData(formid));
+                if (!serializationInterface->ResolveFormID(formid, formid)) {
+                    logger::error("Failed to resolve form ID, 0x{:X}.", formid);
+                    continue;
+                }
+
+                std::string editorid;
+                if (!read_string(serializationInterface, editorid)) {
+                    logger::error("Failed to read editorid");
+                    return false;
+                }
+
+                logger::trace("Formid:{}", formid);
+                logger::trace("Editorid:{}", editorid);
+
+                Types::DFSaveDataLHS lhs({formid, editorid});
+                logger::trace("Reading value...");
+
+                std::size_t rhsSize = 0;
+                logger::trace("ReadRecordData: {}", serializationInterface->ReadRecordData(rhsSize));
+                logger::trace("rhsSize: {}", rhsSize);
+
+                for (auto j = 0; j < rhsSize; j++) {
+                    Types::DFSaveData rhs_;
+                    logger::trace("ReadRecordData: {}", serializationInterface->ReadRecordData(rhs_));
+                    logger::trace(
+                        "rhs_ content: dyn_formid: {}, customid_bool: {},"
+                        "customid: {}, acteff_elapsed: {}",
+                        rhs_.dyn_formid, rhs_.custom_id.first, rhs_.custom_id.second, rhs_.acteff_elapsed);
+                    rhs.push_back(rhs_);
+                }
+
+                m_Data[lhs] = rhs;
+                logger::info("Loaded data for formid {}, editorid {}", formid, editorid);
+            }
+
+            return true;
+        }
+    };
 
 };
