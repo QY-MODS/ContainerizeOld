@@ -169,6 +169,28 @@ class Manager : public Utilities::SaveLoadData {
         return 0;
     }
 
+    void _HandleFormDelete(const RefID chest_refid) {
+        logger::info("Form with refid {} is deleted. Removing it from the manager.", chest_refid);
+        auto real_formid = ChestToFakeContainer[chest_refid].outerKey;
+        const auto real_item = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
+        if (real_item) {
+            const auto msg =
+                std::format("Your container with name {} was deleted by the game. Will try to return your items now.",
+                            real_item->GetName());
+            Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(msg);
+        } else {
+            const auto msg =
+                std::format("Your container with formid {} was deleted by the game. Will try to return your items now.",
+                            real_formid);
+            Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(msg);
+        }
+        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        auto fake_formid = ChestToFakeContainer[chest_refid].innerKey;
+        if (chest) DeRegisterChest(chest_refid);
+        else Utilities::MsgBoxesNotifs::InGame::CustomErrMsg("Could not return your items.");
+        RemoveItemReverse(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+    }
+
     // returns items in chest to player and removes entries linked to the chest from src.data and ChestToFakeContainer
     std::vector<FormID> DeRegisterChest(const RefID chest_ref) {
         logger::info("Deregistering chest");
@@ -2229,6 +2251,23 @@ public:
 		}
 		return connected_chests;
 	}
+
+    void HandleFormDelete(const RefID refid) {
+        // lock mutex
+        std::lock_guard<std::mutex> lock(mutex);
+        if (ChestToFakeContainer.contains(refid)) return _HandleFormDelete(refid);
+        // the deleted reference could also be a real container out in the world.
+        // in that case i need to return the items from its chest
+        else {
+			for (auto& src : sources) {
+				for (const auto& [chest_ref, cont_ref] : src.data) {
+                    if (cont_ref == refid) {
+						return _HandleFormDelete(chest_ref);
+					}
+				}
+			}
+		}
+    };
 
     void Print() {
         

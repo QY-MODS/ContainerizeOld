@@ -53,7 +53,8 @@ class OurEventSink : public RE::BSTEventSink<RE::TESEquipEvent>,
                      public RE::BSTEventSink<RE::MenuOpenCloseEvent>,
                      public RE::BSTEventSink<RE::TESFurnitureEvent>,
                      public RE::BSTEventSink<RE::TESContainerChangedEvent>,
-                     public RE::BSTEventSink<RE::InputEvent*> {
+                     public RE::BSTEventSink<RE::InputEvent*>,
+                     public RE::BSTEventSink<RE::TESFormDeleteEvent> {
 
     OurEventSink() = default;
     OurEventSink(const OurEventSink&) = delete;
@@ -448,6 +449,14 @@ public:
                 } else if (a_event->IsUp()) equipped = false;
             }
         }
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
+    RE::BSEventNotifyControl ProcessEvent(const RE::TESFormDeleteEvent* a_event,
+                                          RE::BSTEventSource<RE::TESFormDeleteEvent>*) {
+        if (!a_event) return RE::BSEventNotifyControl::kContinue;
+        if (!a_event->formID) return RE::BSEventNotifyControl::kContinue;
+        M->HandleFormDelete(a_event->formID);
         return RE::BSEventNotifyControl::kContinue;
     }
 };
