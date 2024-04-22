@@ -26,6 +26,24 @@ class DynamicFormTracker : public Utilities::DFSaveLoadData {
     //std::map<FormID,float> act_effs;
     std::vector<ActEff> act_effs; // save file specific
 
+    void CleanseFormsets() {
+        for (auto it = forms.begin(); it != forms.end();++it) {
+            auto& [base, formset] = *it;
+            for (auto it2 = formset.begin(); it2 != formset.end();) {
+                if (!Utilities::FunctionsSkyrim::GetFormByID(*it2)) {
+                    logger::trace("Form with ID {:x} does not exist. Removing from formset.", *it2);
+                    it2 = formset.erase(it2);
+                    customIDforms.erase(*it2);
+                    active_forms.erase(*it2);
+                    Unreserve(*it2);
+                    //deleted_forms.erase(*it2);
+                } else {
+                    ++it2;
+                }
+            }
+        }
+    }
+
 	[[nodiscard]] const float GetActiveEffectElapsed(const FormID dyn_formid) {
 		for (const auto& act_eff : act_effs) {
 			if (act_eff.dynamicFormid == dyn_formid) {
@@ -283,7 +301,7 @@ class DynamicFormTracker : public Utilities::DFSaveLoadData {
             //        }
             //    }
             //}
-            logger::trace("Deleting form with ID: {:x}", dynamic_formid);
+            logger::warn("Deleting form with ID: {:x}", dynamic_formid);
             delete newForm;
             deleted_forms.insert(dynamic_formid);
             return true;
@@ -382,6 +400,7 @@ public:
 
     void DeleteInactives() {
 		std::lock_guard<std::mutex> lock(mutex);
+        logger::trace("Deleting inactives.");
         for (auto& [base, formset] : forms) {
 		    size_t index = 0;
             while (index < formset.size()) {
@@ -496,20 +515,26 @@ public:
         }
     }
 
-    void Reserve(const FormID dynamic_formid) {
+    void Reserve(const FormID baseID, const std::string baseEditorID,const FormID dynamic_formid) {
         if (protected_forms.contains(dynamic_formid)) return;
-        bool found = false;
-        for (const auto& [base, formset] : forms) {
-			if (formset.contains(dynamic_formid)) {
-				found = true;
-				break;
-			}
-		}
-        if (!found) {
-			logger::error("Form with ID {:x} not found in forms.", dynamic_formid);
+        const auto base_form = Utilities::FunctionsSkyrim::GetFormByID(
+            baseID, baseEditorID);
+        if (!base_form) {
+			logger::warn("Base form with ID {:x} not found in forms.", baseID);
 			return;
 		}
-		protected_forms.insert(dynamic_formid);
+        if (!Utilities::FunctionsSkyrim::GetFormByID(dynamic_formid)) {
+            logger::warn("Form with ID {:x} not found in forms.", dynamic_formid);
+            return;
+        } 
+        const auto form = Utilities::FunctionsSkyrim::GetFormByID(dynamic_formid);
+        if (!_underlying_check(Utilities::FunctionsSkyrim::GetFormByID(baseID, baseEditorID), form)) {
+            logger::warn("Underlying check failed for form with ID {:x}.", dynamic_formid);
+            return;
+        }
+        forms[{baseID, baseEditorID}].insert(dynamic_formid);
+        protected_forms.insert(dynamic_formid);
+        ReviveDynamicForm(form, base_form, 0);
 	}
 
 	void Unreserve(const FormID dynamic_formid) { 
@@ -564,7 +589,7 @@ public:
             Utilities::Types::DFSaveDataLHS lhs({base_pair.first, base_pair.second});
             Utilities::Types::DFSaveDataRHS rhs;
 			for (const auto dyn_formid : dyn_formset) {
-                if (!IsActive(dyn_formid)) logger::warn("Inactive form found in forms set.");
+                if (!IsActive(dyn_formid)) logger::warn("Inactive form {:x} found in forms set.",dyn_formid);
                 const bool has_customid = customIDforms.contains(dyn_formid);
                 const uint32_t customid = has_customid ? customIDforms[dyn_formid] : 0;
                 const float act_eff_elpsd = GetActiveEffectElapsed(dyn_formid);
@@ -642,9 +667,10 @@ public:
     void Reset() {
 		// std::lock_guard<std::mutex> lock(mutex);
 		//forms.clear();
+        CleanseFormsets();
 		customIDforms.clear();
 		active_forms.clear();
-		deleted_forms.clear();
+		//deleted_forms.clear();
         protected_forms.clear();
 		act_effs.clear();
         block_create = false;

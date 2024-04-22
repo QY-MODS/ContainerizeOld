@@ -612,20 +612,22 @@ namespace Utilities {
                     logger::trace("CopyObjectHealth");
                     to->health = from->health;
                 }
-
-                void CopyLight(RE::ExtraLight* from, RE::ExtraLight* to) {
+                // *
+                void CopyLight(RE::ExtraLight*, RE::ExtraLight*) {
                     logger::trace("CopyLight");
-                    to->lightData = from->lightData;
+                    return;
+                    //to->lightData = from->lightData;
                 }
 
                 void CopyRadius(RE::ExtraRadius* from, RE::ExtraRadius* to) {
                     logger::trace("CopyRadius");
                     to->radius = from->radius;
                 }
-
-                void CopyHorse(RE::ExtraHorse* from, RE::ExtraHorse* to) {
+                // *
+                void CopyHorse(RE::ExtraHorse*, RE::ExtraHorse*) {
                     logger::trace("CopyHorse");
-                    to->horseRef = from->horseRef;
+                    return;
+                    //to->horseRef = from->horseRef;
                 }
 
                 void CopyHotkey(RE::ExtraHotkey* from, RE::ExtraHotkey* to) {
@@ -1378,7 +1380,7 @@ namespace Utilities {
                 return player_pos.GetDistance(ref_pos);
             }
 
-            void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok=true) {
+            void SwapObjects(RE::TESObjectREFR* a_from, RE::TESBoundObject* a_to, const bool apply_havok = true) {
                 logger::trace("SwapObjects");
                 if (!a_from) {
                     logger::error("Ref is null.");
@@ -1387,16 +1389,24 @@ namespace Utilities {
                 auto ref_base = a_from->GetBaseObject();
                 if (!ref_base) {
                     logger::error("Ref base is null.");
-				    return;
+                    return;
+                }
+                if (!a_to) {
+                    logger::error("Base is null.");
+                    return;
                 }
                 if (ref_base->GetFormID() == a_to->GetFormID()) {
-				    logger::trace("Ref and base are the same.");
-				    return;
-			    }
+                    logger::trace("Ref and base are the same.");
+                    return;
+                }
                 a_from->SetObjectReference(a_to);
-                a_from->Disable();
-                a_from->Enable(false);
                 if (!apply_havok) return;
+                SKSE::GetTaskInterface()->AddTask([a_from]() {
+                    a_from->Disable();
+                    a_from->Enable(false);
+                });
+                /*a_from->Disable();
+                a_from->Enable(false);*/
 
                 /*float afX = 100;
                 float afY = 100;
@@ -1405,20 +1415,23 @@ namespace Utilities {
                 /*auto args = RE::MakeFunctionArguments(std::move(afX), std::move(afY), std::move(afZ),
                 std::move(afMagnitude)); vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback);*/
                 // Looked up here (wSkeever): https:  // www.nexusmods.com/skyrimspecialedition/mods/73607
-                SKSE::GetTaskInterface()->AddTask([a_from]() {
-                    // auto player_ch = RE::PlayerCharacter::GetSingleton();
-                    // player_ch->StartGrabObject();
-                    auto vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
-                    auto policy = vm->GetObjectHandlePolicy();
-                    auto handle = policy->GetHandleForObject(a_from->GetFormType(), a_from);
-                    RE::BSTSmartPointer<RE::BSScript::Object> object = nullptr;
-                    vm->CreateObject2("ObjectReference", object);
-                    vm->BindObject(object, handle, false);
-                    if (!object) logger::warn("Object is null");
-                    auto args = RE::MakeFunctionArguments(std::move(0.f), std::move(0.f), std::move(0.f), std::move(0.f));
-                    RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-                    if (vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback)) logger::trace("FUSRODAH");
-                });
+                /*SKSE::GetTaskInterface()->AddTask([a_from]() {
+                    ApplyHavokImpulse(a_from, 0.f, 0.f, 10.f, 5000.f);
+                });*/
+                // SKSE::GetTaskInterface()->AddTask([a_from]() {
+                //     // auto player_ch = RE::PlayerCharacter::GetSingleton();
+                //     // player_ch->StartGrabObject();
+                //     auto vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
+                //     auto policy = vm->GetObjectHandlePolicy();
+                //     auto handle = policy->GetHandleForObject(a_from->GetFormType(), a_from);
+                //     RE::BSTSmartPointer<RE::BSScript::Object> object;
+                //     vm->CreateObject2("ObjectReference", object);
+                //     if (!object) logger::warn("Object is null");
+                //     vm->BindObject(object, handle, false);
+                //     auto args = RE::MakeFunctionArguments(std::move(0.f), std::move(0.f), std::move(1.f),
+                //     std::move(5.f)); RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback; if
+                //     (vm->DispatchMethodCall(object, "ApplyHavokImpulse", args, callback)) logger::trace("FUSRODAH");
+                // });
             }
 
             void SetObjectCount(RE::TESObjectREFR* ref, Count count) {
