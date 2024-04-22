@@ -170,8 +170,7 @@ class Manager : public Utilities::SaveLoadData {
     }
 
     void _HandleFormDelete(const RefID chest_refid) {
-        //std::lock_guard<std::mutex> lock(mutex);
-        logger::warn("Form with refid {} is deleted. Removing it from the manager.", chest_refid);
+        std::lock_guard<std::mutex> lock(mutex);
         auto real_formid = ChestToFakeContainer[chest_refid].outerKey;
         const auto real_item = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
         if (real_item) {
@@ -393,7 +392,8 @@ class Manager : public Utilities::SaveLoadData {
             extralist_from = entry_from->second.second->extraLists->front();
         } else {
             logger::warn("No extra data list found in from item in inventory");
-            auto from_refhandle =
+            return true;
+            /*auto from_refhandle =
                 RemoveItemReverse(from_inv, nullptr, from_item_formid, RE::ITEM_REMOVE_REASON::kDropping);
             if (!from_refhandle) {
                 logger::error("Failed to remove item from inventory (from)");
@@ -403,11 +403,11 @@ class Manager : public Utilities::SaveLoadData {
             removed_from = true;
             ref_from = from_refhandle.get().get();
             extralist_from = &from_refhandle.get()->extraList;
-            logger::trace("extralist_from");
+            logger::trace("extralist_from");*/
         }
         if (!extralist_from) {
-            logger::error("Extra data list is null (from)");
-            return false;
+            logger::warn("Extra data list is null (from)");
+            return true;
         }
 
         if (entry_to->second.second && entry_to->second.second->extraLists &&
@@ -2014,9 +2014,9 @@ public:
                     is_favorited_x = IsFaved(fake_bound);
                     auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
                     if (!chest) return RaiseMngrErr("Chest not found");
-                    if (!UpdateExtrasInInventory(player_ref, fake_formid, chest, src.formid)) {
+                    /*if (!UpdateExtrasInInventory(player_ref, fake_formid, chest, src.formid)) {
 						logger::error("Failed to update extras in player's inventory.");
-					}
+					}*/
                 } 
                 // check if the fake container is faved in an external container
                 else {
@@ -2288,6 +2288,7 @@ public:
 			for (auto& src : sources) {
 				for (const auto& [chest_ref, cont_ref] : src.data) {
                     if (cont_ref == refid) {
+                        logger::warn("Form with refid {} is deleted. Removing it from the manager.", chest_ref);
 						return _HandleFormDelete(chest_ref);
 					}
 				}
