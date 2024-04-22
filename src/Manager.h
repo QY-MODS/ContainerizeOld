@@ -14,7 +14,7 @@ class Manager : public Utilities::SaveLoadData {
     const std::vector<std::string> buttons_more = {"Rename", "Uninstall", "Back", "Close"};
     bool uiextensions_is_present = false;
     RE::TESObjectREFR* player_ref = RE::PlayerCharacter::GetSingleton()->As<RE::TESObjectREFR>();
-    RE::EffectSetting* empty_mgeff = nullptr;
+    //RE::EffectSetting* empty_mgeff = nullptr;
     
     //  maybe i dont need this by using uniqueID for new forms
     // runtime specific
@@ -167,6 +167,28 @@ class Manager : public Utilities::SaveLoadData {
         }
         RaiseMngrErr("Fake container refid not found in ChestToFakeContainer");
         return 0;
+    }
+
+    void _HandleFormDelete(const RefID chest_refid) {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto real_formid = ChestToFakeContainer[chest_refid].outerKey;
+        const auto real_item = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
+        if (real_item) {
+            const auto msg =
+                std::format("Your container with name {} was deleted by the game. Will try to return your items now.",
+                            real_item->GetName());
+            Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(msg);
+        } else {
+            const auto msg =
+                std::format("Your container with formid {} was deleted by the game. Will try to return your items now.",
+                            real_formid);
+            Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(msg);
+        }
+        const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        auto fake_formid = ChestToFakeContainer[chest_refid].innerKey;
+        if (chest) DeRegisterChest(chest_refid);
+        else Utilities::MsgBoxesNotifs::InGame::CustomErrMsg("Could not return your items.");
+        RemoveItemReverse(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
     }
 
     // returns items in chest to player and removes entries linked to the chest from src.data and ChestToFakeContainer
@@ -370,7 +392,8 @@ class Manager : public Utilities::SaveLoadData {
             extralist_from = entry_from->second.second->extraLists->front();
         } else {
             logger::warn("No extra data list found in from item in inventory");
-            auto from_refhandle =
+            return true;
+            /*auto from_refhandle =
                 RemoveItemReverse(from_inv, nullptr, from_item_formid, RE::ITEM_REMOVE_REASON::kDropping);
             if (!from_refhandle) {
                 logger::error("Failed to remove item from inventory (from)");
@@ -380,11 +403,11 @@ class Manager : public Utilities::SaveLoadData {
             removed_from = true;
             ref_from = from_refhandle.get().get();
             extralist_from = &from_refhandle.get()->extraList;
-            logger::trace("extralist_from");
+            logger::trace("extralist_from");*/
         }
         if (!extralist_from) {
-            logger::error("Extra data list is null (from)");
-            return false;
+            logger::warn("Extra data list is null (from)");
+            return true;
         }
 
         if (entry_to->second.second && entry_to->second.second->extraLists &&
@@ -423,39 +446,44 @@ class Manager : public Utilities::SaveLoadData {
     }
 
     template <typename T>
-    const FormID CreateFakeContainer(T* realcontainer, RE::ExtraDataList*) {
+    const FormID CreateFakeContainer(T* realcontainer, const RefID connected_chest, RE::ExtraDataList*) {
         logger::trace("CreateFakeContainer");
         T* new_form = nullptr;
-        new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
+        //new_form = realcontainer->CreateDuplicateForm(true, (void*)new_form)->As<T>();
+        const auto real_container_formid = realcontainer->GetFormID();
+        const auto real_container_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_container_formid);
+        if (real_container_editorid.empty()) {
+			RaiseMngrErr("Failed to get editorid of real container.");
+			return 0;
+		}
+        const auto new_form_id = DFT->FetchCreate<T>(real_container_formid, real_container_editorid, connected_chest);
+        new_form = RE::TESForm::LookupByID<T>(new_form_id);
 
         if (!new_form) {
             RaiseMngrErr("Failed to create new form.");
             return 0;
         }
-        new_form->Copy(realcontainer);
-
         new_form->fullName = realcontainer->GetFullName();
-        logger::info("Created form with type: {}, Base ID: {:x}, Ref ID: {:x}, Name: {}",
-                     RE::FormTypeToString(new_form->GetFormType()), new_form->GetFormID(), new_form->GetFormID(),
-                     new_form->GetName());
+        logger::info("Created form with type: {}, Base ID: {:x}, Name: {}",
+                     RE::FormTypeToString(new_form->GetFormType()), new_form_id, new_form->GetName());
         //unownedChestOG->AddObjectToContainer(new_form, extralist, 1, nullptr); // pre 0.7.1
 
-        return new_form->GetFormID();
+        return new_form_id;
     }
 
     // Creates new form for fake container // pre 0.7.1: and adds it to unownedChestOG
-    const FormID CreateFakeContainer(RE::TESBoundObject* container, RE::ExtraDataList* extralist) {
+    const FormID CreateFakeContainer(RE::TESBoundObject* container, const RefID connected_chest, RE::ExtraDataList* el) {
         logger::trace("pre-CreateFakeContainer");
         std::string formtype(RE::FormTypeToString(container->GetFormType()));
-        if (formtype == "SCRL") {return CreateFakeContainer<RE::ScrollItem>(container->As<RE::ScrollItem>(), extralist);}
-        else if (formtype == "ARMO") {return CreateFakeContainer<RE::TESObjectARMO>(container->As<RE::TESObjectARMO>(), extralist);}
-        else if (formtype == "BOOK") {return CreateFakeContainer<RE::TESObjectBOOK>(container->As<RE::TESObjectBOOK>(), extralist);}
-        else if (formtype == "INGR") {return CreateFakeContainer<RE::IngredientItem>(container->As<RE::IngredientItem>(), extralist);}
-        else if (formtype == "MISC") {return CreateFakeContainer<RE::TESObjectMISC>(container->As<RE::TESObjectMISC>(), extralist);}
-        else if (formtype == "WEAP") {return CreateFakeContainer<RE::TESObjectWEAP>(container->As<RE::TESObjectWEAP>(), extralist);}
-        else if (formtype == "AMMO") {return CreateFakeContainer<RE::TESAmmo>(container->As<RE::TESAmmo>(), extralist);}
-        else if (formtype == "SLGM") {return CreateFakeContainer<RE::TESSoulGem>(container->As<RE::TESSoulGem>(), extralist);} 
-        else if (formtype == "ALCH") {return CreateFakeContainer<RE::AlchemyItem>(container->As<RE::AlchemyItem>(), extralist);}
+        if (formtype == "SCRL") {return CreateFakeContainer<RE::ScrollItem>(container->As<RE::ScrollItem>(), connected_chest, el);} 
+        else if (formtype == "ARMO") {return CreateFakeContainer<RE::TESObjectARMO>(container->As<RE::TESObjectARMO>(), connected_chest, el);}
+        else if (formtype == "BOOK") {return CreateFakeContainer<RE::TESObjectBOOK>(container->As<RE::TESObjectBOOK>(), connected_chest, el);}
+        else if (formtype == "INGR") {return CreateFakeContainer<RE::IngredientItem>(container->As<RE::IngredientItem>(),connected_chest, el);}
+        else if (formtype == "MISC") {return CreateFakeContainer<RE::TESObjectMISC>(container->As<RE::TESObjectMISC>(), connected_chest, el);}
+        else if (formtype == "WEAP") {return CreateFakeContainer<RE::TESObjectWEAP>(container->As<RE::TESObjectWEAP>(), connected_chest, el);}
+        //else if (formtype == "AMMO") {return CreateFakeContainer<RE::TESAmmo>(container->As<RE::TESAmmo>(), extralist);}
+        else if (formtype == "SLGM") {return CreateFakeContainer<RE::TESSoulGem>(container->As<RE::TESSoulGem>(), connected_chest, el);} 
+        else if (formtype == "ALCH") {return CreateFakeContainer<RE::AlchemyItem>(container->As<RE::AlchemyItem>(), connected_chest, el);}
         else {
             RaiseMngrErr(std::format("Form type not supported: {}", formtype));
             return 0;
@@ -900,7 +928,7 @@ class Manager : public Utilities::SaveLoadData {
                     std::format("Failed to insert chest refid {} and container refid {} into source data.", ChestRefID,
                                 container_refid));
             }
-            auto fake_formid = CreateFakeContainer(a_container->GetObjectReference(), nullptr);
+            auto fake_formid = CreateFakeContainer(a_container->GetObjectReference(), ChestRefID, nullptr);
             // add to ChestToFakeContainer
             if (!ChestToFakeContainer.insert({ChestRefID, {src->formid, fake_formid}})
                      .second) {
@@ -919,29 +947,20 @@ class Manager : public Utilities::SaveLoadData {
         // cunku load gameden sonra runtimeda halletmem gerekiyo. ekle (<0.7.1)
         else {
             const auto chest_refid = GetRealContainerChest(container_refid);
-            // Check if fake container is in unownedchestOG
-            const auto fake_cont = RE::TESForm::LookupByID<RE::TESBoundObject>(ChestToFakeContainer[chest_refid].innerKey);
-            // bi de bazen deleted oluyo fake container droplarken load gameden sonra. ona refresh cakmamizi sagliyo bu.
-            /*if (!fake_cont || !HasItemPlusCleanUp(fake_cont, unownedChestOG)) {*/ // (<0.7.1)
-            if (!fake_cont) {
-                /*logger::info("Fake container NOT found in unownedchestOG");*/ // (< 0.7.1)
-                logger::info("Fake container NOT found in engine.");
+            const auto real_cont_id = ChestToFakeContainer[chest_refid].outerKey;
+            const auto real_cont_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_cont_id);
+            if (real_cont_editorid.empty()) return RaiseMngrErr("Failed to get editorid of real container.");
+            // we dont care about updating other stuff at this stage since we will do it in "Take" button
+            if (auto fake_cont_id = DFT->Fetch(real_cont_id, real_cont_editorid, chest_refid);!fake_cont_id) {
+                logger::info("Fake container NOT found in DFT.");
                 const auto real_container_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(src->formid);
-                const auto fakeid = CreateFakeContainer(real_container_obj, nullptr);
-                // load game den dolayi
+                fake_cont_id = CreateFakeContainer(real_container_obj, chest_refid, nullptr);
                 logger::trace("ChestToFakeContainer (chest refid: {}) before: {}", chest_refid,
                              ChestToFakeContainer[chest_refid].innerKey);
-                ChestToFakeContainer[chest_refid].innerKey = fakeid;
+                ChestToFakeContainer[chest_refid].innerKey = fake_cont_id;
                 logger::trace("ChestToFakeContainer (chest refid: {}) after: {}", chest_refid,
                              ChestToFakeContainer[chest_refid].innerKey);
-            }
-            // we dont care about updating other stuff at this stage since we will do it in "Take" button
-            // we just need to make sure that the fake container is in unownedchestOG (< 0.7.1)
-            else if (!std::strlen(fake_cont->GetName())) {
-                fake_cont->Copy(RE::TESForm::LookupByID<RE::TESForm>(src->formid));
-                logger::info("Fake container found in unownedchestOG with name {} and formid {}.", fake_cont->GetName(),
-                fake_cont->GetFormID());
-            }
+            } else DFT->EditCustomID(fake_cont_id, chest_refid);
 		}
     }
 
@@ -1023,8 +1042,8 @@ class Manager : public Utilities::SaveLoadData {
                 logger::trace("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
                 if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
                     logger::trace("Removing enchantment: {}", effect->baseEffect->GetName());
-                    effect->baseEffect = empty_mgeff;
-                    //if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
+                    //effect->baseEffect = empty_mgeff;
+                    if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
                 }
             }
         }
@@ -1099,14 +1118,14 @@ class Manager : public Utilities::SaveLoadData {
         _other_settings = Settings::LoadOtherSettings();
 
         if (_other_settings[Settings::otherstuffKeys[1]]) {
-            empty_mgeff = RE::IFormFactory::GetConcreteFormFactoryByType<RE::EffectSetting>()->Create();
+            /*empty_mgeff = RE::IFormFactory::GetConcreteFormFactoryByType<RE::EffectSetting>()->Create();
             if (!empty_mgeff) {
                 logger::critical("Failed to create empty mgeff.");
                 init_failed = true;
             } else {
                 empty_mgeff->magicItemDescription = std::string(" ");
                 empty_mgeff->data.flags.set(RE::EffectSetting::EffectSettingData::Flag::kNoDuration);
-            }
+            }*/
 		}
 
         auto data_handler = RE::TESDataHandler::GetSingleton();
@@ -1140,11 +1159,15 @@ class Manager : public Utilities::SaveLoadData {
 				logger::error("Fake bound not found");
 				break;
 			}
-            while (HasItemPlusCleanUp(fake_bound, chest)) {
+            int max_try = 10;
+            while (HasItemPlusCleanUp(fake_bound, chest) && max_try>0) {
 				RemoveItemReverse(chest, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+                max_try--;
 			}
-            while (HasItemPlusCleanUp(fake_bound, player_ref)) {
+            max_try = 10;
+            while (HasItemPlusCleanUp(fake_bound, player_ref) && max_try>0) {
                 RemoveItemReverse(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+                max_try--;
             }
 		}
 
@@ -1222,6 +1245,8 @@ class Manager : public Utilities::SaveLoadData {
         
         logger::trace("qTrick before execute_trick");
         auto real_formid = ChestToFakeContainer[chest_ref].outerKey;
+        /*const auto real_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_formid);
+        if (real_editorid.empty()) return RaiseMngrErr("Failed to get editorid of real container.");*/
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
         auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
         auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
@@ -1229,24 +1254,24 @@ class Manager : public Utilities::SaveLoadData {
         if (!chest) return RaiseMngrErr("Chest not found");
         if (!chest_cont_ref) return RaiseMngrErr("Container chest not found");
         if (!real_bound) return RaiseMngrErr("Real bound not found");
-
-        /*auto real_refhandle = RemoveItemReverse(chest, nullptr, real_formid, RE::ITEM_REMOVE_REASON::kDropping);
-        if (!real_refhandle) return RaiseMngrErr("Real refhandle is null.");
-        auto real_ref = real_refhandle.get().get();*/
         
         // fake form nonexistent ise
+
         if (fake_nonexistent) {
             logger::trace("Executing trick");
             logger::trace("TRICK");
 
             auto old_fakeid = ChestToFakeContainer[chest_ref].innerKey;  // for external_favs
-            const auto fakeid = CreateFakeContainer(real_bound, nullptr);
+            /*auto fakeid = DFT->Fetch(real_formid, real_editorid, chest_ref);
+            if (!fakeid) fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
+            else DFT->EditCustomID(fakeid, chest_ref);*/
+            const auto fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
             // load game den dolayi
             logger::trace("ChestToFakeContainer (chest refid: {}) before: {}", chest_ref,
-                          ChestToFakeContainer[chest_ref].innerKey);
+                            ChestToFakeContainer[chest_ref].innerKey);
             ChestToFakeContainer[chest_ref].innerKey = fakeid;
             logger::trace("ChestToFakeContainer (chest refid: {}) after: {}", chest_ref,
-                          ChestToFakeContainer[chest_ref].innerKey);
+                            ChestToFakeContainer[chest_ref].innerKey);
 
             // if old_fakeid is in external_favs, we need to update it with new fakeid
             auto it = std::find(external_favs.begin(), external_favs.end(), old_fakeid);
@@ -1268,17 +1293,6 @@ class Manager : public Utilities::SaveLoadData {
 
         auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
         if (!fake_bound) return RaiseMngrErr("Fake bound not found");
-
-        /*RE::TESObjectREFR* fake_ref = nullptr;
-        if (!chest_of_fake) {
-            fake_ref = Utilities::FunctionsSkyrim::WorldObject::DropObjectIntoTheWorld(fake_bound);
-        } else {
-            auto fake_refhandle = RemoveItemReverse(chest_of_fake, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kDropping);
-            if (!fake_refhandle) return RaiseMngrErr("Fake refhandle is null.");
-            fake_ref = fake_refhandle.get().get();
-        }
-
-        if (!fake_ref) return RaiseMngrErr("qTRICK__ Fake ref is null.");*/
 
         if (fake_nonexistent) {
             RE::TESObjectREFR* fake_ref = Utilities::FunctionsSkyrim::WorldObject::DropObjectIntoTheWorld(fake_bound);
@@ -1557,6 +1571,8 @@ public:
 		}
 
         Utilities::FunctionsSkyrim::WorldObject::SwapObjects(ref_fake, real_base);
+        // TODO: Sor bunu
+        //if (ref_fake->GetAllowPromoteToPersistent()) ref_fake->inGameFormFlags.set(RE::TESObjectREFR::InGameFormFlag::kForcedPersistent);
 
         const auto src = GetContainerSource(real_base->GetFormID());
         if (!src) {
@@ -1998,9 +2014,9 @@ public:
                     is_favorited_x = IsFaved(fake_bound);
                     auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
                     if (!chest) return RaiseMngrErr("Chest not found");
-                    if (!UpdateExtrasInInventory(player_ref, fake_formid, chest, src.formid)) {
+                    /*if (!UpdateExtrasInInventory(player_ref, fake_formid, chest, src.formid)) {
 						logger::error("Failed to update extras in player's inventory.");
-					}
+					}*/
                 } 
                 // check if the fake container is faved in an external container
                 else {
@@ -2054,8 +2070,8 @@ public:
                 logger::warn("Fake container found in {} with empty name.", cont_of_fakecont->GetDisplayFullName());
             }
             // her ihtimale karsi datayi yeniliyorum
-            const auto real_formid = ChestToFakeContainer[chest_ref].outerKey;
-            fake_bound->Copy(RE::TESForm::LookupByID<RE::TESForm>(real_formid));
+            //const auto real_formid = ChestToFakeContainer[chest_ref].outerKey;
+            //fake_bound->Copy(RE::TESForm::LookupByID<RE::TESForm>(real_formid));
             if (fake_formid != fake_bound->GetFormID()) {
                 logger::warn("Fake container formid changed from {} to {}", fake_formid, fake_bound->GetFormID());
             }
@@ -2096,6 +2112,11 @@ public:
         logger::info("--------Receiving data---------");
 
         //std::lock_guard<std::mutex> lock(mutex);
+
+        /*if (DFT->GetNDeleted() > 0) {
+            logger::critical("ReceiveData: Deleted forms exist.");
+            return RaiseMngrErr("ReceiveData: Deleted forms exist.");
+        }*/
 
         setListenContainerChange(false);
 
@@ -2168,6 +2189,14 @@ public:
 				continue;
             }
             Something2(chest_ref,handled_already);
+            const auto _real_fid = ChestToFakeContainer[chest_ref].outerKey;
+            const auto real_editorid = Utilities::FunctionsSkyrim::GetEditorID(_real_fid);
+            if (real_editorid.empty()) {
+                logger::critical("Real container with formid {} has no editorid.", _real_fid);
+                return RaiseMngrErr("Real container has no editorid.");
+			}
+            const auto _fake_fid = ChestToFakeContainer[chest_ref].innerKey;
+            DFT->Reserve(_real_fid, real_editorid, _fake_fid);
 		}
 
         // print handled_already
@@ -2209,6 +2238,25 @@ public:
 			}
         }
 
+        // need to get rid of the dynamic forms which are unused
+        logger::trace("Deleting unused fake forms from bank.");
+        setListenContainerChange(false);
+        DFT->DeleteInactives();
+        setListenContainerChange(true);
+        if (DFT->GetNDeleted() > 0) {
+            logger::warn("ReceiveData: Deleted forms exist. User is required to restart.");
+            Utilities::MsgBoxesNotifs::InGame::CustomErrMsg(
+                "It seems the configuration has changed from your previous session"
+                " that requires you to restart the game."
+                "DO NOT IGNORE THIS:"
+                "1. Save your game."
+                "2. Exit the game."
+                "3. Restart the game."
+                "4. Load the saved game."
+                "JUST DO IT! NOW! BEFORE DOING ANYTHING ELSE!");
+        }
+
+
         logger::info("--------Receiving data done---------");
         Print();
         
@@ -2229,6 +2277,24 @@ public:
 		}
 		return connected_chests;
 	}
+
+    void HandleFormDelete(const RefID refid) {
+        ENABLE_IF_NOT_UNINSTALLED
+        //std::lock_guard<std::mutex> lock(mutex);
+        if (ChestToFakeContainer.contains(refid)) return _HandleFormDelete(refid);
+        // the deleted reference could also be a real container out in the world.
+        // in that case i need to return the items from its chest
+        else {
+			for (auto& src : sources) {
+				for (const auto& [chest_ref, cont_ref] : src.data) {
+                    if (cont_ref == refid) {
+                        logger::warn("Form with refid {} is deleted. Removing it from the manager.", chest_ref);
+						return _HandleFormDelete(chest_ref);
+					}
+				}
+			}
+		}
+    };
 
     void Print() {
         
