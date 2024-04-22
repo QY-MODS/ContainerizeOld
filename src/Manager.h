@@ -2113,10 +2113,10 @@ public:
 
         //std::lock_guard<std::mutex> lock(mutex);
 
-        if (DFT->GetNDeleted() > 0) {
+        /*if (DFT->GetNDeleted() > 0) {
             logger::critical("ReceiveData: Deleted forms exist.");
             return RaiseMngrErr("ReceiveData: Deleted forms exist.");
-        }
+        }*/
 
         setListenContainerChange(false);
 
