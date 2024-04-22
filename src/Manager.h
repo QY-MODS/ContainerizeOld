@@ -170,7 +170,8 @@ class Manager : public Utilities::SaveLoadData {
     }
 
     void _HandleFormDelete(const RefID chest_refid) {
-        logger::info("Form with refid {} is deleted. Removing it from the manager.", chest_refid);
+        //std::lock_guard<std::mutex> lock(mutex);
+        logger::warn("Form with refid {} is deleted. Removing it from the manager.", chest_refid);
         auto real_formid = ChestToFakeContainer[chest_refid].outerKey;
         const auto real_item = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
         if (real_item) {
@@ -1158,11 +1159,15 @@ class Manager : public Utilities::SaveLoadData {
 				logger::error("Fake bound not found");
 				break;
 			}
-            while (HasItemPlusCleanUp(fake_bound, chest)) {
+            int max_try = 10;
+            while (HasItemPlusCleanUp(fake_bound, chest) && max_try>0) {
 				RemoveItemReverse(chest, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+                max_try--;
 			}
-            while (HasItemPlusCleanUp(fake_bound, player_ref)) {
+            max_try = 10;
+            while (HasItemPlusCleanUp(fake_bound, player_ref) && max_try>0) {
                 RemoveItemReverse(player_ref, nullptr, fake_formid, RE::ITEM_REMOVE_REASON::kRemove);
+                max_try--;
             }
 		}
 
@@ -1240,8 +1245,8 @@ class Manager : public Utilities::SaveLoadData {
         
         logger::trace("qTrick before execute_trick");
         auto real_formid = ChestToFakeContainer[chest_ref].outerKey;
-        const auto real_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_formid);
-        if (real_editorid.empty()) return RaiseMngrErr("Failed to get editorid of real container.");
+        /*const auto real_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_formid);
+        if (real_editorid.empty()) return RaiseMngrErr("Failed to get editorid of real container.");*/
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
         auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
         auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
@@ -1251,21 +1256,22 @@ class Manager : public Utilities::SaveLoadData {
         if (!real_bound) return RaiseMngrErr("Real bound not found");
         
         // fake form nonexistent ise
-        auto old_fakeid = ChestToFakeContainer[chest_ref].innerKey;  // for external_favs
-        auto fakeid = DFT->Fetch(real_formid, real_editorid, chest_ref);
-        if (!fakeid) fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
-        else DFT->EditCustomID(fakeid, chest_ref);
-        // load game den dolayi
-        logger::trace("ChestToFakeContainer (chest refid: {}) before: {}", chest_ref,
-                        ChestToFakeContainer[chest_ref].innerKey);
-        ChestToFakeContainer[chest_ref].innerKey = fakeid;
-        logger::trace("ChestToFakeContainer (chest refid: {}) after: {}", chest_ref,
-                        ChestToFakeContainer[chest_ref].innerKey);
 
         if (fake_nonexistent) {
             logger::trace("Executing trick");
             logger::trace("TRICK");
 
+            auto old_fakeid = ChestToFakeContainer[chest_ref].innerKey;  // for external_favs
+            /*auto fakeid = DFT->Fetch(real_formid, real_editorid, chest_ref);
+            if (!fakeid) fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
+            else DFT->EditCustomID(fakeid, chest_ref);*/
+            const auto fakeid = CreateFakeContainer(real_bound, chest_ref, nullptr);
+            // load game den dolayi
+            logger::trace("ChestToFakeContainer (chest refid: {}) before: {}", chest_ref,
+                            ChestToFakeContainer[chest_ref].innerKey);
+            ChestToFakeContainer[chest_ref].innerKey = fakeid;
+            logger::trace("ChestToFakeContainer (chest refid: {}) after: {}", chest_ref,
+                            ChestToFakeContainer[chest_ref].innerKey);
 
             // if old_fakeid is in external_favs, we need to update it with new fakeid
             auto it = std::find(external_favs.begin(), external_favs.end(), old_fakeid);
@@ -2178,12 +2184,19 @@ public:
 
         // Now i need to iterate through the chests deal with some cases
         std::vector<RefID> handled_already;
-        for (const auto& [chest_ref, real_fake] : ChestToFakeContainer) {
+        for (const auto& [chest_ref, _] : ChestToFakeContainer) {
             if (std::find(handled_already.begin(), handled_already.end(), chest_ref) != handled_already.end()) {
 				continue;
             }
             Something2(chest_ref,handled_already);
-            DFT->Reserve(real_fake.innerKey);
+            const auto _real_fid = ChestToFakeContainer[chest_ref].outerKey;
+            const auto real_editorid = Utilities::FunctionsSkyrim::GetEditorID(_real_fid);
+            if (real_editorid.empty()) {
+                logger::critical("Real container with formid {} has no editorid.", _real_fid);
+                return RaiseMngrErr("Real container has no editorid.");
+			}
+            const auto _fake_fid = ChestToFakeContainer[chest_ref].innerKey;
+            DFT->Reserve(_real_fid, real_editorid, _fake_fid);
 		}
 
         // print handled_already
@@ -2266,8 +2279,8 @@ public:
 	}
 
     void HandleFormDelete(const RefID refid) {
-        // lock mutex
-        std::lock_guard<std::mutex> lock(mutex);
+        ENABLE_IF_NOT_UNINSTALLED
+        //std::lock_guard<std::mutex> lock(mutex);
         if (ChestToFakeContainer.contains(refid)) return _HandleFormDelete(refid);
         // the deleted reference could also be a real container out in the world.
         // in that case i need to return the items from its chest

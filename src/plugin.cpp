@@ -495,6 +495,8 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
 #define DISABLE_IF_UNINSTALLED if (!M || M->isUninstalled) return;
 void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     DISABLE_IF_UNINSTALLED 
+    logger::trace("Saving Data to skse co-save.");
+    block_eventsinks = true;
     M->SendData();
     if (!M->Save(serializationInterface, Settings::kDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
@@ -503,6 +505,8 @@ void SaveCallback(SKSE::SerializationInterface* serializationInterface) {
     if (!DFT->Save(serializationInterface, Settings::kDFDataKey, Settings::kSerializationVersion)) {
         logger::critical("Failed to save Data");
     }
+    logger::trace("Data saved to skse co-save.");
+    block_eventsinks = false;
 }
 
 void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
