@@ -564,7 +564,7 @@ public:
             Utilities::Types::DFSaveDataLHS lhs({base_pair.first, base_pair.second});
             Utilities::Types::DFSaveDataRHS rhs;
 			for (const auto dyn_formid : dyn_formset) {
-                if (!IsActive(dyn_formid)) logger::critical("Inactive form found in forms set.");
+                if (!IsActive(dyn_formid)) logger::warn("Inactive form found in forms set.");
                 const bool has_customid = customIDforms.contains(dyn_formid);
                 const uint32_t customid = has_customid ? customIDforms[dyn_formid] : 0;
                 const float act_eff_elpsd = GetActiveEffectElapsed(dyn_formid);

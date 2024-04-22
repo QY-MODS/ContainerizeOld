@@ -949,9 +949,8 @@ class Manager : public Utilities::SaveLoadData {
             const auto real_cont_id = ChestToFakeContainer[chest_refid].outerKey;
             const auto real_cont_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_cont_id);
             if (real_cont_editorid.empty()) return RaiseMngrErr("Failed to get editorid of real container.");
-            auto fake_cont_id = DFT->Fetch(real_cont_id, real_cont_editorid, chest_refid);
             // we dont care about updating other stuff at this stage since we will do it in "Take" button
-            if (!fake_cont_id) {
+            if (auto fake_cont_id = DFT->Fetch(real_cont_id, real_cont_editorid, chest_refid);!fake_cont_id) {
                 logger::info("Fake container NOT found in DFT.");
                 const auto real_container_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(src->formid);
                 fake_cont_id = CreateFakeContainer(real_container_obj, chest_refid, nullptr);
