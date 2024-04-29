@@ -1945,10 +1945,15 @@ public:
 
         setListenContainerChange(false);
 
-        while (chest->GetWeightInContainer() > weight_limit) {
+        int max_tries = 5000;
+        while (chest->GetWeightInContainer() > weight_limit && max_tries>0) {
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
             auto item_obj = item->first;
+            while (item_obj->GetWeight()<=0.001) {
+				item++;
+				item_obj = item->first;
+			}
             auto inv_data = item->second.second.get();
             auto asd = inv_data->extraLists;
             if (!asd || asd->empty()) {
@@ -1961,6 +1966,7 @@ public:
                 std::format("{} is fully packed! Putting {} back.", chest->GetDisplayFullName(),
                                               item_obj->GetName())
                                       .c_str());
+            max_tries--;
 
         }
 
