@@ -130,14 +130,15 @@ public:
 
         logger::trace("Crosshair ref.");
 
-        if (!M->IsRealContainer(event->crosshairRef.get())) {
+        if (auto crosshair_refr = event->crosshairRef.get(); !M->IsRealContainer(crosshair_refr)) {
             
             // if the fake items are not in it we need to place them (this happens upon load game)
-            M->setListenContainerChange(false);
-            listen_crosshair_ref = false; 
-            M->HandleFakePlacement(event->crosshairRef.get());
-            M->setListenContainerChange(true);
+            listen_crosshair_ref = false;
+            M->HandleFakePlacement(crosshair_refr); 
             listen_crosshair_ref = true;
+            /*SKSE::GetTaskInterface()->AddTask([crosshair_refr]() { 
+                }
+            );*/
 
             return RE::BSEventNotifyControl::kContinue;
         
@@ -573,9 +574,12 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     furniture_entered = false;
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    M->ReceiveData();
-    logger::info("Data loaded from skse co-save.");
-    block_eventsinks = false;
+    SKSE::GetTaskInterface()->AddTask([]() { 
+        M->ReceiveData(); 
+        logger::info("Data loaded from skse co-save.");
+        block_eventsinks = false;
+        }
+    );
 }
 #undef DISABLE_IF_UNINSTALLED
 

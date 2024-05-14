@@ -350,6 +350,7 @@ class Manager : public Utilities::SaveLoadData {
     // Updates weight and value of fake container and uses Copy and applies renaming
     void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked) {
         logger::trace("pre-UpdateFakeWV");
+        if (!fake_form) return RaiseMngrErr("Fake form is null");
         std::string formtype(RE::FormTypeToString(fake_form->GetFormType()));
         if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked);
         else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked);
@@ -806,23 +807,28 @@ class Manager : public Utilities::SaveLoadData {
             auto* fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_bound) return RaiseMngrErr("MsgBoxCallback (1): Fake bound not found");
             Utilities::FunctionsSkyrim::WorldObject::SwapObjects(current_container, fake_bound, false);
-            if (!PickUpItem(current_container)) return RaiseMngrErr("Take:Failed to pick up container");
+
+            const auto rmv_carry_boost = _other_settings[Settings::otherstuffKeys[1]];
+            auto* container = current_container;
+            SKSE::GetTaskInterface()->AddTask([this, chest_refid, fake_container_id, rmv_carry_boost, container]() { 
+                if (!PickUpItem(container)) return RaiseMngrErr("Take:Failed to pick up container");
             
-            // Update chest link (fake container is in inventory now so we replace the old refid with the chest refid -> {chestrefid:chestrefid})
-            auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
-            if (!src) {return RaiseMngrErr("Could not find source for container");}
-            src->data[chest_refid] = chest_refid;
+                // Update chest link (fake container is in inventory now so we replace the old refid with the chest refid -> {chestrefid:chestrefid})
+                auto src = GetContainerSource(ChestToFakeContainer[chest_refid].outerKey);
+                if (!src) {return RaiseMngrErr("Could not find source for container");}
+                src->data[chest_refid] = chest_refid;
 
 
-            logger::trace("Updating fake container V/W. Chest refid: {}, Fake container formid: {}", chest_refid, fake_container_id);
-            const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-            fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
-            UpdateFakeWV(fake_bound, chest);
-            logger::trace("Updated fake container V/W");
+                logger::trace("Updating fake container V/W. Chest refid: {}, Fake container formid: {}", chest_refid, fake_container_id);
+                const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+                UpdateFakeWV(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id), chest);
+                logger::trace("Updated fake container V/W");
 
-            if (_other_settings[Settings::otherstuffKeys[1]]) RemoveCarryWeightBoost(fake_container_id,player_ref);
+                if (rmv_carry_boost) RemoveCarryWeightBoost(fake_container_id, player_ref);
+                setListenActivate(true);
+                }
+            );
             current_container = nullptr;
-            setListenActivate(true);
 
             return;
         }
@@ -1946,6 +1952,7 @@ public:
         setListenContainerChange(false);
 
         int max_tries = 5000;
+        // TODO: Calculate the count needed to be removed
         while (chest->GetWeightInContainer() > weight_limit && max_tries>0) {
             auto inventory = chest->GetInventory();
             auto item = inventory.rbegin();
