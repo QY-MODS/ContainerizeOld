@@ -6,6 +6,7 @@ using namespace Utilities::Types;
 
 struct Source {
 
+    std::map<FormID,Count> initial_items;
     float capacity;
     std::uint32_t formid;
     std::string editorid;
@@ -31,6 +32,11 @@ struct Source {
     };
 
     RE::TESBoundObject* GetBoundObject() const {return Utilities::FunctionsSkyrim::GetFormByID<RE::TESBoundObject>(formid, editorid);};
+
+    void AddInitialItem(const FormID form_id, const Count count) {
+        logger::trace("Adding initial item with formid: {} and count: {}", form_id, count);
+        initial_items[form_id] = count;
+	};
 };
 
 
@@ -74,7 +80,7 @@ namespace Settings {
     constexpr std::array<const char*, 4> otherstuffKeys = 
     {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell"};
     constexpr std::array<bool, 4> otherstuffVals = {true, true, true, true};
-
+    
     std::vector<Source> LoadINISources() {
         
         logger::info("Loading ini settings: Sources");
@@ -148,36 +154,109 @@ namespace Settings {
             if (!val1 || !val2 || !std::strlen(val1) || !std::strlen(val2)) {
                 logger::warn("Source {} is missing a value. Skipping.", it->pItem);
                 continue;
-            } 
-            else {
-                logger::info("Source {} has a value of {}", it->pItem, val1);
-                logger::info("We have valid entries for container: {} and capacity: {}", val1, val2);
-                // back to container_id and capacity
-                id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
-                id_str = std::string(val1);
-
-                // if both formid is valid hex, use it
-                if (Utilities::isValidHexWithLength7or8(val1)) {
-                    logger::info("Formid {} is valid hex", val1);
-                    sources.emplace_back(id, "", std::stof(val2));
-                }
-                else if (!po3installed) {
-                    logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
-                    Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
-                    return sources;
-                } else sources.emplace_back(0, id_str, std::stof(std::string(val2)));
-
-                logger::trace("Source {} has a value of {}", it->pItem, val1);
-                ini.SetValue(InISections[0], it->pItem, val1);
-                ini.SetValue(InISections[1], it->pItem, val2);
-                logger::info("Loaded container: {} with capacity: {}", val1, std::stof(val2));
             }
+            logger::info("Source {} has a value of {}", it->pItem, val1);
+            logger::info("We have valid entries for container: {} and capacity: {}", val1, val2);
+            // back to container_id and capacity
+            id = static_cast<uint32_t>(std::strtoul(val1, nullptr, 16));
+            id_str = std::string(val1);
+
+            // if both formid is valid hex, use it
+            if (Utilities::isValidHexWithLength7or8(val1)) {
+                logger::info("Formid {} is valid hex", val1);
+                sources.emplace_back(id, "", std::stof(val2));
+            }
+            else if (!po3installed) {
+                logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
+                Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
+                return sources;
+            } 
+            else sources.emplace_back(0, id_str, std::stof(std::string(val2)));
+
+            logger::trace("Source {} has a value of {}", it->pItem, val1);
+            ini.SetValue(InISections[0], it->pItem, val1);
+            ini.SetValue(InISections[1], it->pItem, val2);
+            logger::info("Loaded container: {} with capacity: {}", val1, std::stof(val2));
         }
 
         ini.SaveFile(path);
 
         return sources;
+    };
+
+
+    Source _parseSource(const YAML::Node& config) {
+
+        auto temp_formeditorid = config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
+        FormID temp_formid = temp_formeditorid.empty() ? 0 : Utilities::FunctionsSkyrim::GetFormEditorIDFromString(temp_formeditorid);
+        const auto temp_weight_limit = config["weight_limit"] && !config["weight_limit"].IsNull() ? config["weight_limit"].as<float>() : 0.f;
+        Source source(temp_formid, "", temp_weight_limit);
+
+        if (!config["initial_items"] || config["initial_items"].size() == 0) {
+            logger::info("initial_items are empty.");
+            return source;
+        }
+        for (const auto& itemNode : config["initial_items"]) {
+            temp_formeditorid = itemNode["FormEditorID"] && !itemNode["FormEditorID"].IsNull()
+                                               ? itemNode["FormEditorID"].as<std::string>()
+                                               : "";
+
+            temp_formid = temp_formeditorid.empty() ? 0 : Utilities::FunctionsSkyrim::GetFormEditorIDFromString(temp_formeditorid);
+            if (!temp_formid && !temp_formeditorid.empty()) {
+                logger::error("Formid could not be obtained for {}", temp_formid, temp_formeditorid);
+                continue;
+            }
+            if (!itemNode["count"] || itemNode["count"].IsNull()) {
+                logger::error("Count is null.");
+                continue;
+            }
+            logger::trace("Count");
+            const Count temp_count = itemNode["count"].as<Count>();
+            if (temp_count == 0) {
+                logger::error("Count is 0.");
+                continue;
+            }
+            source.AddInitialItem(temp_formid, temp_count);
+        }
+        return source;
     }
+
+    std::vector<Source> LoadYAMLSources(){
+        logger::info("Loading yaml settings: Sources");
+        std::vector<Source> sources;
+        const auto folder_path = std::format("Data/SKSE/Plugins/{}", Utilities::mod_name) + "/presets";
+        std::filesystem::create_directories(folder_path);
+        logger::trace("Custom path: {}", folder_path);
+        for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".yml") {
+                const auto filename = entry.path().string();
+                YAML::Node config = YAML::LoadFile(filename);
+
+                if (!config["containers"]) {
+                    logger::trace("OwnerLists not found in {}", filename);
+                    continue;
+                }
+
+                for (const auto& _Node : config["containers"]) {
+                    // we have list of owners at each node or a scalar owner
+                    const auto source = _parseSource(_Node);
+                    sources.push_back(source);
+                }
+            }
+        }
+        return sources;
+    };
+
+    std::vector<Source> LoadSources(){
+        std::vector<Source> sources;
+        const auto IniSources = LoadINISources();
+        logger::trace("IniSources size: {}", IniSources.size());
+        const auto YamlSources = LoadYAMLSources();
+        logger::trace("YamlSources size: {}", YamlSources.size());
+        sources.insert(sources.end(), IniSources.begin(), IniSources.end());
+        sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
+        return sources;
+    };
 
     const std::unordered_map<std::string,bool> LoadOtherSettings() {
     
@@ -223,56 +302,13 @@ namespace Settings {
         "ALCH",  //	2E ALCH	AlchemyItem
 	};
 
-
-    //enum class AllowedFormTypes {
-    //    "SCRL",  //	17 SCRL	ScrollItem
-    //    Armor,   //	1A ARMO	TESObjectARMO
-    //    Book,    //	1B BOOK	TESObjectBOOK
-    //    // Container,                   //	1C CONT	TESObjectCONT
-    //    // Door,                        //	1D DOOR	TESObjectDOOR
-    //    Ingredient,  //	1E INGR	IngredientItem
-    //    Misc,        //	20 MISC TESObjectMISC
-    //    // Apparatus,                   //	21 APPA	BGSApparatus
-    //    // Static,                      //	22 STAT	TESObjectSTAT
-    //    // StaticCollection,            //	23 SCOL BGSStaticCollection
-    //    // MovableStatic,               //	24 MSTT	BGSMovableStatic
-    //    // Furniture,                   //	28 FURN	TESFurniture
-    //    Weapon,  //	29 WEAP	TESObjectWEAP
-    //    Ammo,    //	2A AMMO	TESAmmo
-    //    // NPC,                         //	2B NPC_	TESNPC
-    //    // LeveledNPC,                  //	2C LVLN	TESLevCharacter
-    //    // KeyMaster,                   //	2D KEYM	TESKey
-    //    // AlchemyItem,                 //	2E ALCH	AlchemyItem
-    //    // Note,                        //	30 NOTE	BGSNote
-    //    // ConstructibleObject,         //	31 COBJ	BGSConstructibleObject
-    //    SoulGem,  //	34 SLGM	TESSoulGem
-    //    // LeveledItem,                 //	35 LVLI	TESLevItem
-    //    // LeveledSpell,                //	52 LVSP	TESLevSpell
-    //    // AnimatedObject,              //	53 ANIO	TESObjectANIO
-    //};
-
-
-    // 0x99 - ExtraTextDisplayData
-    // 0x3C - ExtraSavedHavokData
-    // 0x0B - ExtraPersistentCell
-    // 0x48 - ExtraStartingWorldOrCell
-
-    // 0x21 - ExtraOwnership
-    // 0x24 - ExtraCount
-    // 0x0E - ExtraStartingPosition //crahes when removed
-
-    // 0x70 - ExtraEncounterZone 112
-    // 0x7E - ExtraReservedMarkers 126
-    // 0x88 - ExtraAliasInstanceArray 136
-    // 0x8C - ExtraPromotedRef 140 NOT OK
-    // 0x1C - ExtraReferenceHandle 28 NOT OK (npc muhabbeti)
     std::vector<int> xRemove = {
         0x99, 
         0x3C, 0x0B, 0x48,
-                                 0x21,
-                                //
-                                // 0x24,
-                                0x70, 0x7E, 0x88, 0x8C, 0x1C};
+        0x21,
+        //
+        // 0x24,
+        0x70, 0x7E, 0x88, 0x8C, 0x1C};
 
 };
 

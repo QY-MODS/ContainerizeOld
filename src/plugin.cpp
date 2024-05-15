@@ -19,13 +19,6 @@ RefID external_container_refid = 0;  // set in input event
 
 RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
 
-//enum class MenuFlagEx : std::uint32_t {
-//    kUnpaused = 1 << 28,
-//    kUsesCombatAlertOverlay = 1 << 29,
-//    kUsesSlowMotion = 1 << 30
-//};
-
-
 // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
 class ConversationCallbackFunctor : public RE::BSScript::IStackCallbackFunctor {
 
@@ -130,14 +123,15 @@ public:
 
         logger::trace("Crosshair ref.");
 
-        if (!M->IsRealContainer(event->crosshairRef.get())) {
+        if (auto crosshair_refr = event->crosshairRef.get(); !M->IsRealContainer(crosshair_refr)) {
             
             // if the fake items are not in it we need to place them (this happens upon load game)
-            M->setListenContainerChange(false);
-            listen_crosshair_ref = false; 
-            M->HandleFakePlacement(event->crosshairRef.get());
-            M->setListenContainerChange(true);
+            listen_crosshair_ref = false;
+            M->HandleFakePlacement(crosshair_refr); 
             listen_crosshair_ref = true;
+            /*SKSE::GetTaskInterface()->AddTask([crosshair_refr]() { 
+                }
+            );*/
 
             return RE::BSEventNotifyControl::kContinue;
         
@@ -466,7 +460,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
         DFT = DynamicFormTracker::GetSingleton();
-        auto sources = Settings::LoadINISources();
+        auto sources = Settings::LoadSources();
         if (sources.empty()) {
             logger::critical("Failed to load INI sources.");
             return;
@@ -573,9 +567,12 @@ void LoadCallback(SKSE::SerializationInterface* serializationInterface) {
     furniture_entered = false;
     logger::info("Receiving Data.");
     DFT->ReceiveData();
-    M->ReceiveData();
-    logger::info("Data loaded from skse co-save.");
-    block_eventsinks = false;
+    SKSE::GetTaskInterface()->AddTask([]() { 
+        M->ReceiveData(); 
+        logger::info("Data loaded from skse co-save.");
+        block_eventsinks = false;
+        }
+    );
 }
 #undef DISABLE_IF_UNINSTALLED
 

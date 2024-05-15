@@ -12,6 +12,7 @@
 #include <mutex>  // for std::mutex
 #include <algorithm>
 #include <ClibUtil/editorID.hpp>
+#include <yaml-cpp/yaml.h>
 
 
 namespace Utilities {
@@ -253,6 +254,19 @@ namespace Utilities {
             return false;
         }
 
+        bool isValidHexWithLength7or8(const char* input) {
+            std::string inputStr(input);
+
+            if (inputStr.substr(0, 2) == "0x") {
+                // Remove "0x" from the beginning of the string
+                inputStr = inputStr.substr(2);
+            }
+
+            std::regex hexRegex("^[0-9A-Fa-f]{7,8}$");  // Allow 7 to 8 characters
+            bool isValid = std::regex_match(inputStr, hexRegex);
+            return isValid;
+        }
+
         namespace String {
 
             std::string trim(const std::string& str) {
@@ -420,6 +434,39 @@ namespace Utilities {
                 return clib_util::editorID::get_editorID(form);
             } else {
                 return "";
+            }
+        }
+
+        FormID GetFormEditorIDFromString(const std::string& formEditorId) {
+            logger::trace("Getting formid from editorid: {}", formEditorId);
+            if (Utilities::Functions::isValidHexWithLength7or8(formEditorId.c_str())) {
+                logger::trace("formEditorId is in hex format.");
+                int form_id_;
+                std::stringstream ss;
+                ss << std::hex << formEditorId;
+                ss >> form_id_;
+                auto temp_form = GetFormByID(form_id_, "");
+                if (temp_form)
+                    return temp_form->GetFormID();
+                else {
+                    logger::error("Formid is null for editorid {}", formEditorId);
+                    return 0;
+                }
+            }
+            if (formEditorId.empty())
+                return 0;
+            else if (!IsPo3Installed()) {
+                logger::error("Po3 is not installed.");
+                MsgBoxesNotifs::Windows::Po3ErrMsg();
+                return 0;
+            }
+            auto temp_form = GetFormByID(0, formEditorId);
+            if (temp_form) {
+                logger::trace("Formid is not null with formid {}", temp_form->GetFormID());
+                return temp_form->GetFormID();
+            } else {
+                logger::trace("Formid is null for editorid {}", formEditorId);
+                return 0;
             }
         }
 
