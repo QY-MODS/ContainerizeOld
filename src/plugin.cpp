@@ -19,13 +19,6 @@ RefID external_container_refid = 0;  // set in input event
 
 RE::NiPointer<RE::TESObjectREFR> furniture = nullptr;
 
-//enum class MenuFlagEx : std::uint32_t {
-//    kUnpaused = 1 << 28,
-//    kUsesCombatAlertOverlay = 1 << 29,
-//    kUsesSlowMotion = 1 << 30
-//};
-
-
 // Thanks and credits to Bloc: https://discord.com/channels/874895328938172446/945560222670393406/1093262407989731338
 class ConversationCallbackFunctor : public RE::BSScript::IStackCallbackFunctor {
 
@@ -467,7 +460,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     if (message->type == SKSE::MessagingInterface::kDataLoaded) {
         // Start
         DFT = DynamicFormTracker::GetSingleton();
-        auto sources = Settings::LoadINISources();
+        auto sources = Settings::LoadSources();
         if (sources.empty()) {
             logger::critical("Failed to load INI sources.");
             return;

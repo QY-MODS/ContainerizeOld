@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.21)
 # Set your project name. This will be the name of your SKSE .dll file.
 set(AUTHOR_NAME "Quantumyilmaz")
 set(PRODUCT_NAME "Containerize")
-project(${PRODUCT_NAME} VERSION 0.7.2.3 LANGUAGES CXX)
+project(${PRODUCT_NAME} VERSION 0.8.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -77,6 +77,20 @@ get_target_property(commonlib_src_dir CommonLibSSE SOURCE_DIR)
 # CLIB-UTIL
 find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 
+#YAML-CPP
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG master # Can be a tag (yaml-cpp-x.x.x), a commit hash, or a branch name (master)
+)
+FetchContent_GetProperties(yaml-cpp)
+
+if(NOT yaml-cpp_POPULATED)
+  message(STATUS "Fetching yaml-cpp...")
+  FetchContent_Populate(yaml-cpp)
+  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR})
+endif()
+
 file(
   GLOB_RECURSE
   sources
@@ -104,6 +118,8 @@ target_include_directories(
 	PRIVATE
 	${CLIB_UTIL_INCLUDE_DIRS}
 )
+
+target_link_libraries(${PROJECT_NAME} PUBLIC yaml-cpp::yaml-cpp)
 
 install(TARGETS ${PROJECT_NAME}
         DESTINATION "${CMAKE_INSTALL_LIBDIR}")

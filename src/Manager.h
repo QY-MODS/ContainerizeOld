@@ -946,8 +946,24 @@ class Manager : public Utilities::SaveLoadData {
                 Utilities::FunctionsSkyrim::WorldObject::DropObjectIntoTheWorld(a_container->GetBaseObject(), 1);
             if (!temp_realref) return RaiseMngrErr("Failed to drop real container into the world");
             if (!UpdateExtras(a_container, temp_realref)) logger::warn("Failed to update extras");
-            if (!RemoveObject(temp_realref, ChestObjRef, false))
+            if (!RemoveObject(temp_realref, ChestObjRef, false)) {
                 return RaiseMngrErr("Failed to remove real container from unownedchestOG");
+            }
+
+            if (const auto initial_items_map = src->initial_items; !initial_items_map.empty()) {
+                SKSE::GetTaskInterface()->AddTask([ChestRefID, initial_items_map] {
+                    logger::trace("Adding initial items to chest");
+                    const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(ChestRefID);
+                    if (!chest) return;
+                    for (const auto& [item, count] : initial_items_map) {
+                        if (count <= 0) continue;
+                        auto* bound = RE::TESForm::LookupByID<RE::TESBoundObject>(item);
+                        if (!bound) continue;
+                        chest->AddObjectToContainer(bound, nullptr, count, nullptr);
+                    }
+                    logger::trace("Added initial items to chest");
+                });
+            }
         }
         // fake counterparti unownedchestOG de olmayabilir (<0.7.1)
         // cunku load gameden sonra runtimeda halletmem gerekiyo. ekle (<0.7.1)
