@@ -268,7 +268,7 @@ class Manager : public Utilities::SaveLoadData {
 	}
 
     template <typename T>
-    void UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked) {
+    void UpdateFakeWV(T* fake_form, RE::TESObjectREFR* chest_linked, const bool cloud) {
         logger::trace("UpdateFakeWV");
         
         // assumes base container is already in the chest
@@ -282,8 +282,10 @@ class Manager : public Utilities::SaveLoadData {
         logger::trace("if it was renamed, rename it back");
         if (!renames.empty() && renames.count(fake_formid)) fake_form->fullName = renames[fake_form->GetFormID()];
 
-        logger::trace("Setting weight for fake form");
-        Utilities::FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, chest_linked->GetWeightInContainer());
+        if (!cloud){
+            logger::trace("Setting weight for fake form");
+            Utilities::FunctionsSkyrim::FormTraits<T>::SetWeight(fake_form, chest_linked->GetWeightInContainer());
+        }
 
         auto chest_inventory = chest_linked->GetInventory();
         for (auto& [key, value] : chest_inventory) {
@@ -348,19 +350,19 @@ class Manager : public Utilities::SaveLoadData {
     }
 
     // Updates weight and value of fake container and uses Copy and applies renaming
-    void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked) {
+    void UpdateFakeWV(RE::TESBoundObject* fake_form, RE::TESObjectREFR* chest_linked, const bool cloud) {
         logger::trace("pre-UpdateFakeWV");
         if (!fake_form) return RaiseMngrErr("Fake form is null");
         std::string formtype(RE::FormTypeToString(fake_form->GetFormType()));
-        if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked);
-        else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked);
-        else if (formtype == "BOOK") UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked);
-        else if (formtype == "INGR") UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked);
-        else if (formtype == "MISC") UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked);
-        else if (formtype == "WEAP") UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked);
-        else if (formtype == "AMMO") UpdateFakeWV<RE::TESAmmo>(fake_form->As<RE::TESAmmo>(), chest_linked);
-        else if (formtype == "SLGM") UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked);
-        else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked);
+        if (formtype == "SCRL") UpdateFakeWV<RE::ScrollItem>(fake_form->As<RE::ScrollItem>(), chest_linked, cloud);
+        else if (formtype == "ARMO") UpdateFakeWV<RE::TESObjectARMO>(fake_form->As<RE::TESObjectARMO>(), chest_linked, cloud);
+        else if (formtype == "BOOK") UpdateFakeWV<RE::TESObjectBOOK>(fake_form->As<RE::TESObjectBOOK>(), chest_linked, cloud);
+        else if (formtype == "INGR") UpdateFakeWV<RE::IngredientItem>(fake_form->As<RE::IngredientItem>(), chest_linked, cloud);
+        else if (formtype == "MISC") UpdateFakeWV<RE::TESObjectMISC>(fake_form->As<RE::TESObjectMISC>(), chest_linked, cloud);
+        else if (formtype == "WEAP") UpdateFakeWV<RE::TESObjectWEAP>(fake_form->As<RE::TESObjectWEAP>(), chest_linked, cloud);
+        else if (formtype == "AMMO") UpdateFakeWV<RE::TESAmmo>(fake_form->As<RE::TESAmmo>(), chest_linked, cloud);
+        else if (formtype == "SLGM") UpdateFakeWV<RE::TESSoulGem>(fake_form->As<RE::TESSoulGem>(), chest_linked, cloud);
+        else if (formtype == "ALCH") UpdateFakeWV<RE::AlchemyItem>(fake_form->As<RE::AlchemyItem>(), chest_linked, cloud);
         else RaiseMngrErr(std::format("Form type not supported: {}", formtype));
         
     }
@@ -797,13 +799,7 @@ class Manager : public Utilities::SaveLoadData {
             
             // get the fake container from the unownedchestOG  and add it to the player's inventory
             const FormID fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
-
-            //if (!unownedChestOG) return RaiseMngrErr("unownedChestOG is null");
-            //// fake must be in the unownedchestOG
-            //if (!HasItem(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id), unownedChestOG)) return RaiseMngrErr("Fake container not found in unownedChestOG");
-            //FetchFake(unownedChestOG,fake_container_id,chest_refid,current_container);
             
-            // 0.7.1, yukarsi old
             auto* fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_bound) return RaiseMngrErr("MsgBoxCallback (1): Fake bound not found");
             Utilities::FunctionsSkyrim::WorldObject::SwapObjects(current_container, fake_bound, false);
@@ -818,10 +814,9 @@ class Manager : public Utilities::SaveLoadData {
                 if (!src) {return RaiseMngrErr("Could not find source for container");}
                 src->data[chest_refid] = chest_refid;
 
-
                 logger::trace("Updating fake container V/W. Chest refid: {}, Fake container formid: {}", chest_refid, fake_container_id);
                 const auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
-                UpdateFakeWV(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id), chest);
+                UpdateFakeWV(RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id), chest, src->cloud_storage);
                 logger::trace("Updated fake container V/W");
 
                 if (rmv_carry_boost) RemoveCarryWeightBoost(fake_container_id, player_ref);
@@ -1097,7 +1092,7 @@ class Manager : public Utilities::SaveLoadData {
             auto bound_ = src.GetBoundObject();
             if (!form_ || !bound_) {
                 init_failed = true;
-                logger::error("Failed to initialize Manager due to missing source: {}",src.formid);
+                logger::error("Failed to initialize Manager due to missing source: {}, {}", src.formid, src.editorid);
                 break;
             }
             auto formtype_ = RE::FormTypeToString(form_->GetFormType());
@@ -1108,7 +1103,6 @@ class Manager : public Utilities::SaveLoadData {
 				logger::error("Failed to initialize Manager due to invalid source type: {}",formtype_);
 				break;
 			}
-
         }
 
         // Check for duplicate formids
@@ -1267,8 +1261,6 @@ class Manager : public Utilities::SaveLoadData {
         
         logger::trace("qTrick before execute_trick");
         auto real_formid = ChestToFakeContainer[chest_ref].outerKey;
-        /*const auto real_editorid = Utilities::FunctionsSkyrim::GetEditorID(real_formid);
-        if (real_editorid.empty()) return RaiseMngrErr("Failed to get editorid of real container.");*/
         auto chest = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_ref);
         auto chest_cont_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(cont_ref);
         auto real_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid);
@@ -1328,22 +1320,10 @@ class Manager : public Utilities::SaveLoadData {
             logger::error("Failed to update extras");
         }
 
-        /*int value_offset = GetValueInContainer(chest);
-
-        // realla isimiz bitti
-        logger::trace("Sending dropped real in unownedcell to its unownedchest (chest_linked)");
-        if (!RemoveObject(real_ref, chest, false))
-            return RaiseMngrErr("Failed to send dropped real in unownedcell to its unownedchest");
-        value_offset = GetValueInContainer(chest) - value_offset;
-        if (value_offset < 0) {
-            logger::error("Value offset is negative. Setting it to 0");
-            value_offset = 0;
-        }
-        logger::trace("Picking up fake");
-        if (!PickUpItem(fake_ref)) return RaiseMngrErr("Failed to pick up fake container");*/
-
         logger::trace("Updating FakeWV");
-        UpdateFakeWV(fake_bound, chest);
+        const auto src = GetContainerSource(real_formid);
+        if (!src) return RaiseMngrErr("Could not find source for container");
+        UpdateFakeWV(fake_bound, chest, src->cloud_storage);
 
         // fave it if it is in external_favs
         logger::trace("Fave");
@@ -1548,16 +1528,12 @@ public:
         if (hidden_real_ref->GetBaseObject()->GetFormID() != real_formid) {
             return RaiseMngrErr("Hidden real ref formid does not match the real formid");
         }
-        //int value_offset = GetValueInContainer(chest);
         if (!RemoveObject(hidden_real_ref, chest)) return RaiseMngrErr("Failed to UnHideReal");
-        //value_offset = GetValueInContainer(chest) - value_offset;
-        /*if (value_offset < 0) {
-            logger::error("Value offset is negative. Value offset: {}", value_offset);
-            value_offset = 0;
-        }*/
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fakeid);
         hidden_real_ref = nullptr;
-        UpdateFakeWV(fake_bound, chest);
+        const auto src = GetContainerSource(real_formid);
+        if (!src) return RaiseMngrErr("Could not find source for container");
+        UpdateFakeWV(fake_bound, chest,src->cloud_storage);
     }
 
     [[nodiscard]] const bool SwapDroppedFakeContainer(RE::TESObjectREFR* ref_fake) {
