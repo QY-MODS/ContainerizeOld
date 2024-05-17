@@ -6,15 +6,16 @@ using namespace Utilities::Types;
 
 struct Source {
 
+    bool cloud_storage;
     std::map<FormID,Count> initial_items;
     float capacity;
     std::uint32_t formid;
     std::string editorid;
     SourceData data;
 
-    Source(const std::uint32_t id, const std::string id_str, float capacity)
-        : formid(id), editorid(id_str), capacity(capacity) {
-        logger::trace("Creating source with formid: {}, editorid: {}, capacity: {}", formid, editorid, capacity);
+    Source(const std::uint32_t id, const std::string id_str, const float capacity, const bool cs)
+        : formid(id), editorid(id_str), capacity(capacity), cloud_storage(cs) {
+        logger::trace("Creating source with formid: {}, editorid: {}, capacity: {}, cloud storage: {}", formid, editorid, capacity, cs);
         if (!formid) {
             logger::trace("Formid is not found. Attempting to find formid for editorid {}.", editorid);
             auto form = RE::TESForm::LookupByEditorID(editorid);
@@ -45,6 +46,12 @@ namespace Settings {
 
     constexpr auto path = L"Data/SKSE/Plugins/Containerize.ini";
 
+    //constexpr std::uint32_t kSerializationVersion = 729; // < 0.7
+    //constexpr std::uint32_t kSerializationVersion = 730; // = 0.7.0
+    constexpr std::uint32_t kSerializationVersion = 731; // >= 0.7.1
+    constexpr std::uint32_t kDataKey = 'CTRZ';
+    constexpr std::uint32_t kDFDataKey = 'DCTZ';
+    bool is_pre_0_7_1 = false;
 
     bool po3installed = false;
 
@@ -62,24 +69,20 @@ namespace Settings {
         };
 
 
-    const std::array<std::string, 4> os_comments =
+    const size_t otherstuffSize = 5;
+    const std::array<std::string, otherstuffSize> os_comments =
 		{";Set to false to suppress the 'INI changed between saves' message.",
 		"; Set to true to remove the initial carry weight bonuses on your container items.",
         "; Set to true to return to the initial menu after closing your container's menu (which you had opened by holding equip).",
         "; Set to true to sell your container to vendors together with the items inside it.",
+        "; Set to true to make your containers weigh nothing by default.",
 		};
-
    
-    //constexpr std::uint32_t kSerializationVersion = 729; // < 0.7
-    //constexpr std::uint32_t kSerializationVersion = 730; // = 0.7.0
-    constexpr std::uint32_t kSerializationVersion = 731; // >= 0.7.1
-    constexpr std::uint32_t kDataKey = 'CTRZ';
-    constexpr std::uint32_t kDFDataKey = 'DCTZ';
-    bool is_pre_0_7_1 = false;
+    constexpr std::array<const char*, otherstuffSize> otherstuffKeys = 
+    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell", "CloudStorage"};
+    constexpr std::array<bool, otherstuffSize> otherstuffVals = {true, true, true, true, false};
 
-    constexpr std::array<const char*, 4> otherstuffKeys = 
-    {"INI_changed_msg", "RemoveCarryBoosts","ReturnToInitialMenu", "BatchSell"};
-    constexpr std::array<bool, 4> otherstuffVals = {true, true, true, true};
+    bool cloud_storage_enabled = otherstuffVals[4];
     
     std::vector<Source> LoadINISources() {
         
@@ -129,10 +132,11 @@ namespace Settings {
         if (numOthers == 0 || numOthers != otherstuffKeys.size()) {
             logger::warn(
                 "No other settings found in the ini file or Invalid number of other settings . Using defaults.");
-            ini.SetBoolValue(InISections[2], otherstuffKeys[0], otherstuffVals[0], os_comments[0].c_str());
-            ini.SetBoolValue(InISections[2], otherstuffKeys[1], otherstuffVals[1], os_comments[1].c_str());
-            ini.SetBoolValue(InISections[2], otherstuffKeys[2], otherstuffVals[2], os_comments[2].c_str());
-            ini.SetBoolValue(InISections[2], otherstuffKeys[3], otherstuffVals[3], os_comments[3].c_str());
+            size_t index = 0;
+            for (const auto& key : otherstuffKeys) {
+				ini.SetBoolValue(InISections[2], key, otherstuffVals[index], os_comments[index].c_str());
+				index++;
+			}
         }
 
 
@@ -146,6 +150,8 @@ namespace Settings {
         const char* val2;
         uint32_t id;
         std::string id_str;
+
+        cloud_storage_enabled = ini.GetBoolValue(InISections[2], otherstuffKeys[4]);
 
         for (CSimpleIniA::TNamesDepend::const_iterator it = source_names.begin(); it != source_names.end(); ++it) {
             logger::info("source name {}", it->pItem);
@@ -164,14 +170,14 @@ namespace Settings {
             // if both formid is valid hex, use it
             if (Utilities::isValidHexWithLength7or8(val1)) {
                 logger::info("Formid {} is valid hex", val1);
-                sources.emplace_back(id, "", std::stof(val2));
+                sources.emplace_back(id, "", std::stof(val2), cloud_storage_enabled);
             }
             else if (!po3installed) {
                 logger::error("No formid AND powerofthree's Tweaks is not installed.", val1);
                 Utilities::MsgBoxesNotifs::Windows::Po3ErrMsg();
                 return sources;
             } 
-            else sources.emplace_back(0, id_str, std::stof(std::string(val2)));
+            else sources.emplace_back(0, id_str, std::stof(std::string(val2)), cloud_storage_enabled);
 
             logger::trace("Source {} has a value of {}", it->pItem, val1);
             ini.SetValue(InISections[0], it->pItem, val1);
@@ -184,13 +190,14 @@ namespace Settings {
         return sources;
     };
 
-
     Source _parseSource(const YAML::Node& config) {
 
         auto temp_formeditorid = config["FormEditorID"] && !config["FormEditorID"].IsNull() ? config["FormEditorID"].as<std::string>() : "";
         FormID temp_formid = temp_formeditorid.empty() ? 0 : Utilities::FunctionsSkyrim::GetFormEditorIDFromString(temp_formeditorid);
         const auto temp_weight_limit = config["weight_limit"] && !config["weight_limit"].IsNull() ? config["weight_limit"].as<float>() : 0.f;
-        Source source(temp_formid, "", temp_weight_limit);
+        const auto cloud_storage = config["cloud_storage"] && !config["cloud_storage"].IsNull() ? config["cloud_storage"].as<bool>() : cloud_storage_enabled;
+        logger::trace("FormEditorID: {}, FormID: {}, WeightLimit: {}, CloudStorage: {}", temp_formeditorid, temp_formid, temp_weight_limit, cloud_storage);
+        Source source(temp_formid, "", temp_weight_limit, cloud_storage);
 
         if (!config["initial_items"] || config["initial_items"].size() == 0) {
             logger::info("initial_items are empty.");
@@ -240,6 +247,10 @@ namespace Settings {
                 for (const auto& _Node : config["containers"]) {
                     // we have list of owners at each node or a scalar owner
                     const auto source = _parseSource(_Node);
+                    if (source.formid == 0 && source.editorid.empty()) {
+                        logger::error("LoadYAMLSources: File {} has invalid source: {}, {}", filename, source.formid, source.editorid);
+						continue;
+					}
                     sources.push_back(source);
                 }
             }
@@ -251,9 +262,9 @@ namespace Settings {
         std::vector<Source> sources;
         const auto IniSources = LoadINISources();
         logger::trace("IniSources size: {}", IniSources.size());
+        sources.insert(sources.end(), IniSources.begin(), IniSources.end());
         const auto YamlSources = LoadYAMLSources();
         logger::trace("YamlSources size: {}", YamlSources.size());
-        sources.insert(sources.end(), IniSources.begin(), IniSources.end());
         sources.insert(sources.end(), YamlSources.begin(), YamlSources.end());
         return sources;
     };
