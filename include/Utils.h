@@ -18,7 +18,7 @@
 namespace Utilities {
 
     // stuff
-    const auto mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
+    const std::string mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
     constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
 
     const auto no_src_msgbox = std::format(
@@ -50,7 +50,7 @@ namespace Utilities {
         return oss.str();
     }
 
-    bool EqStr(const char* str1, const char* str2) { return std::strcmp(str1, str2) == 0; }
+    inline bool EqStr(const char* str1, const char* str2) { return std::strcmp(str1, str2) == 0; }
 
     std::string DecodeTypeCode(std::uint32_t typeCode) {
         char buf[4];

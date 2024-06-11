@@ -167,6 +167,8 @@ function(addMenuFramework MENU_FRAMEWORK_FOLDER IMGUI_FOLDER)
 
 endfunction()
 
+addMenuFramework("$ENV{SKYRIM_MODS_FOLDER}" "$ENV{USER_PATH}/GitHub/SKSE-Menu-Framework-SDK/ImGui")
+
 if(DEFINED OUTPUT_FOLDER)
     # If you specify an <OUTPUT_FOLDER> (including via environment variables)
     # then we'll copy your mod files into Skyrim or a mod manager for you!

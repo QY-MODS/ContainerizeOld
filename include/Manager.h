@@ -798,7 +798,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::trace("Fake container formid found in ChestToFakeContainer");
             
             // get the fake container from the unownedchestOG  and add it to the player's inventory
-            const FormID fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
+            const FormID fake_container_id = ChestToFakeContainer.at(chest_refid).innerKey;
             
             auto* fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_bound) return RaiseMngrErr("MsgBoxCallback (1): Fake bound not found");
@@ -1503,12 +1503,19 @@ public:
 
     [[nodiscard]] const bool IsUnownedChest(const RefID refid) {
         logger::trace("IsUnownedChest");
-        const auto base = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid)->GetBaseObject();
-        return base->GetFormID() == unownedChest->GetFormID();
+        const auto* temp = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid);
+        if (!temp) return false;
+        const auto base = temp->GetBaseObject();
+        return base ? base->GetFormID() == unownedChest->GetFormID() : false;
 	}
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] const bool IsChest(const RefID chest_refid) { return ChestToFakeContainer.count(chest_refid) > 0; }
+
+    const std::pair<FormID, FormID> GetRealFakePairOfChest(const RefID chest_refid) const {
+        const auto& pair = ChestToFakeContainer.at(chest_refid);
+        return {pair.outerKey, pair.innerKey};
+    };
 
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
 
@@ -2314,6 +2321,8 @@ public:
         }
         //Utilities::printMap(ChestToFakeContainer);
     }
+
+    const std::vector<Source>& GetSources() const { return sources; }
 
 #undef ENABLE_IF_NOT_UNINSTALLED
 
