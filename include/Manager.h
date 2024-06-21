@@ -564,11 +564,11 @@ class Manager : public Utilities::SaveLoadData {
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
-            if (!item_obj) RaiseMngrErr("Item object is null");
-            if (item_obj->GetFormID() == item_id) {
+            //if (!item_obj) RaiseMngrErr("Item object is null");
+            if (item_obj && item_obj->GetFormID() == item_id) {
                 auto inv_data = item->second.second.get();
-                if (!inv_data) RaiseMngrErr("Item data is null");
-                auto asd = inv_data->extraLists;
+                //if (!inv_data) RaiseMngrErr("Item data is null");
+                auto asd = inv_data ? inv_data->extraLists : nullptr;
                 if (!asd || asd->empty()) {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, nullptr, moveTo);
                 } else {
