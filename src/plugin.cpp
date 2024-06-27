@@ -2,6 +2,8 @@
 // FFI04Sack 000DAB04
 
 Manager* M = nullptr;
+bool eventsinks_added = false;
+
 bool listen_weight_limit = false;
 bool listen_crosshair_ref = true;
 bool furniture_entered = false;
@@ -100,9 +102,18 @@ public:
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
         if (!M->getListenActivate()) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
+
+        bool skip_interface = false;
+        if (Utilities::po3_use_or_take) {
+            if (auto base = event->objectActivated->GetBaseObject()) {
+                RE::BSString str;
+                base->GetActivateText(RE::PlayerCharacter::GetSingleton(), str);
+                if (Utilities::Functions::String::includesWord(str.c_str(), {"Equip", "Eat", "Drink"})) skip_interface = true;
+            }
+        }
         
         logger::trace("Container activated");
-        M->OnActivateContainer(event->objectActivated.get());
+        M->OnActivateContainer(event->objectActivated.get(),skip_interface);
         M->Print();
 
 
@@ -472,6 +483,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
+        if (eventsinks_added) return;
         if (!M) return;
         // EventSink
         auto* eventSink = OurEventSink::GetSingleton();
@@ -484,6 +496,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
         RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
+        eventsinks_added = true;
     }
 }
 

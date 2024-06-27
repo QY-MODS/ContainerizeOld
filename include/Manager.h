@@ -312,7 +312,7 @@ class Manager : public Utilities::SaveLoadData {
         if (!HasItem(fake_form, player_ref) || x_0 == 0) return;
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
         if (!fake_bound) return RaiseMngrErr("Fake bound is null");
-        const int f_0 = GetItemValue(fake_bound, player_ref);
+        const int f_0 = GetItemValue(fake_bound, player_ref->GetInventory());
         int f_search = f_0; 
         const int target_value = GetValueInContainer(chest_linked);
         logger::trace("Value in inventory: {}, Target value: {}", f_0, target_value);
@@ -334,7 +334,7 @@ class Manager : public Utilities::SaveLoadData {
 			else x_search += x_search/ 2;
             if (x_search < 0) return Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
             Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
-            f_search = GetItemValue(fake_bound, player_ref);
+            f_search = GetItemValue(fake_bound, player_ref->GetInventory());
             if (f_search < x_search) return Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
 			curr_iter--;
 		}
@@ -565,11 +565,14 @@ class Manager : public Utilities::SaveLoadData {
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
-            if (!item_obj) RaiseMngrErr("Item object is null");
+            if (!item_obj) {
+                logger::warn("Item object is null");
+                continue;
+            };
             if (item_obj->GetFormID() == item_id) {
                 auto inv_data = item->second.second.get();
-                if (!inv_data) RaiseMngrErr("Item data is null");
-                auto asd = inv_data->extraLists;
+                //if (!inv_data) RaiseMngrErr("Item data is null");
+                auto asd = inv_data ? inv_data->extraLists : nullptr;
                 if (!asd || asd->empty()) {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, nullptr, moveTo);
                 } else {
@@ -605,7 +608,7 @@ class Manager : public Utilities::SaveLoadData {
 			logger::error("Bound object is null: {} with refid", ref->GetName(), ref->GetFormID());
 			return false;
 		}
-        const auto ref_formid = ref_bound->GetFormID();
+        //const auto ref_formid = ref_bound->GetFormID();
         
         if (owned) ref->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
         if (!PickUpItem(ref)) {
@@ -617,6 +620,8 @@ class Manager : public Utilities::SaveLoadData {
             logger::error("Player actor is null");
             return false;
         }
+        
+        //RE::ExtraDataList* extralist = nullptr;
         const auto temp_inv = player_actor->GetInventory();
         if (const auto entry = temp_inv.find(ref_bound); entry == temp_inv.end()) {
             logger::error("Item not found in inventory");
@@ -624,7 +629,10 @@ class Manager : public Utilities::SaveLoadData {
         } else if (entry->second.first <= 0) {
             logger::error("Item count is 0 in inventory");
             return false;
-        }
+        } /*else {
+            auto* asd = entry->second.second.get();
+            if (asd && asd->extraLists && !asd->extraLists->empty()) extralist = asd->extraLists->front();
+        }*/
         player_actor->RemoveItem(ref_bound, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, move2container);
         // RemoveItemReverse(player_ref, move2container, ref_formid,
         //                   RE::ITEM_REMOVE_REASON::kStoreInContainer);
@@ -744,11 +752,11 @@ class Manager : public Utilities::SaveLoadData {
         logger::trace("PromptInterface");
 
         // get the source corresponding to the container that we are activating
-        auto src = GetContainerSource(current_container->GetBaseObject()->GetFormID());
+        const auto src = GetContainerSource(current_container->GetBaseObject()->GetFormID());
         if (!src) return RaiseMngrErr("Could not find source for container");
         
-        auto chest = GetRealContainerChest(current_container);
-        auto fake_id = ChestToFakeContainer[chest->GetFormID()].innerKey;
+        const auto chest = GetRealContainerChest(current_container);
+        const auto fake_id = ChestToFakeContainer[chest->GetFormID()].innerKey;
 
         std::string name = renames.count(fake_id) ? renames[fake_id] : current_container->GetDisplayFullName();
 
@@ -1029,7 +1037,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::warn("Item bound is null");
             return false;
         }
-        const auto item_count = GetItemCount(item_bound, actor);
+        const auto item_count = GetItemCount(item_bound, actor->GetInventory());
         logger::trace("Item count: {}", item_count);
 
         for (const auto& x_i : Settings::xRemove) {
@@ -1043,7 +1051,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::trace("Critical: PickUpItem");
 			actor->PickUpObject(item, 1, false, false);
             logger::trace("Item picked up. Checking if it is in inventory...");
-            if (const auto new_item_count = GetItemCount(item_bound, actor); new_item_count > item_count) {
+            if (const auto new_item_count = GetItemCount(item_bound, actor->GetInventory()); new_item_count > item_count) {
             	logger::trace("Item picked up. Took {} extra tries.", i);
                 setListenContainerChange(true);
                 return true;
@@ -1831,7 +1839,7 @@ public:
     }
 
 
-    void OnActivateContainer(RE::TESObjectREFR* a_container) {
+    void OnActivateContainer(RE::TESObjectREFR* a_container, bool equip=false) {
         ENABLE_IF_NOT_UNINSTALLED
         logger::trace("OnActivateContainer 1 arg");
         HandleRegistration(a_container);
@@ -1844,7 +1852,15 @@ public:
         const auto real_formid = ChestToFakeContainer[chest->GetFormID()].outerKey;
         RemoveItemReverse(chest, unownedChestOG, real_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
 
-        return PromptInterface();
+        if (!equip) return PromptInterface();
+        const auto fake_formid = ChestToFakeContainer[chest->GetFormID()].innerKey;
+		
+        MsgBoxCallback(1);
+        SKSE::GetTaskInterface()->AddTask([fake_formid]() {
+			auto* bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_formid);
+            if (!bound) return;
+            RE::ActorEquipManager::GetSingleton()->EquipObject(RE::PlayerCharacter::GetSingleton(), bound, nullptr, 1);
+		});
     };
 
     void ActivateContainer(const FormID fakeid, bool hide_real = false) {
