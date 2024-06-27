@@ -309,7 +309,6 @@ class Manager : public Utilities::SaveLoadData {
         Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
         logger::trace("ACTUAL VALUE {}", Utilities::FunctionsSkyrim::FormTraits<T>::GetValue(fake_form));
         
-        auto player_inventory = player_ref->GetInventory();
         if (!HasItem(fake_form, player_ref) || x_0 == 0) return;
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
         if (!fake_bound) return RaiseMngrErr("Fake bound is null");
@@ -335,7 +334,6 @@ class Manager : public Utilities::SaveLoadData {
 			else x_search += x_search/ 2;
             if (x_search < 0) return Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
             Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
-            player_inventory = player_ref->GetInventory();
             f_search = GetItemValue(fake_bound, player_ref);
             if (f_search < x_search) return Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
 			curr_iter--;
@@ -379,12 +377,12 @@ class Manager : public Utilities::SaveLoadData {
             logger::error("Item bound is null");
             return false;
         }
-        auto inventory_from = from_inv->GetInventory();
-        auto inventory_to = to_inv->GetInventory();
         if (!HasItem(from_item, from_inv) || !HasItem(to_item, to_inv)) {
             logger::error("Item not found in inventory");
             return false;
         }
+        auto inventory_from = from_inv->GetInventory();
+        auto inventory_to = to_inv->GetInventory();
         auto entry_from = inventory_from.find(from_item);
         auto entry_to = inventory_to.find(to_item);
         RE::ExtraDataList* extralist_from = nullptr;
@@ -567,11 +565,11 @@ class Manager : public Utilities::SaveLoadData {
         auto inventory = moveFrom->GetInventory();
         for (auto item = inventory.rbegin(); item != inventory.rend(); ++item) {
             auto item_obj = item->first;
-            //if (!item_obj) RaiseMngrErr("Item object is null");
-            if (item_obj && item_obj->GetFormID() == item_id) {
+            if (!item_obj) RaiseMngrErr("Item object is null");
+            if (item_obj->GetFormID() == item_id) {
                 auto inv_data = item->second.second.get();
-                //if (!inv_data) RaiseMngrErr("Item data is null");
-                auto asd = inv_data ? inv_data->extraLists : nullptr;
+                if (!inv_data) RaiseMngrErr("Item data is null");
+                auto asd = inv_data->extraLists;
                 if (!asd || asd->empty()) {
                     ref_handle = moveFrom->RemoveItem(item_obj, 1, reason, nullptr, moveTo);
                 } else {
@@ -759,8 +757,9 @@ class Manager : public Utilities::SaveLoadData {
         auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
         if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
         if (auto* real_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid); real_obj && !HasItem(
-                real_obj, unownedChestOG))
+                real_obj, unownedChestOG)){
             return RaiseMngrErr("Real container not found in unownedChestOG");
+        }
         RemoveItemReverse(unownedChestOG, chest, real_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
     }
 
@@ -1511,10 +1510,10 @@ public:
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] const bool IsChest(const RefID chest_refid) { return ChestToFakeContainer.count(chest_refid) > 0; }
 
-    const std::pair<FormID, FormID> GetRealFakePairOfChest(const RefID chest_refid) const {
+    /*const std::pair<FormID, FormID> GetRealFakePairOfChest(const RefID chest_refid) const {
         const auto& pair = ChestToFakeContainer.at(chest_refid);
         return {pair.outerKey, pair.innerKey};
-    };
+    };*/
 
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
 
@@ -2324,7 +2323,7 @@ public:
         //Utilities::printMap(ChestToFakeContainer);
     }
 
-    const std::vector<Source>& GetSources() const { return sources; }
+    //const std::vector<Source>& GetSources() const { return sources; }
 
 #undef ENABLE_IF_NOT_UNINSTALLED
 
