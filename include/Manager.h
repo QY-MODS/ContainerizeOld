@@ -312,7 +312,7 @@ class Manager : public Utilities::SaveLoadData {
         if (!HasItem(fake_form, player_ref) || x_0 == 0) return;
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
         if (!fake_bound) return RaiseMngrErr("Fake bound is null");
-        const int f_0 = GetItemValue(fake_bound, player_ref);
+        const int f_0 = GetItemValue(fake_bound, player_ref->GetInventory());
         int f_search = f_0; 
         const int target_value = GetValueInContainer(chest_linked);
         logger::trace("Value in inventory: {}, Target value: {}", f_0, target_value);
@@ -334,7 +334,7 @@ class Manager : public Utilities::SaveLoadData {
 			else x_search += x_search/ 2;
             if (x_search < 0) return Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
             Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_search);
-            f_search = GetItemValue(fake_bound, player_ref);
+            f_search = GetItemValue(fake_bound, player_ref->GetInventory());
             if (f_search < x_search) return Utilities::FunctionsSkyrim::FormTraits<T>::SetValue(fake_form, x_0);
 			curr_iter--;
 		}
@@ -605,7 +605,7 @@ class Manager : public Utilities::SaveLoadData {
 			logger::error("Bound object is null: {} with refid", ref->GetName(), ref->GetFormID());
 			return false;
 		}
-        const auto ref_formid = ref_bound->GetFormID();
+        //const auto ref_formid = ref_bound->GetFormID();
         
         if (owned) ref->extraList.SetOwner(RE::TESForm::LookupByID<RE::TESForm>(0x07));
         if (!PickUpItem(ref)) {
@@ -1029,7 +1029,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::warn("Item bound is null");
             return false;
         }
-        const auto item_count = GetItemCount(item_bound, actor);
+        const auto item_count = GetItemCount(item_bound, actor->GetInventory());
         logger::trace("Item count: {}", item_count);
 
         for (const auto& x_i : Settings::xRemove) {
@@ -1043,7 +1043,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::trace("Critical: PickUpItem");
 			actor->PickUpObject(item, 1, false, false);
             logger::trace("Item picked up. Checking if it is in inventory...");
-            if (const auto new_item_count = GetItemCount(item_bound, actor); new_item_count > item_count) {
+            if (const auto new_item_count = GetItemCount(item_bound, actor->GetInventory()); new_item_count > item_count) {
             	logger::trace("Item picked up. Took {} extra tries.", i);
                 setListenContainerChange(true);
                 return true;

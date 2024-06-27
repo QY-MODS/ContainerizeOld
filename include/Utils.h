@@ -303,15 +303,16 @@ namespace Utilities {
 
             const unsigned int GetValueInContainer(RE::TESObjectREFR* container);
 
-            inline const bool HasItemEntry(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner,
+            inline const bool HasItemEntry(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory,
                                     bool nonzero_entry_check = false);
 
-            const std::int32_t GetItemCount(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
+            const std::int32_t GetItemCount(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory);
 
-            const std::int32_t GetItemValue(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner);
+            const std::int32_t GetItemValue(RE::TESBoundObject* item,
+                                            const RE::TESObjectREFR::InventoryItemMap& inventory);
 
             inline const bool HasItem(RE::TESBoundObject* item, RE::TESObjectREFR* inventory_owner) {
-                if (HasItemEntry(item, inventory_owner, true)) return true;
+                if (HasItemEntry(item, inventory_owner->GetInventory(), true)) return true;
                 return false;
             }
 

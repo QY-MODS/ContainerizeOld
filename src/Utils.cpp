@@ -662,48 +662,21 @@ const unsigned int Utilities::FunctionsSkyrim::Inventory::GetValueInContainer(RE
 }
 
 const bool Utilities::FunctionsSkyrim::Inventory::HasItemEntry(RE::TESBoundObject* item,
-                                                               RE::TESObjectREFR* inventory_owner,
+                                                               const RE::TESObjectREFR::InventoryItemMap& inventory,
                                                                bool nonzero_entry_check) {
-    /*if (const auto has_entry = inventory.find(item) != inventory.end(); !has_entry) return false;
-    else return nonzero_entry_check ? has_entry && inventory.at(item).first > 0 : has_entry;*/
-
-    if (!item) {
-        logger::warn("Item is null");
-        return 0;
-    }
-    if (!inventory_owner) {
-        logger::warn("Inventory owner is null");
-        return 0;
-    }
-    auto inventory = inventory_owner->GetInventory();
-    auto it = inventory.find(item);
-    bool has_entry = it != inventory.end();
-    if (nonzero_entry_check) return has_entry && it->second.first > 0;
-    return has_entry;
+    
+    if (const auto has_entry = inventory.find(item) != inventory.end(); !has_entry) return false;
+    else return nonzero_entry_check ? has_entry && inventory.at(item).first > 0 : has_entry;
 }
 
-const std::int32_t Utilities::FunctionsSkyrim::Inventory::GetItemCount(RE::TESBoundObject* item,
-                                                                       RE::TESObjectREFR* inventory_owner) {
-    /*if (!HasItemEntry(item, inventory, true)) return 0;
-    return inventory.find(item)->second.first;*/
-    if (HasItemEntry(item, inventory_owner, true)) {
-        auto inventory = inventory_owner->GetInventory();
-        auto it = inventory.find(item);
-        return it->second.first;
-    }
-    return 0;
-
-
+const std::int32_t Utilities::FunctionsSkyrim::Inventory::GetItemCount(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory) {
+    if (!HasItemEntry(item, inventory, true)) return 0;
+    return inventory.find(item)->second.first;
 }
 
-const std::int32_t Utilities::FunctionsSkyrim::Inventory::GetItemValue(RE::TESBoundObject* item,
-                                                                       RE::TESObjectREFR* inventory_owner) {
-    /*if (HasItemEntry(item, inventory, true)) {
+const std::int32_t Utilities::FunctionsSkyrim::Inventory::GetItemValue(RE::TESBoundObject* item, const RE::TESObjectREFR::InventoryItemMap& inventory) {
+    if (HasItemEntry(item, inventory, true)) {
         return inventory.at(item).second->GetValue();
-    }
-    return 0;*/
-    if (HasItemEntry(item, inventory_owner, true)) {
-        return inventory_owner->GetInventory().find(item)->second.second->GetValue();
     }
     return 0;
 }
