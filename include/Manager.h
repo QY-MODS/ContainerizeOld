@@ -311,6 +311,7 @@ class Manager : public Utilities::SaveLoadData {
         
         if (!HasItem(fake_form, player_ref) || x_0 == 0) return;
         const auto fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_form->GetFormID());
+        if (!fake_bound) return RaiseMngrErr("Fake bound is null");
         const int f_0 = GetItemValue(fake_bound, player_ref);
         int f_search = f_0; 
         const int target_value = GetValueInContainer(chest_linked);
@@ -769,8 +770,10 @@ class Manager : public Utilities::SaveLoadData {
     void SendBackReal(const FormID real_formid, RE::TESObjectREFR* chest) {
         auto unownedChestOG = RE::TESForm::LookupByID<RE::TESObjectREFR>(unownedChestOGRefID);
         if (!unownedChestOG) return RaiseMngrErr("MsgBoxCallback unownedChestOG is null");
-        if (!HasItem(RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid), unownedChestOG))
+        if (auto* real_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(real_formid); real_obj && !HasItem(
+                real_obj, unownedChestOG)){
             return RaiseMngrErr("Real container not found in unownedChestOG");
+        }
         RemoveItemReverse(unownedChestOG, chest, real_formid, RE::ITEM_REMOVE_REASON::kStoreInContainer);
     }
 
@@ -812,7 +815,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::trace("Fake container formid found in ChestToFakeContainer");
             
             // get the fake container from the unownedchestOG  and add it to the player's inventory
-            const FormID fake_container_id = ChestToFakeContainer[chest_refid].innerKey;
+            const FormID fake_container_id = ChestToFakeContainer.at(chest_refid).innerKey;
             
             auto* fake_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(fake_container_id);
             if (!fake_bound) return RaiseMngrErr("MsgBoxCallback (1): Fake bound not found");
@@ -1013,7 +1016,7 @@ class Manager : public Utilities::SaveLoadData {
             logger::warn("Item is null");
             return false;
         }
-        auto actor = RE::PlayerCharacter::GetSingleton();
+        RE::Actor* actor = RE::PlayerCharacter::GetSingleton();
         if (!actor) {
             logger::warn("PlayerCharacter is null");
             return false;
@@ -1022,12 +1025,12 @@ class Manager : public Utilities::SaveLoadData {
         setListenContainerChange(false);
 
         auto item_bound = item->GetObjectReference();
-        const auto item_count = GetItemCount(item_bound, actor);
-        logger::trace("Item count: {}", item_count);
         if (!item_bound) {
             logger::warn("Item bound is null");
             return false;
         }
+        const auto item_count = GetItemCount(item_bound, actor);
+        logger::trace("Item count: {}", item_count);
 
         for (const auto& x_i : Settings::xRemove) {
             item->extraList.RemoveByType(static_cast<RE::ExtraDataType>(x_i));
@@ -1040,12 +1043,11 @@ class Manager : public Utilities::SaveLoadData {
             logger::trace("Critical: PickUpItem");
 			actor->PickUpObject(item, 1, false, false);
             logger::trace("Item picked up. Checking if it is in inventory...");
-            if (GetItemCount(item_bound, actor) > item_count) {
+            if (const auto new_item_count = GetItemCount(item_bound, actor); new_item_count > item_count) {
             	logger::trace("Item picked up. Took {} extra tries.", i);
                 setListenContainerChange(true);
                 return true;
-            }
-            else logger::trace("item count: {}", GetItemCount(item_bound, actor));
+            } else logger::trace("item count: {}", new_item_count);
 			i++;
 		}
 
@@ -1053,8 +1055,7 @@ class Manager : public Utilities::SaveLoadData {
         return false;
     }
 
-    void RemoveCarryWeightBoost(const FormID item_formid,RE::TESObjectREFR* inventory_owner){
-
+    void RemoveCarryWeightBoost(const FormID item_formid, RE::TESObjectREFR* inventory_owner) {
         logger::trace("RemoveCarryWeightBoost");
 
         auto item_obj = RE::TESForm::LookupByID<RE::TESBoundObject>(item_formid);
@@ -1073,12 +1074,12 @@ class Manager : public Utilities::SaveLoadData {
                 logger::trace("SecondaryAV: {}", effect->baseEffect->data.secondaryAV);
                 if (effect->baseEffect->data.primaryAV == RE::ActorValue::kCarryWeight) {
                     logger::trace("Removing enchantment: {}", effect->baseEffect->GetName());
-                    //effect->baseEffect = empty_mgeff;
+                    // effect->baseEffect = empty_mgeff;
                     if (effect->effectItem.magnitude > 0) effect->effectItem.magnitude = 0;
                 }
             }
         }
-	}
+    }
 
 
     void InitFailed() {
@@ -1352,14 +1353,11 @@ class Manager : public Utilities::SaveLoadData {
 
     // returns true only if the item is in the inventory with positive count. removes the item if it is in the inventory with 0 count
     [[nodiscard]] const bool HasItemPlusCleanUp(RE::TESBoundObject* item, RE::TESObjectREFR* item_owner) {
-
         logger::trace("HasItemPlusCleanUp");
-
-        if (HasItem(item, item_owner)) return true;
-        if (HasItemEntry(item, item_owner)) {
-            RemoveItemReverse(item_owner, nullptr, item->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
-            logger::trace("Item with zero count removed from player.");
-        }
+        const auto inventory = item_owner->GetInventory();
+        if (const auto entry = inventory.find(item); entry == inventory.end()) return false;
+        else if (entry->second.first > 0) return true;
+        else RemoveItemReverse(item_owner, nullptr, item->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
         return false;
     }
 
@@ -1517,12 +1515,19 @@ public:
 
     [[nodiscard]] const bool IsUnownedChest(const RefID refid) {
         logger::trace("IsUnownedChest");
-        const auto base = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid)->GetBaseObject();
-        return base->GetFormID() == unownedChest->GetFormID();
+        const auto* temp = RE::TESForm::LookupByID<RE::TESObjectREFR>(refid);
+        if (!temp) return false;
+        const auto base = temp->GetBaseObject();
+        return base ? base->GetFormID() == unownedChest->GetFormID() : false;
 	}
 
     // checks if the refid is in the ChestToFakeContainer, i.e. if it is an unownedchest
     [[nodiscard]] const bool IsChest(const RefID chest_refid) { return ChestToFakeContainer.count(chest_refid) > 0; }
+
+    /*const std::pair<FormID, FormID> GetRealFakePairOfChest(const RefID chest_refid) const {
+        const auto& pair = ChestToFakeContainer.at(chest_refid);
+        return {pair.outerKey, pair.innerKey};
+    };*/
 
 #define ENABLE_IF_NOT_UNINSTALLED if (isUninstalled) return;
 
@@ -1702,16 +1707,19 @@ public:
 
         // make also sure that the real counterpart is still in unowned
         const auto chest_refid = GetFakeContainerChest(fake_formid);
-        const auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
+        auto chest_ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(chest_refid);
         const auto real_obj = FakeToRealContainer(fake_formid);
+        if (!real_obj) return RaiseMngrErr("Real counterpart not found.");
         if (!HasItem(real_obj, chest_ref)) return RaiseMngrErr("Real counterpart not found in unowned chest.");
         
         logger::info("Deregistering bcs Item consumed.");
         RemoveItemReverse(chest_ref, nullptr, real_obj->GetFormID(), RE::ITEM_REMOVE_REASON::kRemove);
         const auto temp_formids = DeRegisterChest(chest_refid);
         for (auto& temp_formid : temp_formids){
-            if (auto temp_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(temp_formid))
-                Utilities::FunctionsSkyrim::Menu::SendInventoryUpdateMessage(player_ref, temp_bound);
+            if (auto temp_bound = RE::TESForm::LookupByID<RE::TESBoundObject>(temp_formid)){
+                //Utilities::FunctionsSkyrim::Menu::SendInventoryUpdateMessage(player_ref, temp_bound);
+                RE::SendUIMessage::SendInventoryUpdateMessage(player_ref, temp_bound);
+            }
         }
 
     }
@@ -2328,6 +2336,8 @@ public:
         }
         //Utilities::printMap(ChestToFakeContainer);
     }
+
+    //const std::vector<Source>& GetSources() const { return sources; }
 
 #undef ENABLE_IF_NOT_UNINSTALLED
 

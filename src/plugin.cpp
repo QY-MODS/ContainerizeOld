@@ -157,7 +157,7 @@ public:
 
         //logger::trace("Menu event: {} {}", event->menuName, event->opening ? "opened" : "closed");
         
-        if (Utilities::EqStr(event->menuName.c_str(), "CustomMenu") && !event->opening && M->getListenMenuClose()) {
+        if (event->menuName == "CustomMenu" && !event->opening && M->getListenMenuClose()) {
 			logger::trace("Rename menu closed.");
             M->setListenMenuClose(false);
             const auto skyrimVM = RE::SkyrimVM::GetSingleton();
@@ -212,16 +212,19 @@ public:
                                 if (auto has_container = a_objref->HasContainer()) {
                                     logger::trace("HasContainer: {}", has_container);
                                     if (auto container = a_objref->As<RE::TESObjectCONT>()) {
-                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
+                                        a_objref->OpenContainer(0);
+                                        //Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
                                         //container->Activate(a_objref, player_ref, 0, container, 1);
                                     } 
                                     else if (auto container_ = a_objref->GetBaseObject()->As<RE::TESObjectCONT>()) {
-                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
+                                        a_objref->OpenContainer(0);
+                                        //Utilities::FunctionsSkyrim::OpenContainer(a_objref, 0);
                                         //container_->Activate(a_objref, player_ref, 0, container_, 1);
                                     } 
                                     else {
                                         logger::trace("has container but could not activate.");
-                                        Utilities::FunctionsSkyrim::OpenContainer(a_objref, 3);
+                                        //Utilities::FunctionsSkyrim::OpenContainer(a_objref, 3);
+                                        a_objref->OpenContainer(3);
                                     }
                                 } else a_objref->ActivateRef(player_ref, 0, a_objref->GetBaseObject(), 1, 0);
                             }
