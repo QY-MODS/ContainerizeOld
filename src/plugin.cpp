@@ -102,9 +102,18 @@ public:
         if (event->objectActivated == RE::PlayerCharacter::GetSingleton()->GetGrabbedRef()) return RE::BSEventNotifyControl::kContinue;
         if (!M->getListenActivate()) return RE::BSEventNotifyControl::kContinue;
         if (!M->IsRealContainer(event->objectActivated.get())) return RE::BSEventNotifyControl::kContinue;
+
+        bool skip_interface = false;
+        if (Utilities::po3_use_or_take) {
+            if (auto base = event->objectActivated->GetBaseObject()) {
+                RE::BSString str;
+                base->GetActivateText(RE::PlayerCharacter::GetSingleton(), str);
+                if (Utilities::Functions::String::includesWord(str.c_str(), {"Equip", "Eat", "Drink"})) skip_interface = true;
+            }
+        }
         
         logger::trace("Container activated");
-        M->OnActivateContainer(event->objectActivated.get());
+        M->OnActivateContainer(event->objectActivated.get(),skip_interface);
         M->Print();
 
 

@@ -126,6 +126,55 @@ std::string Utilities::Functions::String::decodeString(const std::vector<std::pa
     return decodedString;
 }
 
+std::string Utilities::Functions::String::toLowercase(const std::string& str) {
+    std::string result = str;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return result;
+}
+
+std::string Utilities::Functions::String::replaceLineBreaksWithSpace(const std::string& input) {
+    std::string result = input;
+    std::replace(result.begin(), result.end(), '\n', ' ');
+    return result;
+}
+
+std::string Utilities::Functions::String::trim(const std::string& str) { 
+    // Find the first non-whitespace character from the beginning
+    size_t start = str.find_first_not_of(" \t\n\r");
+
+    // If the string is all whitespace, return an empty string
+    if (start == std::string::npos) return "";
+
+    // Find the last non-whitespace character from the end
+    size_t end = str.find_last_not_of(" \t\n\r");
+
+    // Return the substring containing the trimmed characters
+    return str.substr(start, end - start + 1);
+}
+
+bool Utilities::Functions::String::includesWord(const std::string& input, const std::vector<std::string>& strings) {
+    std::string lowerInput = toLowercase(input);
+    lowerInput = replaceLineBreaksWithSpace(lowerInput);
+    lowerInput = trim(lowerInput);
+    lowerInput = " " + lowerInput + " ";  // Add spaces to the beginning and end of the string
+
+    for (const auto& str : strings) {
+        std::string lowerStr = str;
+        lowerStr = trim(lowerStr);
+        lowerStr = " " + lowerStr + " ";  // Add spaces to the beginning and end of the string
+        std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        // logger::trace("lowerInput: {} lowerStr: {}", lowerInput, lowerStr);
+
+        if (lowerInput.find(lowerStr) != std::string::npos) {
+            return true;  // The input string includes one of the strings
+        }
+    }
+    return false;  // None of the strings in 'strings' were found in the input string
+}
+
 void Utilities::Math::LinAlg::R3::rotateZ(RE::NiPoint3& v, float angle) {
     float x = v.x * cos(angle) - v.y * sin(angle);
     float y = v.x * sin(angle) + v.y * cos(angle);

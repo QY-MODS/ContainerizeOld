@@ -20,6 +20,7 @@ namespace Utilities {
     // stuff
     const std::string mod_name = static_cast<std::string>(SKSE::PluginDeclaration::GetSingleton()->GetName());
     constexpr auto po3path = "Data/SKSE/Plugins/po3_Tweaks.dll";
+    constexpr auto po3_UoTpath = "Data/SKSE/Plugins/po3_UseOrTake.dll";
 
     const auto no_src_msgbox = std::format(
         "{}: You currently do not have any container set up. Check your ini file or see the mod page for instructions.",
@@ -31,6 +32,9 @@ namespace Utilities {
         mod_name);
     const auto general_err_msgbox = std::format("{}: Something went wrong. Please contact the mod author.", mod_name);
     const auto init_err_msgbox = std::format("{}: The mod failed to initialize and will be terminated.", mod_name);
+
+    inline bool IsPo3_UoTInstalled() { return std::filesystem::exists(po3_UoTpath); };
+    const auto po3_use_or_take = IsPo3_UoTInstalled();
 
     // string stuff
 
@@ -137,6 +141,15 @@ namespace Utilities {
             std::vector<std::pair<int, bool>> encodeString(const std::string& inputString);
 
             std::string decodeString(const std::vector<std::pair<int, bool>>& encodedValues);
+
+            std::string toLowercase(const std::string& str);
+
+            std::string replaceLineBreaksWithSpace(const std::string& input);
+
+            std::string trim(const std::string& str);
+
+            // if it includes any of the words in the vector
+            bool includesWord(const std::string& input, const std::vector<std::string>& strings);
 
         };
 
