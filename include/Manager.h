@@ -612,8 +612,22 @@ class Manager : public Utilities::SaveLoadData {
             logger::error("Failed to pick up item");
             return false;
         }
-        RemoveItemReverse(player_ref, move2container, ref_formid,
-                          RE::ITEM_REMOVE_REASON::kStoreInContainer);
+        RE::Actor* player_actor = player_ref->As<RE::Actor>();
+        if (!player_actor) {
+            logger::error("Player actor is null");
+            return false;
+        }
+        const auto temp_inv = player_actor->GetInventory();
+        if (const auto entry = temp_inv.find(ref_bound); entry == temp_inv.end()) {
+            logger::error("Item not found in inventory");
+            return false;
+        } else if (entry->second.first <= 0) {
+            logger::error("Item count is 0 in inventory");
+            return false;
+        }
+        player_actor->RemoveItem(ref_bound, 1, RE::ITEM_REMOVE_REASON::kStoreInContainer, nullptr, move2container);
+        // RemoveItemReverse(player_ref, move2container, ref_formid,
+        //                   RE::ITEM_REMOVE_REASON::kStoreInContainer);
         if (!HasItem(ref_bound, move2container)) {
             logger::error("Real container not found in move2container");
             return false;
