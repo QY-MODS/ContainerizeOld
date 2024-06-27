@@ -2,6 +2,8 @@
 // FFI04Sack 000DAB04
 
 Manager* M = nullptr;
+bool eventsinks_added = false;
+
 bool listen_weight_limit = false;
 bool listen_crosshair_ref = true;
 bool furniture_entered = false;
@@ -472,6 +474,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
     }
     if (message->type == SKSE::MessagingInterface::kPostLoadGame ||
         message->type == SKSE::MessagingInterface::kNewGame) {
+        if (eventsinks_added) return;
         if (!M) return;
         // EventSink
         auto* eventSink = OurEventSink::GetSingleton();
@@ -484,6 +487,7 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
         RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
+        eventsinks_added = true;
     }
 }
 
