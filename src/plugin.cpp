@@ -1,4 +1,4 @@
-#include "UI.h"
+#include "Manager.h"
 // FFI04Sack 000DAB04
 
 Manager* M = nullptr;
@@ -484,10 +484,6 @@ void OnMessage(SKSE::MessagingInterface::Message* message) {
         RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(eventSink);
         RE::BSInputDeviceManager::GetSingleton()->AddEventSink(eventSink);
         SKSE::GetCrosshairRefEventSource()->AddEventSink(eventSink);
-
-        // MCP
-        UI::Register(M);
-        logger::info("MCP registered.");
     }
 }
 
